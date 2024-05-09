@@ -15,10 +15,31 @@ namespace xxx
 			ImGuiIO& io = ImGui::GetIO(); (void)io;
 			io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 			io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-			/*ImGui::StyleColorsClassic();
+			//io.ConfigDockingAlwaysTabBar = true;
+
+            std::ifstream cnsCharIFS(R"(D:\Data\cns_common_char.txt)", std::ios::binary | std::ios::ate);
+            assert(cnsCharIFS.is_open());
+            size_t bufSize = cnsCharIFS.tellg();
+            cnsCharIFS.seekg(std::ios::beg);
+            unsigned char* charBuf = new unsigned char[bufSize];
+            cnsCharIFS.read((char*)charBuf, bufSize);
+            cnsCharIFS.close();
+
+            static ImVector<ImWchar> myRange;
+            ImFontGlyphRangesBuilder myGlyph;
+            myGlyph.AddText((const char*)charBuf);
+            myGlyph.BuildRanges(&myRange);
+            delete[] charBuf;
+
+            ImFontConfig config;
+            config.MergeMode = true;
+			io.Fonts->AddFontFromFileTTF(R"(D:\Code\imgui-1.90.5-docking\misc\fonts\ProggyClean.ttf)", 13.0, NULL, io.Fonts->GetGlyphRangesDefault());
+            io.Fonts->AddFontFromFileTTF(R"(C:\Windows\Fonts\simhei.ttf)", 13.0, &config, myRange.Data);
+            io.Fonts->Build();
+			ImGui::StyleColorsClassic();
 			ImGuiStyle& style = ImGui::GetStyle();
 			style.WindowRounding = 6.0;
-			style.Colors[ImGuiCol_WindowBg].w = 1.0;*/
+			style.Colors[ImGuiCol_WindowBg].w = 1.0;
 			ImGui_ImplOsg_Init(viewer);
 		}
 
@@ -100,13 +121,28 @@ namespace xxx
 			}
 			ImGui::End();
 
-			if (ImGui::Begin("Test"))
+			if (ImGui::Begin("Hierarchy"))
 			{
 				/*if (ImGui::TreeNodeEx())*/
 				static char textbuf[1024] = {};
-				ImGui::InputText("Text", textbuf, 1024);
+				ImGui::InputText("中文测试", textbuf, 1024);
 			}
 			ImGui::End();
+
+            if (ImGui::Begin("Inspector"))
+            {
+                if (ImGui::TreeNode("Transform"))
+                {
+                    static float position[3] = { 0.0f, 0.0f, 0.0f };
+                    static float rotation[3] = { 0.0f, 0.0f, 0.0f };
+                    static float scale[3] = { 1.0, 1.0, 1.0 };
+                    ImGui::DragFloat3("Position", position);
+                    ImGui::DragFloat3("Rotation", rotation);
+                    ImGui::DragFloat3("Scale", scale);
+                    ImGui::TreePop();
+                }
+            }
+            ImGui::End();
 		}
 	};
 }
