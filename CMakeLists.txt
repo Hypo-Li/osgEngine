@@ -1,4 +1,4 @@
-﻿cmake_minimum_required (VERSION 3.8)
+cmake_minimum_required (VERSION 3.8)
 
 if (POLICY CMP0141)
   cmake_policy(SET CMP0141 NEW)
@@ -22,6 +22,7 @@ ENDMACRO(LINK_WITH_VARIABLES TRGTNAME)
 project ("osgEngine")
 
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_SOURCE_DIR}/CMakeModules")
+add_definitions(-DTEMP_DIR="${CMAKE_SOURCE_DIR}/Temp/")
 find_package(OSG REQUIRED)
 find_package(OpenGL REQUIRED)
 include_directories(
@@ -30,4 +31,5 @@ include_directories(
 )
 
 add_subdirectory ("Source/Core")
+add_subdirectory ("Source/Editor")
 add_subdirectory ("Source/ThirdParty/imgui")

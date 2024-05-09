@@ -1,4 +1,4 @@
-﻿add_executable (Core "Core.cpp" "Core.h" "Entity.h" "Entity.cpp" "Component.h" "ImGuiHandler.h" "Context.h" "Pipeline.h")
+add_executable (Core "Core.cpp" "Core.h" "Entity.h" "Entity.cpp" "Component.h" "Context.h" "Pipeline.h")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET Core PROPERTY CXX_STANDARD 20)
