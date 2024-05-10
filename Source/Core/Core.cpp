@@ -44,45 +44,55 @@ class MyCameraManipulator : public osgGA::CameraManipulator
 public:
     MyCameraManipulator() :
         _position(osg::Vec3d()),
-        _rotation(osg::Quat())
+        _rotation(osg::Quat()),
+        _velocity(0.005)
     {
         calculateVectors();
     }
 
     virtual bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& us)
     {
-        switch (ea.getEventType())
+       static bool keyDown[26] = { false };
+       switch (ea.getEventType())
         {
-        case osgGA::GUIEventAdapter::KEYDOWN:
-        {
-            using KEY = osgGA::GUIEventAdapter::KeySymbol;
-            switch (ea.getKey())
-            {
-            case KEY::KEY_W:
-            {
-                moveFront(1.0);
-                return true;
-            }
-            case KEY::KEY_A:
-            {
-                moveRight(-1.0);
-                return true;
-            }
-            case KEY::KEY_S:
-            {
-                moveFront(-1.0);
-                return true;
-            }
-            case KEY::KEY_D:
-            {
-                moveRight(1.0);
-                return true;
-            }
-            default: return false;
-            }
-        }
+       case osgGA::GUIEventAdapter::KEYDOWN:
+       case osgGA::GUIEventAdapter::KEYUP:
+       {
+           using KEY = osgGA::GUIEventAdapter::KeySymbol;
+           bool isKeyDown = ea.getEventType() == osgGA::GUIEventAdapter::KEYDOWN;
+           switch (ea.getKey())
+           {
+           case KEY::KEY_W:
+               keyDown['w' - 'a'] = isKeyDown;
+               break;
+           case KEY::KEY_A:
+               keyDown['a' - 'a'] = isKeyDown;
+               break;
+           case KEY::KEY_S:
+               keyDown['s' - 'a'] = isKeyDown;
+               break;
+           case KEY::KEY_D:
+               keyDown['d' - 'a'] = isKeyDown;
+               break;
+           default:
+               break;
+           }
+           return true;
+       }
+       case osgGA::GUIEventAdapter::FRAME:
+       {
+           if (keyDown['w' - 'a'])
+               moveFront(_velocity);
+           if (keyDown['a' - 'a'])
+               moveRight(-_velocity);
+           if (keyDown['s' - 'a'])
+               moveFront(-_velocity);
+           if (keyDown['d' - 'a'])
+               moveRight(_velocity);
+           return false;
+       }
         default: return false;
-        }
+       }
     }
 
     void moveFront(double distance)
@@ -127,6 +137,7 @@ private:
     osg::Vec3 _frontVector;
     osg::Vec3 _rightVector;
     osg::Vec3 _upVector;
+    double _velocity;
 
     void calculateVectors()
     {
