@@ -30,6 +30,11 @@ include_directories(
 	${CMAKE_SOURCE_DIR}/Source
 )
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 add_subdirectory ("Source/Core")
 add_subdirectory ("Source/Editor")
 add_subdirectory ("Source/ThirdParty/imgui")
+add_subdirectory ("Source/Test/Core")

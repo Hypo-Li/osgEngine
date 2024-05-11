@@ -1,4 +1,3 @@
-#include "Core.h"
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
 #include <osgGA/StateSetManipulator>
@@ -52,47 +51,47 @@ public:
 
     virtual bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& us)
     {
-       static bool keyDown[26] = { false };
-       switch (ea.getEventType())
+        static bool keyDown[26] = { false };
+        switch (ea.getEventType())
         {
-       case osgGA::GUIEventAdapter::KEYDOWN:
-       case osgGA::GUIEventAdapter::KEYUP:
-       {
-           using KEY = osgGA::GUIEventAdapter::KeySymbol;
-           bool isKeyDown = ea.getEventType() == osgGA::GUIEventAdapter::KEYDOWN;
-           switch (ea.getKey())
-           {
-           case KEY::KEY_W:
-               keyDown['w' - 'a'] = isKeyDown;
-               break;
-           case KEY::KEY_A:
-               keyDown['a' - 'a'] = isKeyDown;
-               break;
-           case KEY::KEY_S:
-               keyDown['s' - 'a'] = isKeyDown;
-               break;
-           case KEY::KEY_D:
-               keyDown['d' - 'a'] = isKeyDown;
-               break;
-           default:
-               break;
-           }
-           return true;
-       }
-       case osgGA::GUIEventAdapter::FRAME:
-       {
-           if (keyDown['w' - 'a'])
-               moveFront(_velocity);
-           if (keyDown['a' - 'a'])
-               moveRight(-_velocity);
-           if (keyDown['s' - 'a'])
-               moveFront(-_velocity);
-           if (keyDown['d' - 'a'])
-               moveRight(_velocity);
-           return false;
-       }
+        case osgGA::GUIEventAdapter::KEYDOWN:
+        case osgGA::GUIEventAdapter::KEYUP:
+        {
+            using KEY = osgGA::GUIEventAdapter::KeySymbol;
+            bool isKeyDown = ea.getEventType() == osgGA::GUIEventAdapter::KEYDOWN;
+            switch (ea.getKey())
+            {
+            case KEY::KEY_W:
+                keyDown['w' - 'a'] = isKeyDown;
+                break;
+            case KEY::KEY_A:
+                keyDown['a' - 'a'] = isKeyDown;
+                break;
+            case KEY::KEY_S:
+                keyDown['s' - 'a'] = isKeyDown;
+                break;
+            case KEY::KEY_D:
+                keyDown['d' - 'a'] = isKeyDown;
+                break;
+            default:
+                break;
+            }
+            return true;
+        }
+        case osgGA::GUIEventAdapter::FRAME:
+        {
+            if (keyDown['w' - 'a'])
+                moveFront(_velocity);
+            if (keyDown['a' - 'a'])
+                moveRight(-_velocity);
+            if (keyDown['s' - 'a'])
+                moveFront(-_velocity);
+            if (keyDown['d' - 'a'])
+                moveRight(_velocity);
+            return false;
+        }
         default: return false;
-       }
+        }
     }
 
     void moveFront(double distance)
