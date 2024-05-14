@@ -12,6 +12,7 @@ namespace xxx
             _viewer = viewer;
             osg::Camera* nativeCamera = viewer->getCamera();
             _graphicsContext = nativeCamera->getGraphicsContext();
+            _graphicsContext->setResizedCallback(new ResizedCallback(_passes));
             nativeCamera->setGraphicsContext(nullptr);
             osg::Viewport* nativeViewport = nativeCamera->getViewport();
             int x = nativeViewport->x();
@@ -119,7 +120,7 @@ namespace xxx
                 if (pass->_camera->getRenderTargetImplementation() == osg::Camera::FRAME_BUFFER_OBJECT)
                 {
                     double sizeScale = pass->_sizeScale;
-                    pass->_camera->setViewport(x * sizeScale, y * sizeScale, width * sizeScale, height * sizeScale);
+                    pass->_camera->setViewport(x , y, width * sizeScale, height * sizeScale);
                 }
             }
             double newAspect = double(width) / double(height);
@@ -132,7 +133,7 @@ namespace xxx
         osg::ref_ptr<osg::GraphicsContext> _graphicsContext;
         std::vector<osg::ref_ptr<Pass>> _passes;
 
-        osg::Geometry* Pipeline::getScreenGeometry()
+        static osg::Geometry* Pipeline::getScreenGeometry()
         {
             static osg::ref_ptr<osg::Geometry> geometry = nullptr;
             if (geometry) return geometry;
@@ -149,5 +150,20 @@ namespace xxx
             geometry->setCullingActive(false);
             return geometry;
         }
+
+        class ResizedCallback : public osg::GraphicsContext::ResizedCallback
+        {
+            std::vector<osg::ref_ptr<Pass>>& _passes;
+        public:
+            ResizedCallback(std::vector<osg::ref_ptr<Pass>>& passes) : _passes(passes) {}
+
+            virtual void resizedImplementation(osg::GraphicsContext* gc, int x, int y, int width, int height)
+            {
+                std::set<osg::Viewport*> resizedViewports;
+                std::set<osg::Texture*> resizedTextures;
+
+
+            }
+        };
     };
 }
