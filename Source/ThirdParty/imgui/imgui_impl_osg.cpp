@@ -9,6 +9,7 @@
 struct ImGui_ImplOsg_Data
 {
 	osgViewer::Viewer* Viewer;
+    osg::Camera* Camera;
 	osgViewer::GraphicsWindow* Window;
 	double Time;
 	osgViewer::GraphicsWindow::MouseCursor MouseCursors[ImGuiMouseCursor_COUNT];
@@ -20,7 +21,7 @@ ImGui_ImplOsg_Data* ImGui_ImplOsg_GetBackendData()
 	return ImGui::GetCurrentContext() ? (ImGui_ImplOsg_Data*)ImGui::GetIO().BackendPlatformUserData : nullptr;
 }
 
-bool ImGui_ImplOsg_Init(osgViewer::Viewer* viewer)
+bool ImGui_ImplOsg_Init(osgViewer::Viewer* viewer, osg::Camera* camera)
 {
 	ImGuiIO& io = ImGui::GetIO();
 	IM_ASSERT(io.BackendPlatformUserData == nullptr && "Already initialized a platform backend!");
@@ -32,7 +33,8 @@ bool ImGui_ImplOsg_Init(osgViewer::Viewer* viewer)
 	io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;
 	
 	bd->Viewer = viewer;
-	bd->Window = dynamic_cast<osgViewer::GraphicsWindow*>(bd->Viewer->getCamera()->getGraphicsContext());
+    bd->Camera = camera;
+	bd->Window = dynamic_cast<osgViewer::GraphicsWindow*>(camera->getGraphicsContext());
 	IM_ASSERT(bd->Window != nullptr);
 	bd->Time = 0.0;
 
@@ -42,8 +44,8 @@ bool ImGui_ImplOsg_Init(osgViewer::Viewer* viewer)
 	bd->MouseCursors[ImGuiMouseCursor_ResizeAll] = MouseCursor::LeftArrowCursor;
 	bd->MouseCursors[ImGuiMouseCursor_ResizeNS] = MouseCursor::UpDownCursor;
 	bd->MouseCursors[ImGuiMouseCursor_ResizeEW] = MouseCursor::LeftRightCursor;
-	bd->MouseCursors[ImGuiMouseCursor_ResizeNESW] = MouseCursor::LeftArrowCursor;
-	bd->MouseCursors[ImGuiMouseCursor_ResizeNWSE] = MouseCursor::LeftArrowCursor;
+	bd->MouseCursors[ImGuiMouseCursor_ResizeNESW] = MouseCursor::TopRightCorner;
+	bd->MouseCursors[ImGuiMouseCursor_ResizeNWSE] = MouseCursor::TopLeftCorner;
 	bd->MouseCursors[ImGuiMouseCursor_Hand] = MouseCursor::HandCursor;
 	bd->MouseCursors[ImGuiMouseCursor_NotAllowed] = MouseCursor::LeftArrowCursor;
 
@@ -74,7 +76,7 @@ void ImGui_ImplOsg_NewFrame()
 	ImGuiIO& io = ImGui::GetIO();
 	ImGui_ImplOsg_Data* bd = ImGui_ImplOsg_GetBackendData();
 
-	osg::Viewport* viewport = bd->Viewer->getCamera()->getViewport();
+	osg::Viewport* viewport = bd->Camera->getViewport();
 	io.DisplaySize = ImVec2(viewport->width(), viewport->height());
 
 	double current_time = bd->Viewer->getFrameStamp()->getSimulationTime();
@@ -295,7 +297,7 @@ static unsigned char osgKeyToChar(int key)
 	}
 }
 
-bool ImGui_ImplOsg_Handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa)
+bool ImGui_ImplOsg_Handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa, bool wantCaptureEvents)
 {
 	ImGuiIO& io = ImGui::GetIO();
 	const bool wantCaptureMouse = io.WantCaptureMouse;
@@ -337,7 +339,7 @@ bool ImGui_ImplOsg_Handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdap
 		ImGuiKey imguiKey = ImGui_ImplOsg_KeyToImGuiKey(osgKey);
 		if (imguiKey != ImGuiKey_None)
 			io.AddKeyEvent(imguiKey, isKeyDown);
-		return wantCaptureKeyboard;
+		return wantCaptureKeyboard && wantCaptureEvents;
 	}
     case (osgGA::GUIEventAdapter::DOUBLECLICK):
 	case (osgGA::GUIEventAdapter::RELEASE):
@@ -352,18 +354,18 @@ bool ImGui_ImplOsg_Handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdap
 			io.AddMouseButtonEvent(ImGuiMouseButton_Right, isButtonDown);
 		if (ea.getButton() == osgGA::GUIEventAdapter::MIDDLE_MOUSE_BUTTON)
 			io.AddMouseButtonEvent(ImGuiMouseButton_Middle, isButtonDown);
-		return wantCaptureMouse;
+		return wantCaptureMouse && wantCaptureEvents;
 	}
 	case (osgGA::GUIEventAdapter::DRAG):
 	case (osgGA::GUIEventAdapter::MOVE):
 	{
 		io.AddMousePosEvent(ea.getX(), io.DisplaySize.y - ea.getY());
-		return wantCaptureMouse;
+		return wantCaptureMouse && wantCaptureEvents;
 	}
 	case (osgGA::GUIEventAdapter::SCROLL):
 	{
 		io.AddMouseWheelEvent(0.0, ea.getScrollingMotion() == osgGA::GUIEventAdapter::SCROLL_UP ? 1.0 : -1.0);
-		return wantCaptureMouse;
+		return wantCaptureMouse && wantCaptureEvents;
 	}
 	default: return false;
 	}

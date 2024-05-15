@@ -1,20 +1,38 @@
 #pragma once
+#include <Core/Render/Pipeline.h>
 #include <osgViewer/ViewerEventHandlers>
 #include <ThirdParty/imgui/imgui.h>
 #include <ThirdParty/imgui/imgui_impl_opengl3.h>
 #include <ThirdParty/imgui/imgui_impl_osg.h>
 namespace xxx
 {
+    class ImGuiInitOperation : public osg::Operation
+    {
+        const char* _glslVersion;
+    public:
+        ImGuiInitOperation(const char* glslVersion = nullptr) : osg::Operation("ImGuiInitOperation", false), _glslVersion(glslVersion) {}
+
+        void operator()(osg::Object* object) override
+        {
+            osg::GraphicsContext* context = dynamic_cast<osg::GraphicsContext*>(object);
+            if (!context)
+                return;
+
+            ImGui_ImplOpenGL3_Init(_glslVersion);
+        }
+    };
+
 	class ImGuiHandler : public osgGA::GUIEventHandler
 	{
 	public:
-		ImGuiHandler(osgViewer::Viewer* viewer)
+		ImGuiHandler(osgViewer::Viewer* viewer, osg::Camera* camera, osg::Texture2D* sceneColorTexture, Pipeline* pipeline) : _imguiCamera(camera), _sceneColorTexture(sceneColorTexture), _pipeline(pipeline)
 		{
 			IMGUI_CHECKVERSION();
 			ImGui::CreateContext();
 			ImGuiIO& io = ImGui::GetIO(); (void)io;
 			io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 			io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+            io.ConfigWindowsMoveFromTitleBarOnly = true;
 			//io.ConfigDockingAlwaysTabBar = true;
 
             std::ifstream cnsCharIFS(TEMP_DIR "cns_common_char.txt", std::ios::binary | std::ios::ate);
@@ -39,9 +57,9 @@ namespace xxx
 			ImGui::StyleColorsClassic();
 			ImGuiStyle& style = ImGui::GetStyle();
 			style.WindowRounding = 6.0;
-			style.Colors[ImGuiCol_WindowBg].w = 1.0;
+			//style.Colors[ImGuiCol_WindowBg].w = 1.0;
             style.ScaleAllSizes(1.5);
-			ImGui_ImplOsg_Init(viewer);
+			ImGui_ImplOsg_Init(viewer, camera);
 		}
 
 		virtual bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa)
@@ -49,18 +67,22 @@ namespace xxx
 			static bool initialized = false;
 			if (!initialized)
 			{
-				osg::View* view = aa.asView();
-				if (view)
-				{
-					view->getCamera()->setPostDrawCallback(new ImGuiNewFrameCallback(this));
-					initialized = true;
-				}
+                _imguiCamera->setPostDrawCallback(new ImGuiNewFrameCallback(this));
+                initialized = true;
 			}
 
-			return ImGui_ImplOsg_Handle(ea, aa);
+            return ImGui_ImplOsg_Handle(ea, aa, !(_viewWindowIsFocused && _viewItemIsHovered));
 		}
 
 	private:
+        osg::ref_ptr<osg::Camera> _imguiCamera;
+        osg::ref_ptr<osg::Texture2D> _sceneColorTexture;
+        osg::ref_ptr<Pipeline> _pipeline;
+        bool _viewWindowIsFocused = false;
+        bool _viewItemIsHovered = false;
+        int _viewX, _viewY, _viewWidth, _viewHeight;
+        bool _viewDirty = false;
+
 		class ImGuiNewFrameCallback : public osg::Camera::DrawCallback
 		{
 			ImGuiHandler* _handler;
@@ -73,6 +95,7 @@ namespace xxx
 				ImGui_ImplOsg_NewFrame();
 				ImGui::NewFrame();
 				_handler->draw();
+                _handler->updateViewport();
 				ImGui::Render();
 				ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 			}
@@ -144,6 +167,53 @@ namespace xxx
                 }
             }
             ImGui::End();
+
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0, 0.0));
+            if (ImGui::Begin("SceneView"))
+            {
+                _viewWindowIsFocused = ImGui::IsWindowFocused();
+
+                if (_sceneColorTexture->getTextureObject(0))
+                {
+                    ImVec2 regionMin = ImGui::GetWindowContentRegionMin();
+                    ImVec2 regionMax = ImGui::GetWindowContentRegionMax();
+                    ImVec2 uv0((_viewX + 0.5f) / io.DisplaySize.x, (_viewY + _viewHeight - 0.5f) / io.DisplaySize.y);
+                    ImVec2 uv1((_viewX + _viewWidth - 0.5f) / io.DisplaySize.x, (_viewY + 0.5f) / io.DisplaySize.y);
+                    ImGui::Image((void*)_sceneColorTexture->getTextureObject(0)->id(), ImVec2(regionMax.x - regionMin.x, regionMax.y - regionMin.y), uv0, uv1);
+                    _viewItemIsHovered = ImGui::IsItemHovered();
+                    ImVec2 itemRectMin = ImGui::GetItemRectMin();
+                    ImVec2 itemRectMax = ImGui::GetItemRectMax();
+
+                    int x = itemRectMin.x;
+                    int y = io.DisplaySize.y - itemRectMax.y;
+                    int width = itemRectMax.x - itemRectMin.x;
+                    int height = itemRectMax.y - itemRectMin.y;
+                    if (x != _viewX || y != _viewY || width != _viewWidth || height != _viewHeight)
+                    {
+                        _viewX = x;
+                        _viewY = y;
+                        _viewWidth = width;
+                        _viewHeight = height;
+                        _viewDirty = true;
+                    }
+                }
+                else
+                {
+                    _viewX = _viewY = _viewWidth = _viewHeight = 0;
+                }
+            }
+            ImGui::End();
+            ImGui::PopStyleVar();
+
 		}
+
+        void updateViewport()
+        {
+            if (_viewDirty)
+            {
+                _pipeline->setViewport(_viewX, _viewY, _viewWidth, _viewHeight);
+                _viewDirty = false;
+            }
+        }
 	};
 }

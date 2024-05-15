@@ -14,6 +14,6 @@ namespace xxx
         virtual bool save() const = 0;
 
     protected:
-        fs::path _path;
+        std::string_view _path;
     };
 }

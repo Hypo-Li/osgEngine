@@ -3,22 +3,6 @@
 #include <osgViewer/ViewerEventHandlers>
 #include <osgGA/StateSetManipulator>
 
-class ImGuiInitOperation : public osg::Operation
-{
-    const char* _glslVersion;
-public:
-    ImGuiInitOperation(const char* glslVersion = nullptr) : osg::Operation("ImGuiInitOperation", false), _glslVersion(glslVersion) {}
-
-    void operator()(osg::Object* object) override
-    {
-        osg::GraphicsContext* context = dynamic_cast<osg::GraphicsContext*>(object);
-        if (!context)
-            return;
-
-        ImGui_ImplOpenGL3_Init(_glslVersion);
-    }
-};
-
 int main()
 {
     const int width = 1280, height = 800;
@@ -42,7 +26,7 @@ int main()
 
     viewer->setSceneData(rootGroup);
     //viewer->setKeyEventSetsDone(0); // prevent exit when press esc key
-    viewer->setRealizeOperation(new ImGuiInitOperation);
+    viewer->setRealizeOperation(new xxx::ImGuiInitOperation);
     viewer->addEventHandler(new xxx::ImGuiHandler(viewer));
     //viewer->addEventHandler(new osgViewer::StatsHandler);
     //viewer->addEventHandler(new osgGA::StateSetManipulator(viewer->getCamera()->getOrCreateStateSet()));

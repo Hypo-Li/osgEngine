@@ -1,13 +1,16 @@
 add_library (
     Core
     "Asset/Asset.h"
-    "Asset/MeshAsset.h"
-    "Asset/MaterialAsset.h"
-    "Component/Render/MeshRenderer.h"
-    
-    "Render/Material.h"
-    "Runtime/Entity.h"
-    "Runtime/Entity.cpp"
-    "Runtime/Component.h"
-    "Runtime/Component.cpp"
-)
+    "Asset/Texture.h"
+    "Asset/StaticMesh.h"
+    "Asset/Material.h"
+    "Asset/AssetManager.h"
+    "Component/MeshRenderer.h"
+    "Base/Entity.h"
+    "Base/Entity.cpp"
+    "Base/Component.h"
+    "Base/Component.cpp"
+    "Render/Pipeline.h"
+    "Render/Pipeline.cpp"
+    "Utility/Log.h"
+ "Utility/StringHash.h")

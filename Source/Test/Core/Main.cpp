@@ -1,9 +1,15 @@
+#include <Core/Render/Pipeline.h>
+#include <Editor/ImGuiHandler.h>
+#include <Core/Base/Entity.h>
+#include <Core/Component/MeshRenderer.h>
+#include "TestEventHandler.h"
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
 #include <osgGA/StateSetManipulator>
+#include <osgGA/TrackballManipulator>
 #include <osgDB/ReadFile>
 
-static const char* testVS = R"(
+static const char* inputVS = R"(
 #version 430 core
 in vec3 osg_Vertex;
 in vec3 osg_Normal;
@@ -23,7 +29,7 @@ void main()
 }
 )";
 
-static const char* testFS = R"(
+static const char* inputFS = R"(
 #version 430 core
 in vec3 vo_Position;
 in vec3 vo_Normal;
@@ -35,6 +41,42 @@ void main()
     vec3 normal = normalize(vo_Normal);
     float ndv = max(dot(normal, viewDir), 0.0);
     fragData = vo_Color * ndv;
+}
+)";
+
+static const char* quadVS = R"(
+#version 430 core
+layout(location = 0) in vec3 osg_Vertex;
+out vec2 uv;
+void main()
+{
+    gl_Position = vec4(osg_Vertex, 1.0);
+    uv = osg_Vertex.xy * 0.5 + 0.5;
+}
+)";
+
+static const char* workFS = R"(
+#version 430 core
+in vec2 uv;
+out vec4 fragData;
+uniform sampler2D uColorTexture;
+uniform vec4 uResolution;
+uniform vec4 uViewport;
+void main()
+{
+    vec2 uvScale = uViewport.zw * uResolution.zw;
+    vec2 uvOffset = uViewport.xy * uResolution.zw;
+    fragData = texture(uColorTexture, uv * uvScale + uvOffset);
+}
+)";
+
+static const char* finalFS = R"(
+#version 430 core
+in vec2 uv;
+out vec4 fragData;
+void main()
+{
+    //fragData = texture(uColorTexture, uv);
 }
 )";
 
@@ -140,9 +182,9 @@ private:
 
     void calculateVectors()
     {
-        _upVector = _rotation * osg::Vec3(0.0, 1.0, 0.0);
+        _upVector = _rotation * osg::Vec3(0.0, 0.0, 1.0);
         _rightVector = _rotation * osg::Vec3(1.0, 0.0, 0.0);
-        _frontVector = _rotation * osg::Vec3(0.0, 0.0, -1.0);
+        _frontVector = _rotation * osg::Vec3(0.0, 1.0, 0.0);
     }
 };
 
@@ -161,12 +203,18 @@ int main()
     gc->getState()->setUseVertexAttributeAliasing(true);
 
     osg::ref_ptr<osg::Group> rootGroup = new osg::Group;
-    osg::Node* meshNode = osgDB::readNodeFile(TEMP_DIR "susana.obj");
+    osg::Node* meshNode = osgDB::readNodeFile(TEMP_DIR "suzanne2.obj");
     osg::Program* program = new osg::Program;
-    program->addShader(new osg::Shader(osg::Shader::VERTEX, testVS));
-    program->addShader(new osg::Shader(osg::Shader::FRAGMENT, testFS));
+    program->addShader(new osg::Shader(osg::Shader::VERTEX, inputVS));
+    program->addShader(new osg::Shader(osg::Shader::FRAGMENT, inputFS));
     meshNode->getOrCreateStateSet()->setAttribute(program, osg::StateAttribute::ON);
-    rootGroup->addChild(meshNode);
+    //rootGroup->addChild(meshNode);
+
+    xxx::Entity* entity = new xxx::Entity("Suzanne");
+    xxx::MeshRenderer* meshRenderer = new xxx::MeshRenderer;
+    meshRenderer->setMesh(meshNode);
+    entity->appendComponent(meshRenderer);
+    rootGroup->addChild(entity->asMatrixTransform());
 
     osg::ref_ptr<osgViewer::Viewer> viewer = new osgViewer::Viewer;
     osg::ref_ptr<osg::Camera> camera = viewer->getCamera();
@@ -174,8 +222,30 @@ int main()
     camera->setViewport(0, 0, width, height);
     camera->setProjectionMatrixAsPerspective(45.0, double(width) / double(height), 0.1, 1000.0);
 
+    using BufferType = xxx::Pipeline::Pass::BufferType;
+    osg::ref_ptr<xxx::Pipeline> pipeline = new xxx::Pipeline(viewer);
+    osg::ref_ptr<xxx::Pipeline::Pass> inputPass = pipeline->addInputPass("Input", 0xFFFFFFFF, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, false, 2.0, 2.0);
+    inputPass->getCamera()->setClearColor(osg::Vec4(0.2, 0.2, 0.2, 1.0));
+    inputPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA8);
+    inputPass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT);
+
+    osg::ref_ptr<osg::Program> workProgram = new osg::Program;
+    workProgram->addShader(new osg::Shader(osg::Shader::VERTEX, quadVS));
+    workProgram->addShader(new osg::Shader(osg::Shader::FRAGMENT, workFS));
+    osg::ref_ptr<xxx::Pipeline::Pass> workPass = pipeline->addWorkPass("Work", workProgram, GL_COLOR_BUFFER_BIT, false, 2.0, 2.0);
+    workPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA8);
+    workPass->applyTexture(inputPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorTexture", 0);
+
+    osg::ref_ptr<osg::Program> finalProgram = new osg::Program;
+    finalProgram->addShader(new osg::Shader(osg::Shader::VERTEX, quadVS));
+    finalProgram->addShader(new osg::Shader(osg::Shader::FRAGMENT, finalFS));
+    osg::ref_ptr<xxx::Pipeline::Pass> finalPass = pipeline->addFinalPass("Final", finalProgram);
+
     viewer->setSceneData(rootGroup);
-    viewer->setCameraManipulator(new MyCameraManipulator);
+    viewer->setRealizeOperation(new xxx::ImGuiInitOperation);
+    viewer->addEventHandler(new xxx::ImGuiHandler(viewer, finalPass->getCamera(), dynamic_cast<osg::Texture2D*>(workPass->getBufferTexture(BufferType::COLOR_BUFFER0)), pipeline));
+    viewer->addEventHandler(new xxx::TestEventHandler);
+    viewer->setCameraManipulator(new osgGA::TrackballManipulator);
     //viewer->setKeyEventSetsDone(0); // prevent exit when press esc key
     //viewer->addEventHandler(new osgViewer::StatsHandler);
     //viewer->addEventHandler(new osgGA::StateSetManipulator(viewer->getCamera()->getOrCreateStateSet()));
