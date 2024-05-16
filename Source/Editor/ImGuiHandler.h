@@ -74,6 +74,17 @@ namespace xxx
             return ImGui_ImplOsg_Handle(ea, aa, !(_viewWindowIsFocused && _viewItemIsHovered));
 		}
 
+        osg::Matrixd getSceneViewViewportMatrix()
+        {
+            double halfWidth = _viewWidth / 2.0, halfHeight = _viewHeight / 2.0;
+            return osg::Matrixd(
+                halfWidth, 0.0, 0.0, 0.0,
+                0.0, halfHeight, 0.0, 0.0,
+                0.0, 0.0, 0.5, 0.0,
+                _viewX + halfWidth, _viewY + halfHeight, 0.5, 1.0
+            );
+        }
+
 	private:
         osg::ref_ptr<osg::Camera> _imguiCamera;
         osg::ref_ptr<osg::Texture2D> _sceneColorTexture;

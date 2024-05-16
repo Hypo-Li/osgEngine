@@ -48,10 +48,14 @@ static const char* quadVS = R"(
 #version 430 core
 layout(location = 0) in vec3 osg_Vertex;
 out vec2 uv;
+uniform vec4 uResolution;
+uniform vec4 uViewport;
 void main()
 {
     gl_Position = vec4(osg_Vertex, 1.0);
-    uv = osg_Vertex.xy * 0.5 + 0.5;
+    vec2 uvScale = uViewport.zw * uResolution.zw;
+    vec2 uvOffset = uViewport.xy * uResolution.zw;
+    uv = (osg_Vertex.xy * 0.5 + 0.5) * uvScale + uvOffset;
 }
 )";
 
@@ -60,13 +64,9 @@ static const char* workFS = R"(
 in vec2 uv;
 out vec4 fragData;
 uniform sampler2D uColorTexture;
-uniform vec4 uResolution;
-uniform vec4 uViewport;
 void main()
 {
-    vec2 uvScale = uViewport.zw * uResolution.zw;
-    vec2 uvOffset = uViewport.xy * uResolution.zw;
-    fragData = texture(uColorTexture, uv * uvScale + uvOffset);
+    fragData = texture(uColorTexture, uv);
 }
 )";
 
@@ -232,7 +232,7 @@ int main()
     osg::ref_ptr<osg::Program> workProgram = new osg::Program;
     workProgram->addShader(new osg::Shader(osg::Shader::VERTEX, quadVS));
     workProgram->addShader(new osg::Shader(osg::Shader::FRAGMENT, workFS));
-    osg::ref_ptr<xxx::Pipeline::Pass> workPass = pipeline->addWorkPass("Work", workProgram, GL_COLOR_BUFFER_BIT, false, 2.0, 2.0);
+    osg::ref_ptr<xxx::Pipeline::Pass> workPass = pipeline->addWorkPass("Work", workProgram, GL_COLOR_BUFFER_BIT, false, 1.0, 1.0);
     workPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA8);
     workPass->applyTexture(inputPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorTexture", 0);
 
@@ -243,8 +243,9 @@ int main()
 
     viewer->setSceneData(rootGroup);
     viewer->setRealizeOperation(new xxx::ImGuiInitOperation);
-    viewer->addEventHandler(new xxx::ImGuiHandler(viewer, finalPass->getCamera(), dynamic_cast<osg::Texture2D*>(workPass->getBufferTexture(BufferType::COLOR_BUFFER0)), pipeline));
-    viewer->addEventHandler(new xxx::TestEventHandler);
+    xxx::ImGuiHandler* imguiHandler = new xxx::ImGuiHandler(viewer, finalPass->getCamera(), dynamic_cast<osg::Texture2D*>(workPass->getBufferTexture(BufferType::COLOR_BUFFER0)), pipeline);
+    viewer->addEventHandler(imguiHandler);
+    viewer->addEventHandler(new xxx::TestEventHandler(inputPass->getCamera(), imguiHandler));
     viewer->setCameraManipulator(new osgGA::TrackballManipulator);
     //viewer->setKeyEventSetsDone(0); // prevent exit when press esc key
     //viewer->addEventHandler(new osgViewer::StatsHandler);

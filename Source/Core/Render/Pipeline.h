@@ -265,8 +265,9 @@ namespace xxx
                 {
                     if (!pass->_fixedSize)
                     {
-                        pass->_camera->setViewport(0, 0, width * pass->_xScale, height * pass->_yScale);
-                        pass->_viewportUniform->set(osg::Vec4(0, 0, width * pass->_xScale, height * pass->_yScale));
+                        osg::Viewport* viewport = pass->_camera->getViewport();
+                        pass->_camera->setViewport(viewport->x(), viewport->y(), width * pass->_xScale, height * pass->_yScale);
+                        pass->_viewportUniform->set(osg::Vec4(viewport->x(), viewport->y(), width * pass->_xScale, height * pass->_yScale));
 
                         auto& bufferAttachmentMap = pass->_camera->getBufferAttachmentMap();
                         for (auto itr : bufferAttachmentMap)
