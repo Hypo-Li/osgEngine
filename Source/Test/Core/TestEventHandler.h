@@ -17,7 +17,7 @@ namespace xxx
         {
             if (ea.getHandled())
                 return false;
-            if (ea.getEventType() == osgGA::GUIEventAdapter::PUSH &&
+            if (ea.getEventType() == osgGA::GUIEventAdapter::RELEASE &&
                 ea.getButton() == osgGA::GUIEventAdapter::LEFT_MOUSE_BUTTON)
             {
                 osgViewer::Viewer* viewer = dynamic_cast<osgViewer::Viewer*>(aa.asView());

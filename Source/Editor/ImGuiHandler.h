@@ -180,7 +180,7 @@ namespace xxx
             ImGui::End();
 
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0, 0.0));
-            if (ImGui::Begin("SceneView"))
+            if (ImGui::Begin("Scene View"))
             {
                 _viewWindowIsFocused = ImGui::IsWindowFocused();
 

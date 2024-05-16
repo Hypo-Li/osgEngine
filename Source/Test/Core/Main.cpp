@@ -40,7 +40,7 @@ void main()
     vec3 viewDir = normalize(-vo_Position);
     vec3 normal = normalize(vo_Normal);
     float ndv = max(dot(normal, viewDir), 0.0);
-    fragData = vo_Color * ndv;
+    fragData = vo_Color;// * ndv;
 }
 )";
 
@@ -203,7 +203,7 @@ int main()
     gc->getState()->setUseVertexAttributeAliasing(true);
 
     osg::ref_ptr<osg::Group> rootGroup = new osg::Group;
-    osg::Node* meshNode = osgDB::readNodeFile(TEMP_DIR "suzanne2.obj");
+    osg::Node* meshNode = osgDB::readNodeFile(TEMP_DIR "road.obj");
     osg::Program* program = new osg::Program;
     program->addShader(new osg::Shader(osg::Shader::VERTEX, inputVS));
     program->addShader(new osg::Shader(osg::Shader::FRAGMENT, inputFS));
@@ -224,7 +224,7 @@ int main()
 
     using BufferType = xxx::Pipeline::Pass::BufferType;
     osg::ref_ptr<xxx::Pipeline> pipeline = new xxx::Pipeline(viewer);
-    osg::ref_ptr<xxx::Pipeline::Pass> inputPass = pipeline->addInputPass("Input", 0xFFFFFFFF, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, false, 2.0, 2.0);
+    osg::ref_ptr<xxx::Pipeline::Pass> inputPass = pipeline->addInputPass("Input", 0xFFFFFFFF, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, false, 4.0, 4.0);
     inputPass->getCamera()->setClearColor(osg::Vec4(0.2, 0.2, 0.2, 1.0));
     inputPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA8);
     inputPass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT);
@@ -232,7 +232,7 @@ int main()
     osg::ref_ptr<osg::Program> workProgram = new osg::Program;
     workProgram->addShader(new osg::Shader(osg::Shader::VERTEX, quadVS));
     workProgram->addShader(new osg::Shader(osg::Shader::FRAGMENT, workFS));
-    osg::ref_ptr<xxx::Pipeline::Pass> workPass = pipeline->addWorkPass("Work", workProgram, GL_COLOR_BUFFER_BIT, false, 1.0, 1.0);
+    osg::ref_ptr<xxx::Pipeline::Pass> workPass = pipeline->addWorkPass("Work", workProgram, GL_COLOR_BUFFER_BIT, false, 2.0, 2.0);
     workPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA8);
     workPass->applyTexture(inputPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorTexture", 0);
 
