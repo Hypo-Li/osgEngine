@@ -334,7 +334,6 @@ struct ViewData
     osg::Matrixf inverseProjectionMatrix;
     osg::Matrixf inverseProjectionMatrixJittered;
     osg::Matrixf preFrameMatrix; // = Proj_pf * View_pf * InvView_cf
-    osg::Matrixf preFrameModelViewMatrix;
 }gViewData;
 osg::ref_ptr<osg::UniformBufferBinding> gViewDataUBB;
 
@@ -363,7 +362,7 @@ public:
     {
         static int index = 1;
         double x = halton(index, 2), y = halton(index, 3);
-        index = index % 16 + 1;
+        index = index % 8 + 1;
 
         osg::Camera* camera = node->asCamera();
         assert(camera);
@@ -384,9 +383,9 @@ public:
 
     virtual void operator()(osg::Node* node, osg::NodeVisitor* nv)
     {
-        osg::MatrixTransform* transform = dynamic_cast<osg::MatrixTransform*>(node);
-        assert(transform);
-        osg::Vec3d position = transform->getMatrix().getTrans();
+        xxx::Entity* entity = xxx::castNodeTo<xxx::Entity>(node);
+        assert(entity);
+        osg::Vec3d position = entity->getPosition();
         position += _speed;
         if (position[_axis] > 10.0 || position[_axis] < -10.0)
         {
@@ -394,7 +393,9 @@ public:
             position[_axis] = position[_axis] > 0.0 ? 10.0 : -10.0;
         }
 
-        transform->setMatrix(osg::Matrix::translate(position));
+        entity->setPosition(position);
+        // update matrix handly by call getMatrix()
+        entity->getMatrix();
     }
 };
 
@@ -596,8 +597,8 @@ int main()
     viewer->addEventHandler(new xxx::TestEventHandler(inputPass->getCamera(), imguiHandler));
     viewer->setCameraManipulator(new osgGA::TrackballManipulator);
     //viewer->setKeyEventSetsDone(0); // prevent exit when press esc key
-    //viewer->addEventHandler(new osgViewer::StatsHandler);
-    //viewer->addEventHandler(new osgGA::StateSetManipulator(viewer->getCamera()->getOrCreateStateSet()));
+    viewer->addEventHandler(new osgViewer::StatsHandler);
+    viewer->addEventHandler(new osgGA::StateSetManipulator(viewer->getCamera()->getOrCreateStateSet()));
     viewer->realize();
     while (!viewer->done())
     {

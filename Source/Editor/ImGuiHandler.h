@@ -1,5 +1,6 @@
 #pragma once
 #include <Core/Render/Pipeline.h>
+#include <Core/Base/Context.h>
 #include <osgViewer/ViewerEventHandlers>
 #include <ThirdParty/imgui/imgui.h>
 #include <ThirdParty/imgui/imgui_impl_opengl3.h>
@@ -171,16 +172,43 @@ namespace xxx
 
             if (ImGui::Begin("Inspector"))
             {
-                if (ImGui::TreeNode("Transform"))
+                Entity* activedEntity = Context::get().getActivedEntity();
+                if (activedEntity)
                 {
-                    static float position[3] = { 0.0f, 0.0f, 0.0f };
-                    static float rotation[3] = { 0.0f, 0.0f, 0.0f };
-                    static float scale[3] = { 1.0, 1.0, 1.0 };
-                    ImGui::DragFloat3("Position", position);
-                    ImGui::DragFloat3("Rotation", rotation);
-                    ImGui::DragFloat3("Scale", scale);
-                    ImGui::TreePop();
+                    ImGui::Text(activedEntity->getName().c_str());
+                    if (ImGui::TreeNode("Transform"))
+                    {
+                        /*static float position[3] = { 0.0f, 0.0f, 0.0f };
+                        static float rotation[3] = { 0.0f, 0.0f, 0.0f };
+                        static float scale[3] = { 1.0, 1.0, 1.0 };*/
+                        /*ImGui::DragFloat3("Position", position);
+                        ImGui::DragFloat3("Rotation", rotation);
+                        ImGui::DragFloat3("Scale", scale);*/
+                        static osg::Vec3d entityPosition;
+                        static osg::Vec3d entityRotation;
+                        static osg::Vec3d entityScale;
+                        entityPosition = activedEntity->getPosition();
+                        entityRotation = activedEntity->getRotationAsEulerAngles();
+                        entityScale = activedEntity->getScale();
+                        if (ImGui::DragScalarN("Position", ImGuiDataType_Double, &entityPosition.x(), 3))
+                        {
+                            activedEntity->setPosition(entityPosition);
+                            activedEntity->getMatrix();
+                        }
+                        if (ImGui::DragScalarN("Rotation", ImGuiDataType_Double, &entityRotation.x(), 3))
+                        {
+                            activedEntity->setRotation(entityRotation);
+                            activedEntity->getMatrix();
+                        }
+                        if (ImGui::DragScalarN("Scale", ImGuiDataType_Double, &entityScale.x(), 3))
+                        {
+                            activedEntity->setScale(entityScale);
+                            activedEntity->getMatrix();
+                        }
+                        ImGui::TreePop();
+                    }
                 }
+                
             }
             ImGui::End();
 

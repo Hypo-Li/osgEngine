@@ -3,10 +3,16 @@
 
 namespace xxx
 {
-	Entity::Entity(std::string_view name) : osg::MatrixTransform(), _name(name), _parent(nullptr)
+    Entity::Entity(std::string&& name) :
+        osg::MatrixTransform(),
+        _name(name), _parent(nullptr),
+        _childrenGroup(new osg::Group),
+        _componentsGroup(new osg::Group),
+        _position(osg::Vec3d(0.0, 0.0, 0.0)),
+        _rotation(osg::Quat(0.0, 0.0, 0.0, 1.0)),
+        _scale(osg::Vec3d(1.0, 1.0, 1.0)),
+        _needUpdateMatrix(false)
 	{
-        _childrenGroup = new osg::Group;
-        _componentsGroup = new osg::Group;
 		osg::Group::addChild(_childrenGroup);
 		osg::Group::addChild(_componentsGroup);
 	}

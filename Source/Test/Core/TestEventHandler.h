@@ -1,5 +1,6 @@
 #pragma once
 #include <Editor/ImGuiHandler.h>
+#include <Core/Base/Context.h>
 #include <osgGA/GUIEventHandler>
 #include <osgUtil/LineSegmentIntersector>
 #include <iostream>
@@ -45,10 +46,10 @@ namespace xxx
                     {
                         for (auto ritr = nodePath.rbegin(); ritr != nodePath.rend(); ritr++)
                         {
-                            xxx::Entity* entity = castNodeToEntity(*ritr);
+                            xxx::Entity* entity = castNodeTo<Entity>(*ritr);
                             if (entity)
                             {
-                                std::cout << entity->getName() << std::endl;
+                                Context::get().setActivedEntity(entity);
                                 break;
                             }
                         }
