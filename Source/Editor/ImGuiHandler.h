@@ -71,28 +71,33 @@ namespace xxx
                 initialized = true;
 			}
 
-            return ImGui_ImplOsg_Handle(ea, aa, !(_viewWindowIsFocused && _viewItemIsHovered));
+            return ImGui_ImplOsg_Handle(ea, aa, !(_sceneViewWindowIsFocused && _sceneViewItemIsHovered));
 		}
 
         osg::Matrixd getSceneViewViewportMatrix()
         {
-            double halfWidth = _viewWidth / 2.0, halfHeight = _viewHeight / 2.0;
+            double halfWidth = _sceneViewWidth / 2.0, halfHeight = _sceneViewHeight / 2.0;
             return osg::Matrixd(
                 halfWidth, 0.0, 0.0, 0.0,
                 0.0, halfHeight, 0.0, 0.0,
                 0.0, 0.0, 0.5, 0.0,
-                _viewX + halfWidth, _viewY + halfHeight, 0.5, 1.0
+                halfWidth, halfHeight, 0.5, 1.0
             );
+        }
+
+        osg::Vec2d getSceneViewSize()
+        {
+            return osg::Vec2d(_sceneViewWidth, _sceneViewHeight);
         }
 
 	private:
         osg::ref_ptr<osg::Camera> _imguiCamera;
         osg::ref_ptr<osg::Texture2D> _sceneColorTexture;
         osg::ref_ptr<Pipeline> _pipeline;
-        bool _viewWindowIsFocused = false;
-        bool _viewItemIsHovered = false;
-        int _viewX, _viewY, _viewWidth, _viewHeight;
-        bool _viewDirty = false;
+        bool _sceneViewWindowIsFocused = false;
+        bool _sceneViewItemIsHovered = false;
+        int _sceneViewWidth, _sceneViewHeight;
+        bool _sceneViewSizeDirty = false;
 
 		class ImGuiNewFrameCallback : public osg::Camera::DrawCallback
 		{
@@ -106,7 +111,7 @@ namespace xxx
 				ImGui_ImplOsg_NewFrame();
 				ImGui::NewFrame();
 				_handler->draw();
-                _handler->updateViewport();
+                _handler->updateSceneViewSize();
 				ImGui::Render();
 				ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 			}
@@ -180,18 +185,16 @@ namespace xxx
             ImGui::End();
 
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0, 0.0));
-            if (ImGui::Begin("Scene View"))
+            if (ImGui::Begin("SceneView"))
             {
-                _viewWindowIsFocused = ImGui::IsWindowFocused();
+                _sceneViewWindowIsFocused = ImGui::IsWindowFocused();
 
                 if (_sceneColorTexture->getTextureObject(0))
                 {
                     ImVec2 regionMin = ImGui::GetWindowContentRegionMin();
                     ImVec2 regionMax = ImGui::GetWindowContentRegionMax();
-                    ImVec2 uv0((_viewX + 0.5f) / io.DisplaySize.x, (_viewY + _viewHeight - 0.5f) / io.DisplaySize.y);
-                    ImVec2 uv1((_viewX + _viewWidth - 0.5f) / io.DisplaySize.x, (_viewY + 0.5f) / io.DisplaySize.y);
-                    ImGui::Image((void*)_sceneColorTexture->getTextureObject(0)->id(), ImVec2(regionMax.x - regionMin.x, regionMax.y - regionMin.y), uv0, uv1);
-                    _viewItemIsHovered = ImGui::IsItemHovered();
+                    ImGui::Image((void*)_sceneColorTexture->getTextureObject(0)->id(), ImVec2(regionMax.x - regionMin.x, regionMax.y - regionMin.y), ImVec2(0.0, 1.0), ImVec2(1.0, 0.0));
+                    _sceneViewItemIsHovered = ImGui::IsItemHovered();
                     ImVec2 itemRectMin = ImGui::GetItemRectMin();
                     ImVec2 itemRectMax = ImGui::GetItemRectMax();
 
@@ -199,18 +202,16 @@ namespace xxx
                     int y = io.DisplaySize.y - itemRectMax.y;
                     int width = itemRectMax.x - itemRectMin.x;
                     int height = itemRectMax.y - itemRectMin.y;
-                    if (x != _viewX || y != _viewY || width != _viewWidth || height != _viewHeight)
+                    if (width != _sceneViewWidth || height != _sceneViewHeight)
                     {
-                        _viewX = x;
-                        _viewY = y;
-                        _viewWidth = width;
-                        _viewHeight = height;
-                        _viewDirty = true;
+                        _sceneViewWidth = width;
+                        _sceneViewHeight = height;
+                        _sceneViewSizeDirty = true;
                     }
                 }
                 else
                 {
-                    _viewX = _viewY = _viewWidth = _viewHeight = 0;
+                    _sceneViewWidth = _sceneViewHeight = 0;
                 }
             }
             ImGui::End();
@@ -218,12 +219,12 @@ namespace xxx
 
 		}
 
-        void updateViewport()
+        void updateSceneViewSize()
         {
-            if (_viewDirty)
+            if (_sceneViewSizeDirty)
             {
-                _pipeline->setViewport(_viewX, _viewY, _viewWidth, _viewHeight);
-                _viewDirty = false;
+                _pipeline->resize(_sceneViewWidth, _sceneViewHeight, false);
+                _sceneViewSizeDirty = false;
             }
         }
 	};
