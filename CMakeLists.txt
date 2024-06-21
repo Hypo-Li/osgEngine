@@ -23,6 +23,7 @@ project ("osgEngine")
 
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_SOURCE_DIR}/CMakeModules")
 add_definitions(-DTEMP_DIR="${CMAKE_SOURCE_DIR}/Temp/")
+add_definitions(-DSHADER_DIR="${CMAKE_SOURCE_DIR}/Shader/")
 find_package(OSG REQUIRED)
 find_package(OpenGL REQUIRED)
 include_directories(
@@ -39,3 +40,4 @@ add_subdirectory ("Source/Core")
 add_subdirectory ("Source/Editor")
 add_subdirectory ("Source/ThirdParty")
 add_subdirectory ("Source/Test/Core")
+add_subdirectory ("Source/Test/Cloud")
