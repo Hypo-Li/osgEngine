@@ -1,28 +1,31 @@
 #pragma once
 #include <osg/MatrixTransform>
 #include <osg/ref_ptr>
+#include <osg/observer_ptr>
 
 namespace xxx
 {
 	class Component;
-	class Entity : protected osg::MatrixTransform
+	class Entity : public osg::MatrixTransform
 	{
         template<class T>
         friend class osg::ref_ptr;
+        template<class T>
+        friend class osg::observer_ptr;
 	public:
 		Entity(std::string&& name);
 		virtual ~Entity() = default;
 
-        osg::MatrixTransform* asMatrixTransform() { return static_cast<osg::MatrixTransform*>(this); }
-        const std::string& getName() const { return _name; }
-		Entity* getParent() const { return _parent; }
-		void appendChild(Entity* child);
-		void removeChild(Entity* child);
-		Entity* getChild(uint32_t index);
+        const std::string& getEntityName() const { return _entityName; }
+		Entity* getParent() const { return _entityParent; }
+		void appendChildEntity(Entity* child);
+		void removeChildEntity(Entity* child);
+		Entity* getChildEntity(uint32_t index);
+        uint32_t getNumChildrenEntities() { return _childrenEntitiesGroup->getNumChildren(); }
 		void appendComponent(Component* component);
 		void removeComponent(Component* component);
-
-		template<typename T, typename = typename std::enable_if<std::is_base_of<Component, T>::value>::type>
+        
+		template<typename T, typename = typename std::enable_if_t<std::is_base_of_v<Component, T>>>
 		T* getComponent(uint32_t index)
 		{
 			uint32_t count = 0;
@@ -47,51 +50,32 @@ namespace xxx
             return _position;
         }
 
-        void setRotation(osg::Quat rotation)
+        void translate(osg::Vec3d delta, osg::Transform::ReferenceFrame mode)
         {
-            _rotation = rotation;
+            if (mode == osg::Transform::ReferenceFrame::RELATIVE_RF)
+            {
+                _position += delta;
+                _needUpdateMatrix = true;
+            }
+            else
+            {
+
+            }
+        }
+
+        void setRotation(osg::Vec3d rotation)
+        {
+            _rotation = osg::Vec3d(
+                std::fmod(rotation.x() + 360.0, 360.0),
+                std::fmod(rotation.y() + 360.0, 360.0),
+                std::fmod(rotation.z() + 360.0, 360.0)
+            );
             _needUpdateMatrix = true;
         }
 
-        void setRotation(osg::Vec3d eulerAngles)
-        {
-            _rotationEulerAngles = osg::Vec3d(std::fmod(eulerAngles.x(), 360.0), std::fmod(eulerAngles.y(), 360.0), std::fmod(eulerAngles.z(), 360.0));
-            if (_rotationEulerAngles.x() < 0.0) _rotationEulerAngles.x() += 360.0;
-            if (_rotationEulerAngles.y() < 0.0) _rotationEulerAngles.y() += 360.0;
-            if (_rotationEulerAngles.z() < 0.0) _rotationEulerAngles.z() += 360.0;
-            double halfRoll = osg::DegreesToRadians(_rotationEulerAngles.x()) * 0.5;
-            double halfPitch = osg::DegreesToRadians(_rotationEulerAngles.y()) * 0.5;
-            double halfYaw = osg::DegreesToRadians(_rotationEulerAngles.z()) * 0.5;
-            double cr = std::cos(halfRoll);
-            double sr = std::sin(halfRoll);
-            double cp = std::cos(halfPitch);
-            double sp = std::sin(halfPitch);
-            double cy = std::cos(halfYaw);
-            double sy = std::sin(halfYaw);
-
-            _rotation.x() = cy * cp * sr - sy * sp * cr;
-            _rotation.y() = sy * cp * sr + cy * sp * cr;
-            _rotation.z() = sy * cp * cr - cy * sp * sr;
-            _rotation.w() = cy * cp * cr + sy * sp * sr;
-            _needUpdateMatrix = true;
-        }
-
-        osg::Quat getRotation() const
+        osg::Vec3d getRotation()
         {
             return _rotation;
-        }
-
-        osg::Vec3d getRotationAsEulerAngles()
-        {
-            /*osg::Matrixd m(_rotation);
-            double t1 = std::atan2(m(2, 1), m(2, 2));
-            double c2 = std::sqrt(m(0, 0) * m(0, 0) + m(1, 0) * m(1, 0));
-            double t2 = std::atan2(-m(2, 0), c2);
-            double s1 = std::sin(t1);
-            double c1 = std::cos(t1);
-            double t3 = std::atan2(s1 * m(0, 2) - c1 * m(0, 1), c1 * m(1, 1) - s1 * m(1, 2));
-            return osg::Vec3d(-osg::RadiansToDegrees(t1), -osg::RadiansToDegrees(t2), -osg::RadiansToDegrees(t3));*/
-            return _rotationEulerAngles;
         }
 
         void setScale(osg::Vec3d scale)
@@ -112,40 +96,68 @@ namespace xxx
 
         const osg::Matrixd& getMatrix()
         {
-            updateTransform();
+            updateMatrix();
             return osg::MatrixTransform::getMatrix();
         }
 
-	private:
-        std::string _name;
-		Entity* _parent;
-		osg::ref_ptr<osg::Group> _childrenGroup;
-		osg::ref_ptr<osg::Group> _componentsGroup;
+        /*osg::Matrixd getWorldToLocalMatrix()
+        {
+            osg::NodePath nodePath = this->getParentalNodePaths()[0];
+            for (osg::NodePath::const_iterator itr = nodePath.begin(); itr != nodePath.end(); itr++)
+            {
+                Entity* entity = castNodeTo<Entity>(*itr);
+                if (entity)
+                    entity->updateMatrix();
+            }
+            return osg::computeWorldToLocal(nodePath);
+        }
 
-        // Transform
-        osg::Vec3d _position;
-        osg::Quat _rotation;
-        osg::Vec3d _rotationEulerAngles;
-        osg::Vec3d _scale;
-        bool _needUpdateMatrix;
+        osg::Matrixd getLocalToWorldMatrix()
+        {
+            osg::NodePath nodePath = this->getParentalNodePaths()[0];
+            return osg::computeLocalToWorld(nodePath);
+        }*/
 
-        void updateTransform()
+        void updateMatrix()
         {
             if (_needUpdateMatrix)
             {
+                double halfRoll = osg::DegreesToRadians(_rotation.x()) * 0.5;
+                double halfPitch = osg::DegreesToRadians(_rotation.y()) * 0.5;
+                double halfYaw = osg::DegreesToRadians(_rotation.z()) * 0.5;
+                double cr = std::cos(halfRoll);
+                double sr = std::sin(halfRoll);
+                double cp = std::cos(halfPitch);
+                double sp = std::sin(halfPitch);
+                double cy = std::cos(halfYaw);
+                double sy = std::sin(halfYaw);
+
+                osg::Quat q(
+                    cy * cp * sr - sy * sp * cr, // x
+                    sy * cp * sr + cy * sp * cr, // y
+                    sy * cp * cr - cy * sp * sr, // z
+                    cy * cp * cr + sy * sp * sr  // w
+                );
+
                 osg::MatrixTransform::setMatrix(
                     osg::Matrixd::scale(_scale) *
-                    osg::Matrixd::rotate(_rotation) *
+                    osg::Matrixd::rotate(q) *
                     osg::Matrixd::translate(_position)
                 );
                 _needUpdateMatrix = false;
             }
         }
-	};
 
-    template <typename T>
-    static T* castNodeTo(osg::Node* node)
-    {
-        return typeid(*node) == typeid(T) ? reinterpret_cast<T*>(node) : nullptr;
-    }
+	private:
+        std::string _entityName;
+		Entity* _entityParent;
+		osg::ref_ptr<osg::Group> _childrenEntitiesGroup;
+		osg::ref_ptr<osg::Group> _componentsGroup;
+
+        // Transform
+        osg::Vec3d _position;
+        osg::Vec3d _rotation;
+        osg::Vec3d _scale;
+        bool _needUpdateMatrix;
+	};
 }

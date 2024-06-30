@@ -188,9 +188,9 @@ namespace xxx
                         static osg::Vec3d entityRotation;
                         static osg::Vec3d entityScale;
                         entityPosition = activedEntity->getPosition();
-                        entityRotation = activedEntity->getRotationAsEulerAngles();
+                        entityRotation = activedEntity->getRotation();
                         entityScale = activedEntity->getScale();
-                        if (ImGui::DragScalarN("Position", ImGuiDataType_Double, &entityPosition.x(), 3))
+                        if (ImGui::DragScalarN("Position", ImGuiDataType_Double, &entityPosition.x(), 3, 0.05))
                         {
                             activedEntity->setPosition(entityPosition);
                             activedEntity->getMatrix();

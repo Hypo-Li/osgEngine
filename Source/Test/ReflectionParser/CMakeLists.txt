@@ -1,0 +1,5 @@
+set (TARGET_NAME ReflectionParser)
+set (LLVM_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/LLVM/include")
+include_directories(${LLVM_INCLUDE_DIRS})
+add_executable(ReflectionParser "Main.cpp")
+target_link_libraries(${TARGET_NAME} "${CMAKE_CURRENT_SOURCE_DIR}/LLVM/lib/libclang.lib")

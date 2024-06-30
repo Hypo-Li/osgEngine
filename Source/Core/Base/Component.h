@@ -3,7 +3,7 @@
 
 namespace xxx
 {
-	class Component : protected osg::Group
+	class Component : public osg::Group
 	{
 		friend class Entity;
 	public:

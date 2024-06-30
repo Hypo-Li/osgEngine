@@ -1,33 +1,26 @@
 #pragma once
-#include "Material.h"
-#include "StaticMesh.h"
+#include "Asset.h"
 #include <unordered_map>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
 
 namespace xxx
 {
-    enum class AssetType
-    {
-        None_Type = -1,
-        Texture,
-        Material,
-        StaticMesh,
-        AssetType_Count,
-    };
-
-    class AssetManager : osg::Referenced
+    class AssetManager
     {
     public:
         AssetManager() = default;
         virtual ~AssetManager() = default;
 
-        Asset* loadAsset(const fs::path& assetPath);
+        static Asset* loadAsset(const std::string& path);
+
+        static void storeAsset(const std::string& path, Asset* asset);
+
+        static Asset::Type getAssetType(const std::string& path);
 
     private:
-        template <typename T>
-        using AssetMap = std::unordered_map<std::string_view, osg::ref_ptr<T>>;
-
-        AssetMap<Material> _materialMap;
-        AssetMap<StaticMesh> _staticMeshMap;
-
+        static std::unordered_map<std::string, osg::ref_ptr<Asset>> _sAssetMap;
+        static constexpr uint32_t _sAssetMagic = 0x58415354; // XAST
     };
 }

@@ -1,7 +1,9 @@
 #pragma once
-#include <osgViewer/Viewer>
+#include <osg/View>
 // Impl
 #include <osg/Texture2D>
+#include <osg/Geometry>
+#include <osg/Geode>
 #include <cassert>
 
 namespace xxx
@@ -9,14 +11,10 @@ namespace xxx
     class Pipeline : public osg::Referenced
     {
     public:
-        Pipeline(osgViewer::Viewer* viewer)
+        Pipeline(osg::View* view, osg::GraphicsContext* graphicsContext) : _view(view), _graphicsContext(graphicsContext)
         {
-            _viewer = viewer;
-            osg::Camera* nativeCamera = viewer->getCamera();
-            _graphicsContext = nativeCamera->getGraphicsContext();
-            osg::Viewport* nativeViewport = nativeCamera->getViewport();
-            _graphicsContext->setResizedCallback(new ResizedCallback(this, nativeViewport->width(), nativeViewport->height()));
-            nativeCamera->setGraphicsContext(nullptr);
+            _graphicsContext->setResizedCallback(new ResizedCallback(this));
+            _view->getCamera()->setGraphicsContext(nullptr);
         }
         virtual ~Pipeline() = default;
 
@@ -26,7 +24,7 @@ namespace xxx
             friend class Pipeline;
             friend class Pipeline::ResizedCallback;
         public:
-            Pass(osg::Camera* camera, bool fixedSize, osg::Vec2d sizeScale) : _camera(camera), _fixedSize(fixedSize), _sizeScale(sizeScale)
+            Pass(osg::Camera* camera, bool fixedSize, osg::Vec2 sizeScale) : _camera(camera), _fixedSize(fixedSize), _sizeScale(sizeScale)
             {
                 osg::Viewport* viewport = _camera->getViewport();
                 _resolutionUniform = new osg::Uniform("uResolution", osg::Vec4(viewport->width(), viewport->height(), 1.0f / viewport->width(), 1.0f / viewport->height()));
@@ -83,9 +81,9 @@ namespace xxx
                 _camera->getOrCreateStateSet()->addUniform(uniform, osg::StateAttribute::ON);
             }
 
-            void applyTexture(osg::Texture* texture, const char* name, int unit)
+            void applyTexture(osg::Texture* texture, const std::string& name, int unit)
             {
-                _camera->getOrCreateStateSet()->addUniform(new osg::Uniform(name, unit));
+                _camera->getOrCreateStateSet()->addUniform(new osg::Uniform(name.c_str(), unit));
                 _camera->getOrCreateStateSet()->setTextureAttribute(unit, texture, osg::StateAttribute::ON);
             }
 
@@ -104,14 +102,21 @@ namespace xxx
                 return _camera;
             }
 
+            osg::Vec2 getSizeScale() const
+            {
+                return _sizeScale;
+            }
+
         private:
             osg::ref_ptr<osg::Camera> _camera;
             bool _fixedSize;
-            osg::Vec2d _sizeScale;
+            osg::Vec2 _sizeScale;
             osg::ref_ptr<osg::Uniform> _resolutionUniform;
         };
 
-        Pass* addInputPass(const char* name, osg::Node::NodeMask cullMask, GLbitfield clearMask = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, bool fixedSize = false, osg::Vec2d sizeScale = osg::Vec2d(1.0, 1.0))
+        osg::View* getView() const { return _view.get(); }
+
+        Pass* addInputPass(const std::string& name, osg::Node::NodeMask cullMask, GLbitfield clearMask = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, osg::Vec2 sizeScale = osg::Vec2(1.0, 1.0), bool fixedSize = false)
         {
             osg::Camera* camera = new osg::Camera;
             camera->setName(name);
@@ -128,7 +133,7 @@ namespace xxx
             }
             else
             {
-                osg::Viewport* nativeViewport = _viewer->getCamera()->getViewport();
+                osg::Viewport* nativeViewport = _view->getCamera()->getViewport();
                 int x = nativeViewport->x();
                 int y = nativeViewport->y();
                 int width = nativeViewport->width();
@@ -136,13 +141,13 @@ namespace xxx
                 camera->setViewport(x, y, width * sizeScale.x(), height * sizeScale.y());
             }
             camera->setImplicitBufferAttachmentMask(0, 0);
-            _viewer->addSlave(camera, true);
+            _view->addSlave(camera, true);
             Pass* newPass = new Pass(camera, fixedSize, sizeScale);
             _passes.push_back(newPass);
             return newPass;
         }
 
-        Pass* addWorkPass(const char* name, osg::Program* program, GLbitfield clearMask = GL_COLOR_BUFFER_BIT, bool fixedSize = false, osg::Vec2d sizeScale = osg::Vec2d(1.0, 1.0))
+        Pass* addWorkPass(const std::string& name, osg::Program* program, GLbitfield clearMask = GL_COLOR_BUFFER_BIT, osg::Vec2 sizeScale = osg::Vec2(1.0, 1.0), bool fixedSize = false)
         {
             osg::Camera* camera = new osg::Camera;
             camera->setName(name);
@@ -157,7 +162,7 @@ namespace xxx
             }
             else
             {
-                osg::Viewport* nativeViewport = _viewer->getCamera()->getViewport();
+                osg::Viewport* nativeViewport = _view->getCamera()->getViewport();
                 int x = nativeViewport->x();
                 int y = nativeViewport->y();
                 int width = nativeViewport->width();
@@ -175,13 +180,13 @@ namespace xxx
                 program->getShader(i)->setName(name);
             geode->getOrCreateStateSet()->setAttribute(program, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
             camera->addChild(geode);
-            _viewer->addSlave(camera, false);
+            _view->addSlave(camera, false);
             Pass* newPass = new Pass(camera, fixedSize, sizeScale);
             _passes.push_back(newPass);
             return newPass;
         }
 
-        Pass* addFinalPass(const char* name, osg::Program* program)
+        Pass* addFinalPass(const std::string& name, osg::Program* program)
         {
             osg::Camera* camera = new osg::Camera;
             camera->setName(name);
@@ -189,7 +194,7 @@ namespace xxx
             camera->setClearColor(osg::Vec4(0.0, 0.0, 0.0, 1.0));
             camera->setClearMask(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             camera->setRenderOrder(osg::Camera::POST_RENDER);
-            camera->setViewport(_viewer->getCamera()->getViewport());
+            camera->setViewport(_view->getCamera()->getViewport());
             camera->setReferenceFrame(osg::Transform::ABSOLUTE_RF);
             camera->setViewMatrix(osg::Matrixd::identity());
             camera->setProjectionMatrix(osg::Matrix::ortho2D(0.0, 1.0, 0.0, 1.0));
@@ -200,33 +205,38 @@ namespace xxx
                 program->getShader(i)->setName(name);
             geode->getOrCreateStateSet()->setAttribute(program, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
             camera->addChild(geode);
-            _viewer->addSlave(camera, false);
-            Pass* newPass = new Pass(camera, false, osg::Vec2d(1.0, 1.0));
+            _view->addSlave(camera, false);
+            Pass* newPass = new Pass(camera, false, osg::Vec2(1.0, 1.0));
             _passes.push_back(newPass);
             return newPass;
         }
 
         void resize(int width, int height, bool resizeFinalPass)
         {
+            // set new aspect
             double fovy, aspect, zNear, zFar;
-            _viewer->getCamera()->getProjectionMatrixAsPerspective(fovy, aspect, zNear, zFar);
-            _viewer->getCamera()->setProjectionMatrixAsPerspective(fovy, double(width) / double(height), zNear, zFar);
+            _view->getCamera()->getProjectionMatrixAsPerspective(fovy, aspect, zNear, zFar);
+            _view->getCamera()->setProjectionMatrixAsPerspective(fovy, double(width) / double(height), zNear, zFar);
+            // resize passes expect final pass
+            // final pass will resize by osg automatically
             for (Pass* pass : _passes)
             {
                 bool isFinalPass = pass->_camera->getRenderTargetImplementation() != osg::Camera::FRAME_BUFFER_OBJECT;
                 if ((!isFinalPass || (isFinalPass && resizeFinalPass)) && !pass->_fixedSize)
                 {
-                    // resize viewport
+                    // get real size
                     int realWidth = width * pass->_sizeScale.x();
                     int realHeight = height * pass->_sizeScale.y();
+
+                    // resize viewport
                     pass->_camera->setViewport(0, 0, realWidth, realHeight);
 
-                    // resize fbo texture
+                    // resize attachment texture
                     auto& bufferAttachmentMap = pass->_camera->getBufferAttachmentMap();
                     for (auto itr : bufferAttachmentMap)
                     {
                         osg::Texture2D* texture = dynamic_cast<osg::Texture2D*>(itr.second._texture.get());
-                        assert(texture && "Other type texture resize not implementation");
+                        assert(texture && "Unsupport texture type!");
                         texture->setTextureSize(realWidth, realHeight);
                         texture->dirtyTextureObject();
                     }
@@ -236,7 +246,7 @@ namespace xxx
             }
         }
 
-        osg::Texture2D* createScreenTexture(GLenum internalFormat, osg::Vec2d sizeScale = osg::Vec2d(1.0, 1.0), 
+        osg::Texture2D* createScreenTexture(GLenum internalFormat, osg::Vec2 sizeScale = osg::Vec2(1.0, 1.0), 
                 osg::Texture::FilterMode minFilter = osg::Texture::LINEAR, osg::Texture::FilterMode magFilter = osg::Texture::LINEAR,
                 osg::Texture::WrapMode wrapS = osg::Texture::CLAMP_TO_EDGE, osg::Texture::WrapMode wrapT = osg::Texture::CLAMP_TO_EDGE)
         {
@@ -251,7 +261,7 @@ namespace xxx
                     { GL_R11F_G11F_B10F, GL_RGB },
                     { GL_RGB10_A2, GL_RGBA },
             };
-            osg::Viewport* viewport = _viewer->getCamera()->getViewport();
+            osg::Viewport* viewport = _view->getCamera()->getViewport();
             osg::Texture2D* texture = new osg::Texture2D;
             texture->setTextureSize(viewport->width(), viewport->height());
             texture->setInternalFormat(internalFormat);
@@ -270,7 +280,7 @@ namespace xxx
         }
 
     private:
-        osg::ref_ptr<osgViewer::Viewer> _viewer;
+        osg::ref_ptr<osg::View> _view;
         osg::ref_ptr<osg::GraphicsContext> _graphicsContext;
         std::vector<osg::ref_ptr<Pass>> _passes;
 
@@ -297,7 +307,12 @@ namespace xxx
             osg::ref_ptr<xxx::Pipeline> _pipeline;
             int _width, _height;
         public:
-            ResizedCallback(xxx::Pipeline* pipeline, int width, int height) : _pipeline(pipeline), _width(width), _height(height) {}
+            ResizedCallback(xxx::Pipeline* pipeline) : _pipeline(pipeline)
+            {
+                osg::Viewport* viewport = pipeline->getView()->getCamera()->getViewport();
+                _width = viewport->width();
+                _height = viewport->height();
+            }
 
             virtual void resizedImplementation(osg::GraphicsContext* gc, int x, int y, int width, int height)
             {
