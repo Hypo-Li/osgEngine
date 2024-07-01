@@ -19,6 +19,8 @@ namespace xxx
 
         void setTexture(osg::Texture* texture) { _texture = texture; }
 
+        osg::Texture* getTexture() const { return _texture; }
+
     private:
         osg::ref_ptr<osg::Texture> _texture;
 

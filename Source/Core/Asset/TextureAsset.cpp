@@ -281,13 +281,35 @@ namespace xxx
         _texture->setUseHardwareMipMapGeneration(generationMipmap);
         uint32_t mipmapCount = json["MipmapCount"].get<uint32_t>();
         if (textureType == GL_TEXTURE_2D)
-            dynamic_cast<osg::Texture2D*>(_texture.get())->setNumMipmapLevels(mipmapCount);
+        {
+            osg::Texture2D* texture2D = dynamic_cast<osg::Texture2D*>(_texture.get());
+            texture2D->setTextureWidth(width);
+            texture2D->setTextureHeight(height);
+            texture2D->setNumMipmapLevels(mipmapCount);
+        }
         else if (textureType == GL_TEXTURE_2D_ARRAY)
-            dynamic_cast<osg::Texture2DArray*>(_texture.get())->setNumMipmapLevels(mipmapCount);
+        {
+            osg::Texture2DArray* texture2DArray = dynamic_cast<osg::Texture2DArray*>(_texture.get());
+            texture2DArray->setTextureWidth(width);
+            texture2DArray->setTextureHeight(height);
+            texture2DArray->setTextureDepth(depth);
+            texture2DArray->setNumMipmapLevels(mipmapCount);
+        }
         else if (textureType == GL_TEXTURE_3D)
-            dynamic_cast<osg::Texture3D*>(_texture.get())->setNumMipmapLevels(mipmapCount);
+        {
+            osg::Texture3D* texture3D = dynamic_cast<osg::Texture3D*>(_texture.get());
+            texture3D->setTextureWidth(width);
+            texture3D->setTextureHeight(height);
+            texture3D->setTextureDepth(depth);
+            texture3D->setNumMipmapLevels(mipmapCount);
+        }
         else if (textureType == GL_TEXTURE_CUBE_MAP)
-            dynamic_cast<osg::TextureCubeMap*>(_texture.get())->setNumMipmapLevels(mipmapCount);
+        {
+            osg::TextureCubeMap* textureCubemap = dynamic_cast<osg::TextureCubeMap*>(_texture.get());
+            textureCubemap->setTextureWidth(width);
+            textureCubemap->setTextureHeight(height);
+            textureCubemap->setNumMipmapLevels(mipmapCount);
+        }
 
         const Json& imagesJsonArray = json["Images"];
         for (uint32_t i = 0; i < imagesJsonArray.size(); ++i)
@@ -299,7 +321,7 @@ namespace xxx
             std::memcpy(buffer, &binary[bufferOffset], bufferSize);
 
             osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->setImage(width, height, textureType == GL_TEXTURE_3D ? depth : 1, internalFormat, pixelFormat, pixelType, buffer, osg::Image::USE_NEW_DELETE);
+            image->setImage(width, height, depth, internalFormat, pixelFormat, pixelType, buffer, osg::Image::USE_NEW_DELETE);
             if (!generationMipmap && mipmapCount > 0)
             {
                 std::vector<uint32_t> mipmapBufferOffsets = imageJson["MipmapBufferOffsets"].get<std::vector<uint32_t>>();

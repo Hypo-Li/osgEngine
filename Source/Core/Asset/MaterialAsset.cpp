@@ -9,7 +9,7 @@ namespace xxx
         {GL_TEXTURE_CUBE_MAP, "samplerCube"},
     };
 
-    MaterialAsset::MaterialAsset() : Asset(Type::Material), _shader(new osg::Shader(osg::Shader::FRAGMENT))
+    MaterialAsset::MaterialAsset() : Asset(Type::Material), _stateSet(new osg::StateSet), _shader(new osg::Shader(osg::Shader::FRAGMENT))
     {
         initializeShaderDefines();
         setShadingModel(ShadingModel::Standard);
@@ -22,6 +22,7 @@ namespace xxx
         json["ShadingModel"] = static_cast<int>(_shadingModel);
         json["AlphaMode"] = static_cast<int>(_alphaMode);
         json["DoubleSided"] = _doubleSided;
+        json["Source"] = _source;
 
         Json parametersJson;
         for (const auto& parameter : _parameters)
@@ -58,13 +59,10 @@ namespace xxx
 
     void MaterialAsset::deserialize(const Json& json, const std::vector<char>& binary, const std::vector<std::string>& reference)
     {
-        //if (json.contains("ShadingModel"))
-            setShadingModel(static_cast<ShadingModel>(json["ShadingModel"].get<int>()));
-        //if (json.contains("AlphaMode"))
-            setAlphaBlend(static_cast<AlphaMode>(json["AlphaMode"].get<int>()));
-        //if (json.contains("DoubleSided"))
-            setDoubleSided(json["DoubleSided"].get<bool>());
-        //if (json.contains("Parameters"))
+        setShadingModel(static_cast<ShadingModel>(json["ShadingModel"]));
+        setAlphaBlend(static_cast<AlphaMode>(json["AlphaMode"]));
+        setDoubleSided(json["DoubleSided"]);
+        setSource(json["Source"]);
         {
             const Json& parametersJson = json["Parameters"];
             for (Json::const_iterator it = parametersJson.begin(); it != parametersJson.end(); it++)

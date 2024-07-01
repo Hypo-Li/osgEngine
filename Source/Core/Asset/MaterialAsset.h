@@ -44,12 +44,12 @@ namespace xxx
 
         bool getDoubleSided() const { return _doubleSided; }
 
-        bool appendParameter(const std::string&& name, bool value)
+        bool appendParameter(const std::string& name, bool value)
         {
             return appendParameter<bool>(name, value);
         }
 
-        void setParameter(const std::string&& name, bool value)
+        void setParameter(const std::string& name, bool value)
         {
             setParameter<bool>(name, value);
         }
@@ -59,7 +59,7 @@ namespace xxx
             return appendParameter<int>(name, value);
         }
 
-        void setParameter(const std::string&& name, int value)
+        void setParameter(const std::string& name, int value)
         {
             setParameter<int>(name, value);
         }
@@ -69,7 +69,7 @@ namespace xxx
             return appendParameter<float>(name, value);
         }
 
-        void setParameter(const std::string&& name, float value)
+        void setParameter(const std::string& name, float value)
         {
             setParameter<float>(name, value);
         }
@@ -79,7 +79,7 @@ namespace xxx
             return appendParameter<osg::Vec2>(name, value);
         }
 
-        void setParameter(const std::string&& name, osg::Vec2 value)
+        void setParameter(const std::string& name, osg::Vec2 value)
         {
             setParameter<osg::Vec2>(name, value);
         }
@@ -89,7 +89,7 @@ namespace xxx
             return appendParameter<osg::Vec3>(name, value);
         }
 
-        void setParameter(const std::string&& name, osg::Vec3 value)
+        void setParameter(const std::string& name, osg::Vec3 value)
         {
             setParameter<osg::Vec3>(name, value);
         }
@@ -99,7 +99,7 @@ namespace xxx
             return appendParameter<osg::Vec4>(name, value);
         }
 
-        void setParameter(const std::string&& name, osg::Vec4 value)
+        void setParameter(const std::string& name, osg::Vec4 value)
         {
             setParameter<osg::Vec4>(name, value);
         }
@@ -109,7 +109,7 @@ namespace xxx
             return appendParameter<TextureAsset*>(name, value);
         }
 
-        void setParameter(const std::string&& name, TextureAsset* value)
+        void setParameter(const std::string& name, TextureAsset* value)
         {
             setParameter<TextureAsset*>(name, value);
         }

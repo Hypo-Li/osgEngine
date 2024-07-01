@@ -59,6 +59,18 @@ public:
     }
 };
 
+static const char* gSource = R"(
+void getMaterialParameters(in MaterialInputParameters inParam, out MaterialOutputParameters outParam)
+{
+    outParam.baseColor = uBaseColor;
+    outParam.metallic = uMetallic;
+    outParam.roughness = uRoughness;
+    outParam.normal = uNormal;
+    outParam.emissive = uEmissive;
+    outParam.occlusion = 1.0f;
+}
+)";
+
 int main()
 {
     const int width = 1280, height = 720;
@@ -88,7 +100,7 @@ int main()
     TestVisitor tv;
     entity->accept(tv);
 
-    osg::ref_ptr<osg::Program> computeProgram = new osg::Program;
+    /*osg::ref_ptr<osg::Program> computeProgram = new osg::Program;
     computeProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "Test/ComputeImage.comp.glsl"));
     osg::ref_ptr<osg::Texture2D> computeTexture = new osg::Texture2D;
     computeTexture->setInternalFormat(GL_RGBA16F);
@@ -104,7 +116,18 @@ int main()
     computeDispatch->getOrCreateStateSet()->setAttributeAndModes(computeProgram);
     computeDispatch->getOrCreateStateSet()->setAttributeAndModes(computeImage);
     computeDispatch->setDrawCallback(new ComputeDrawCallback(computeTexture));
-    rootGroup->addChild(computeDispatch);
+    rootGroup->addChild(computeDispatch);*/
+
+    xxx::MaterialAsset* materialAsset = new xxx::MaterialAsset;
+    materialAsset->appendParameter("BaseColor", osg::Vec3(0.8, 0.8, 0.8));
+    materialAsset->appendParameter("Metallic", 0.0f);
+    materialAsset->appendParameter("Roughness", 0.5f);
+    materialAsset->appendParameter("Emissive", osg::Vec3(0.0, 0.0, 0.0));
+    materialAsset->appendParameter("Normal", osg::Vec3(0.5, 0.5, 1.0));
+    materialAsset->setSource(gSource);
+    xxx::AssetManager::storeAsset(TEMP_DIR "Material.xast", materialAsset);
+
+    //xxx::MaterialAsset* materialAsset = dynamic_cast<xxx::MaterialAsset*>(xxx::AssetManager::loadAsset(TEMP_DIR "Material.xast"));
 
     using BufferType = xxx::Pipeline::Pass::BufferType;
     osg::ref_ptr<xxx::Pipeline::Pass> gbufferPass = pipeline->addInputPass("GBuffer", 0x00000001);

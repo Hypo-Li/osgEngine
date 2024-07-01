@@ -4,5 +4,5 @@ layout(rgba16f, binding = 0) uniform image2D uImage;
 
 void main()
 {
-    imageStore(uImage, ivec2(gl_GlobalInvocationID.xy), vec4(1.0, 2.0, 3.0, 4.0));
+    imageStore(uImage, ivec2(gl_GlobalInvocationID.xy), vec4(gl_GlobalInvocationID.xy / vec2(32.0), 0.0, 1.0));
 }
