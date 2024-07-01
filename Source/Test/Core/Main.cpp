@@ -4,6 +4,10 @@
 #include <osgViewer/Viewer>
 #include <osgDB/ReadFile>
 #include <osgGA/TrackballManipulator>
+#include <osg/BindImageTexture>
+#include <osg/DispatchCompute>
+#include <osgDB/WriteFile>
+#include <Core/Asset/AssetManager.h>
 
 class TestVisitor : public osg::NodeVisitor
 {
@@ -32,21 +36,26 @@ public:
     }
 };
 
-class MaterialUpdateVisitor : public osg::NodeVisitor
+class ComputeDrawCallback : public osg::Drawable::DrawCallback
 {
-    osg::ref_ptr<xxx::MaterialAsset> _materialAsset;
+    osg::ref_ptr<osg::Texture> _texture;
 public:
-    MaterialUpdateVisitor(xxx::MaterialAsset* materialAsset) : osg::NodeVisitor(osg::NodeVisitor::TRAVERSE_ALL_CHILDREN), _materialAsset(materialAsset) {}
-    ~MaterialUpdateVisitor() = default;
+    ComputeDrawCallback(osg::Texture* texture) : _texture(texture) {}
 
-    void apply(osg::Group& node)
+    virtual void drawImplementation(osg::RenderInfo& renderInfo, const osg::Drawable* drawable) const
     {
-        xxx::MeshRenderer* meshRenderer = dynamic_cast<xxx::MeshRenderer*>(&node);
-        if (meshRenderer)
-        {
-            if (meshRenderer->getSubmeshCount())
-        }
-        traverse(node);
+        drawable->drawImplementation(renderInfo);
+        renderInfo.getState()->get<osg::GLExtensions>()->glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+        _texture->apply(*renderInfo.getState());
+        renderInfo.getState()->get<osg::GLExtensions>()->glGenerateMipmap(_texture->getTextureTarget());
+        std::cout << _texture->getNumImages() << std::endl;
+        osg::ref_ptr<osg::Image> image = new osg::Image;
+        image->readImageFromCurrentTexture(renderInfo.getContextID(), true, _texture->getSourceType());
+        _texture->setImage(0, image);
+        xxx::TextureAsset* textureAsset = new xxx::TextureAsset;
+        textureAsset->setTexture(_texture);
+        xxx::AssetManager::storeAsset(TEMP_DIR "Texture.xast", textureAsset);
+        return;
     }
 };
 
@@ -78,6 +87,24 @@ int main()
 
     TestVisitor tv;
     entity->accept(tv);
+
+    osg::ref_ptr<osg::Program> computeProgram = new osg::Program;
+    computeProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "Test/ComputeImage.comp.glsl"));
+    osg::ref_ptr<osg::Texture2D> computeTexture = new osg::Texture2D;
+    computeTexture->setInternalFormat(GL_RGBA16F);
+    computeTexture->setSourceFormat(GL_RGBA);
+    computeTexture->setSourceType(GL_HALF_FLOAT);
+    computeTexture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR_MIPMAP_LINEAR);
+    computeTexture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::LINEAR);
+    computeTexture->setTextureWidth(32);
+    computeTexture->setTextureHeight(32);
+    computeTexture->setNumMipmapLevels(5);
+    osg::ref_ptr<osg::BindImageTexture> computeImage = new osg::BindImageTexture(0, computeTexture, osg::BindImageTexture::WRITE_ONLY, GL_RGBA16F_ARB);
+    osg::ref_ptr<osg::DispatchCompute> computeDispatch = new osg::DispatchCompute(1, 1, 1);
+    computeDispatch->getOrCreateStateSet()->setAttributeAndModes(computeProgram);
+    computeDispatch->getOrCreateStateSet()->setAttributeAndModes(computeImage);
+    computeDispatch->setDrawCallback(new ComputeDrawCallback(computeTexture));
+    rootGroup->addChild(computeDispatch);
 
     using BufferType = xxx::Pipeline::Pass::BufferType;
     osg::ref_ptr<xxx::Pipeline::Pass> gbufferPass = pipeline->addInputPass("GBuffer", 0x00000001);

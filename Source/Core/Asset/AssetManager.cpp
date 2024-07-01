@@ -4,6 +4,8 @@
 
 namespace xxx
 {
+    std::unordered_map<std::string, osg::ref_ptr<Asset>> AssetManager::_sAssetMap;
+
     Asset* AssetManager::loadAsset(const std::string& path)
     {
         auto& result = _sAssetMap.find(path);

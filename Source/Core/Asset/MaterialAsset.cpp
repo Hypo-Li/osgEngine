@@ -2,6 +2,13 @@
 
 namespace xxx
 {
+    const std::unordered_map<GLenum, std::string> MaterialAsset::_sTextureSamplerStringMap = {
+        {GL_TEXTURE_2D, "sampler2D"},
+        {GL_TEXTURE_2D_ARRAY, "sampler2DArray"},
+        {GL_TEXTURE_3D, "sampler3D"},
+        {GL_TEXTURE_CUBE_MAP, "samplerCube"},
+    };
+
     MaterialAsset::MaterialAsset() : Asset(Type::Material), _shader(new osg::Shader(osg::Shader::FRAGMENT))
     {
         initializeShaderDefines();
@@ -10,7 +17,7 @@ namespace xxx
         setDoubleSided(false);
     }
 
-    void MaterialAsset::serialize(Json& json, std::vector<char>& binray, std::vector<std::string>& reference) const
+    void MaterialAsset::serialize(Json& json, std::vector<char>& binary, std::vector<std::string>& reference) const
     {
         json["ShadingModel"] = static_cast<int>(_shadingModel);
         json["AlphaMode"] = static_cast<int>(_alphaMode);
@@ -40,7 +47,7 @@ namespace xxx
                 parametersJson[parameter.first] = osgVec4ToJson(std::get<osg::Vec4>(parameter.second));
                 break;
             case static_cast<size_t>(MaterialParameterTypeIndex::Texture):
-                parametersJson[parameter.first] = "#" + std::to_string(getReferenceIndex(std::get<TextureAndUnit>(parameter.second).first->getPath(), reference));
+                parametersJson[parameter.first] = "#" + std::to_string(getReferenceIndex(std::get<TextureAssetAndUnit>(parameter.second).first->getPath(), reference));
                 break;
             default:
                 break;
@@ -49,15 +56,15 @@ namespace xxx
         json["Parameters"] = parametersJson;
     }
 
-    void MaterialAsset::deserialize(const Json& json, const std::vector<char>& binray, const std::vector<std::string>& reference)
+    void MaterialAsset::deserialize(const Json& json, const std::vector<char>& binary, const std::vector<std::string>& reference)
     {
-        if (json.contains("ShadingModel"))
+        //if (json.contains("ShadingModel"))
             setShadingModel(static_cast<ShadingModel>(json["ShadingModel"].get<int>()));
-        if (json.contains("AlphaMode"))
+        //if (json.contains("AlphaMode"))
             setAlphaBlend(static_cast<AlphaMode>(json["AlphaMode"].get<int>()));
-        if (json.contains("DoubleSided"))
+        //if (json.contains("DoubleSided"))
             setDoubleSided(json["DoubleSided"].get<bool>());
-        if (json.contains("Parameters"))
+        //if (json.contains("Parameters"))
         {
             const Json& parametersJson = json["Parameters"];
             for (Json::const_iterator it = parametersJson.begin(); it != parametersJson.end(); it++)
@@ -131,8 +138,8 @@ namespace xxx
             MaterialParameterType& parameter = _parameters[name];
             if (parameter.index() == size_t(MaterialParameterTypeIndex::Texture))
             {
-                TextureAndUnit& textureAndUnit = std::get<TextureAndUnit>(parameter);
-                _stateSet->removeTextureAttribute(textureAndUnit.second, osg::StateAttribute::Type::TEXTURE);
+                TextureAssetAndUnit textureAssetAndUnit = std::get<TextureAssetAndUnit>(parameter);
+                _stateSet->removeTextureAttribute(textureAssetAndUnit.second, osg::StateAttribute::Type::TEXTURE);
             }
             _stateSet->removeUniform(_stateSet->getUniform(name));
             _parameters.erase(name);
@@ -166,7 +173,7 @@ namespace xxx
         std::unordered_set<uint32_t> unavailableUnit;
         for (const auto& parameter : _parameters)
             if (parameter.second.index() == size_t(MaterialParameterTypeIndex::Texture))
-                unavailableUnit.insert(std::get<TextureAndUnit>(parameter.second).second);
+                unavailableUnit.insert(std::get<TextureAssetAndUnit>(parameter.second).second);
 
         uint32_t availableUnit = 0;
         while (unavailableUnit.count(availableUnit))

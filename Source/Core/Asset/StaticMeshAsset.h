@@ -33,7 +33,7 @@ namespace xxx
                 {
                     Json vertexAttributeJson;
                     vertexAttributeJson["Index"] = vertexAttribute.first;
-                    vertexAttributeJson["Type"] = _sArrayTypeNameMap.at(vertexAttribute.second->getType());
+                    vertexAttributeJson["Type"] = _sArrayTypeStringMap.forwardAt(vertexAttribute.second->getType());
                     vertexAttributeJson["BufferOffset"] = offset;
                     vertexAttributeJson["BufferSize"] = vertexAttribute.second->getDataSize();
                     vertexAttributesJsonArray.emplace_back(vertexAttributeJson);
@@ -75,7 +75,7 @@ namespace xxx
                 for (const Json& vertexAttributeJson : vertexAttributesJsonArray)
                 {
                     uint32_t vertexAttributeIndex = vertexAttributeJson["Index"].get<uint32_t>();
-                    osg::Array::Type vertexAttributeType = _sArrayNameTypeMap.at(vertexAttributeJson["Type"].get<std::string>());
+                    osg::Array::Type vertexAttributeType = _sArrayTypeStringMap.backwardAt(vertexAttributeJson["Type"].get<std::string>());
                     size_t bufferOffset = vertexAttributeJson["BufferOffset"].get<size_t>();
                     size_t bufferSize = vertexAttributeJson["BufferSize"].get<size_t>();
                     osg::ref_ptr<osg::Array> array = createArrayByType(vertexAttributeType);
@@ -117,5 +117,8 @@ namespace xxx
             osg::ref_ptr<MaterialAsset> _previewMaterial;
         };
         std::vector<Submesh> _submeshes;
+
+        static const ConstBiMap<osg::Array::Type, std::string> _sArrayTypeStringMap;
+        static osg::ref_ptr<osg::Array> createArrayByType(osg::Array::Type type);
     };
 }

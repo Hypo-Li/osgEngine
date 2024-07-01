@@ -15,9 +15,9 @@ namespace xxx
         MaterialAsset();
         virtual ~MaterialAsset() = default;
 
-        virtual void serialize(Json& json, std::vector<char>& binray, std::vector<std::string>& reference) const override;
+        virtual void serialize(Json& json, std::vector<char>& binary, std::vector<std::string>& reference) const override;
 
-        virtual void deserialize(const Json& json, const std::vector<char>& binray, const std::vector<std::string>& reference) override;
+        virtual void deserialize(const Json& json, const std::vector<char>& binary, const std::vector<std::string>& reference) override;
 
         enum class ShadingModel
         {
@@ -125,8 +125,8 @@ namespace xxx
         ShadingModel _shadingModel;
         AlphaMode _alphaMode;
         bool _doubleSided;
-        using TextureAndUnit = std::pair<osg::ref_ptr<TextureAsset>, uint32_t>;
-        using MaterialParameterType = std::variant<bool, int, float, osg::Vec2, osg::Vec3, osg::Vec4, TextureAndUnit>;
+        using TextureAssetAndUnit = std::pair<osg::ref_ptr<TextureAsset>, uint32_t>;
+        using MaterialParameterType = std::variant<bool, int, float, osg::Vec2, osg::Vec3, osg::Vec4, TextureAssetAndUnit>;
         enum class MaterialParameterTypeIndex
         {
             Bool,
@@ -141,6 +141,7 @@ namespace xxx
         std::map<std::string, std::string> _uniformLines;
 
         static constexpr unsigned int _sMaxTextureCount = 16;
+        static const std::unordered_map<GLenum, std::string> _sTextureSamplerStringMap;
         
         void initializeShaderDefines();
 
@@ -177,7 +178,7 @@ namespace xxx
         }
 
         template <typename T>
-        static std::string getTypeNameString()
+        static std::string getParameterTypeString()
         {
             if constexpr (std::is_same_v<T, bool>)
                 return "bool";
@@ -195,23 +196,6 @@ namespace xxx
                 return "";
         }
 
-        static std::string getTextureTypeNameString(TextureAsset* textureAsset)
-        {
-            switch (textureAsset->_texture->getTextureTarget())
-            {
-            case GL_TEXTURE_2D:
-                return "sampler2D";
-            case GL_TEXTURE_2D_ARRAY:
-                return "sampler2DArray";
-            case GL_TEXTURE_3D:
-                return "sampler3D";
-            case GL_TEXTURE_CUBE_MAP:
-                return "samplerCube";
-            default:
-                return "";
-            }
-        }
-
         template <typename T>
         bool appendParameter(const std::string& name, T value)
         {
@@ -225,16 +209,14 @@ namespace xxx
                 _parameters[name] = std::make_pair(value, unit);
                 _stateSet->addUniform(new osg::Uniform(name.c_str(), unit));
                 _stateSet->setTextureAttribute(unit, value->_texture, osg::StateAttribute::ON);
-                _uniformLines[name] = "uniform " + getTextureTypeNameString(value) + " u" + name + ";\n";
+                _uniformLines[name] = "uniform " + _sTextureSamplerStringMap.at(value->_texture->getTextureTarget()) + " u" + name + ";\n";
             }
             else
             {
                 _parameters[name] = value;
                 _stateSet->addUniform(new osg::Uniform(name.c_str(), value));
-                _uniformLines[name] = "uniform " + getTypeNameString<T>() + " u" + name + ";\n";
+                _uniformLines[name] = "uniform " + getParameterTypeString<T>() + " u" + name + ";\n";
             }
-            // uniforms changed, need refresh
-            dirty();
             return true;
         }
 
@@ -245,9 +227,9 @@ namespace xxx
             {
                 if constexpr (std::is_same_v<T, TextureAsset*>)
                 {
-                    TextureAndUnit& textureAndUnit = std::get<TextureAndUnit>(_parameters[name]);
-                    textureAndUnit.first = value;
-                    uint32_t unit = textureAndUnit.second;
+                    TextureAssetAndUnit textureAssetAndUnit = std::get<TextureAssetAndUnit>(_parameters[name]);
+                    textureAssetAndUnit.first = value;
+                    uint32_t unit = textureAssetAndUnit.second;
                     _stateSet->setTextureAttribute(unit, value->_texture, osg::StateAttribute::ON);
                 }
                 else
