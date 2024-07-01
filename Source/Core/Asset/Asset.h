@@ -12,8 +12,10 @@
 namespace xxx
 {
     using Json = nlohmann::json;
+    class AssetManager;
     class Asset : public osg::Referenced
     {
+        friend class AssetManager;
     public:
         enum class Type : uint32_t
         {

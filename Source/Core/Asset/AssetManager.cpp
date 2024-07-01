@@ -48,6 +48,7 @@ namespace xxx
             std::cerr << "unknow asset type: " << path << std::endl;
             return nullptr;
         }
+        asset->_path = path;
 
         uint64_t jsonStrSize, binarySize;
         ifs.read((char*)&jsonStrSize, sizeof(uint64_t));

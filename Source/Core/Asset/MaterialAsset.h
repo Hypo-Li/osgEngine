@@ -118,6 +118,10 @@ namespace xxx
 
         void setSource(const std::string& source);
 
+        const osg::StateSet* getStateSet() const { return _stateSet; }
+
+        const osg::Shader* getShader() const { return _shader; }
+
     private:
         osg::ref_ptr<osg::StateSet> _stateSet;
         osg::ref_ptr<osg::Shader> _shader;
@@ -125,7 +129,7 @@ namespace xxx
         ShadingModel _shadingModel;
         AlphaMode _alphaMode;
         bool _doubleSided;
-        using TextureAssetAndUnit = std::pair<osg::ref_ptr<TextureAsset>, uint32_t>;
+        using TextureAssetAndUnit = std::pair<osg::ref_ptr<TextureAsset>, int>;
         using MaterialParameterType = std::variant<bool, int, float, osg::Vec2, osg::Vec3, osg::Vec4, TextureAssetAndUnit>;
         enum class MaterialParameterTypeIndex
         {
@@ -145,7 +149,7 @@ namespace xxx
         
         void initializeShaderDefines();
 
-        uint32_t getAvailableUnit();
+        int getAvailableUnit();
 
         static Json osgVec2ToJson(const osg::Vec2& v)
         {
@@ -203,18 +207,18 @@ namespace xxx
                 return false;
             if constexpr (std::is_same_v<T, TextureAsset*>)
             {
-                uint32_t unit = getAvailableUnit();
+                int unit = getAvailableUnit();
                 if (unit >= _sMaxTextureCount)
                     return false;
                 _parameters[name] = std::make_pair(value, unit);
-                _stateSet->addUniform(new osg::Uniform(name.c_str(), unit));
+                _stateSet->addUniform(new osg::Uniform(("u" + name).c_str(), unit));
                 _stateSet->setTextureAttribute(unit, value->_texture, osg::StateAttribute::ON);
                 _uniformLines[name] = "uniform " + _sTextureSamplerStringMap.at(value->_texture->getTextureTarget()) + " u" + name + ";\n";
             }
             else
             {
                 _parameters[name] = value;
-                _stateSet->addUniform(new osg::Uniform(name.c_str(), value));
+                _stateSet->addUniform(new osg::Uniform(("u" + name).c_str(), value));
                 _uniformLines[name] = "uniform " + getParameterTypeString<T>() + " u" + name + ";\n";
             }
             return true;
@@ -229,7 +233,7 @@ namespace xxx
                 {
                     TextureAssetAndUnit textureAssetAndUnit = std::get<TextureAssetAndUnit>(_parameters[name]);
                     textureAssetAndUnit.first = value;
-                    uint32_t unit = textureAssetAndUnit.second;
+                    int unit = textureAssetAndUnit.second;
                     _stateSet->setTextureAttribute(unit, value->_texture, osg::StateAttribute::ON);
                 }
                 else

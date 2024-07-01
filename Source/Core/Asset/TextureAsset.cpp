@@ -15,6 +15,9 @@ namespace xxx
     };
 
     const Asset::ConstBiMap<GLenum, std::string> TextureAsset::_sTextureFormatStringMap = {
+        {GL_RGB, "RGB"},
+        {GL_RGBA, "RGBA"},
+
         {GL_R8, "R8"},
         {GL_RG8, "RG8"},
         {GL_RGB8, "RGB8"},
@@ -189,14 +192,30 @@ namespace xxx
     {
         GLenum textureType = _texture->getTextureTarget();
         json["Type"] = _sTextureTypeStringMap.forwardAt(textureType);
-        json["Width"] = _texture->getTextureWidth();
-        json["Height"] = _texture->getTextureHeight();
-        if (textureType == GL_TEXTURE_2D_ARRAY || textureType == GL_TEXTURE_3D)
-            json["Depth"] = _texture->getTextureDepth();
+        if (_texture->getTextureWidth() == 0 || _texture->getTextureHeight() == 0)
+        {
+            json["Width"] = _texture->getImage(0)->s();
+            json["Height"] = _texture->getImage(0)->t();
+            if (textureType == GL_TEXTURE_2D_ARRAY || textureType == GL_TEXTURE_3D)
+                json["Depth"] = _texture->getImage(0)->r();
+        }
+        else
+        {
+            json["Width"] = _texture->getTextureWidth();
+            json["Height"] = _texture->getTextureHeight();
+            if (textureType == GL_TEXTURE_2D_ARRAY || textureType == GL_TEXTURE_3D)
+                json["Depth"] = _texture->getTextureDepth();
+        }
 
         json["Format"] = _sTextureFormatStringMap.forwardAt(_texture->getInternalFormat());
-        json["PixelFormat"] = _sPixelFormatStringMap.forwardAt(_texture->getSourceFormat());
-        json["PixelType"] = _sPixelTypeStringMap.forwardAt(_texture->getSourceType());
+        if (_texture->getSourceFormat() == 0)
+            json["PixelFormat"] = _sPixelFormatStringMap.forwardAt(_texture->getImage(0)->getPixelFormat());
+        else
+            json["PixelFormat"] = _sPixelFormatStringMap.forwardAt(_texture->getSourceFormat());
+        if (_texture->getSourceType() == 0)
+            json["PixelType"] = _sPixelTypeStringMap.forwardAt(_texture->getImage(0)->getDataType());
+        else
+            json["PixelType"] = _sPixelTypeStringMap.forwardAt(_texture->getSourceType());
 
         json["MinFilter"] = _sTextureFilterStringMap.forwardAt(_texture->getFilter(osg::Texture::MIN_FILTER));
         json["MagFilter"] = _sTextureFilterStringMap.forwardAt(_texture->getFilter(osg::Texture::MAG_FILTER));
@@ -266,7 +285,7 @@ namespace xxx
         osg::Texture::FilterMode minFilter = _sTextureFilterStringMap.backwardAt(json["MinFilter"].get<std::string>());
         _texture->setFilter(osg::Texture::MIN_FILTER, minFilter);
         osg::Texture::FilterMode magFilter = _sTextureFilterStringMap.backwardAt(json["MagFilter"].get<std::string>());
-        _texture->setFilter(osg::Texture::MAG_FILTER, minFilter);
+        _texture->setFilter(osg::Texture::MAG_FILTER, magFilter);
         osg::Texture::WrapMode wrapS = _sTextureWrapStringMap.backwardAt(json["WrapS"].get<std::string>());
         _texture->setWrap(osg::Texture::WRAP_S, wrapS);
         osg::Texture::WrapMode wrapT = _sTextureWrapStringMap.backwardAt(json["WrapT"].get<std::string>());

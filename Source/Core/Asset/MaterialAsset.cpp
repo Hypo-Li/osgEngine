@@ -62,7 +62,6 @@ namespace xxx
         setShadingModel(static_cast<ShadingModel>(json["ShadingModel"]));
         setAlphaBlend(static_cast<AlphaMode>(json["AlphaMode"]));
         setDoubleSided(json["DoubleSided"]);
-        setSource(json["Source"]);
         {
             const Json& parametersJson = json["Parameters"];
             for (Json::const_iterator it = parametersJson.begin(); it != parametersJson.end(); it++)
@@ -88,6 +87,7 @@ namespace xxx
                 }
             }
         }
+        setSource(json["Source"]);
     }
 
     void MaterialAsset::setShadingModel(ShadingModel shadingModel)
@@ -120,13 +120,9 @@ namespace xxx
     {
         _doubleSided = doubleSided;
         if (_doubleSided)
-        {
             _stateSet->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
-        }
         else
-        {
             _stateSet->setMode(GL_CULL_FACE, osg::StateAttribute::ON);
-        }
     }
 
     bool MaterialAsset::removeParameter(const std::string& name)
@@ -166,22 +162,17 @@ namespace xxx
         _stateSet->setDefine("ALPHA_BLEND", "2");
     }
 
-    uint32_t MaterialAsset::getAvailableUnit()
+    int MaterialAsset::getAvailableUnit()
     {
-        std::unordered_set<uint32_t> unavailableUnit;
+        std::unordered_set<int> unavailableUnit;
         for (const auto& parameter : _parameters)
             if (parameter.second.index() == size_t(MaterialParameterTypeIndex::Texture))
                 unavailableUnit.insert(std::get<TextureAssetAndUnit>(parameter.second).second);
 
-        uint32_t availableUnit = 0;
+        int availableUnit = 0;
         while (unavailableUnit.count(availableUnit))
             ++availableUnit;
         return availableUnit;
-    }
-
-    void dirty()
-    {
-        // update scene's all material instance
     }
 
 }

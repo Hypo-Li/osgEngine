@@ -9,6 +9,89 @@
 #include <osgDB/WriteFile>
 #include <Core/Asset/AssetManager.h>
 
+void debugCallback(GLenum source, GLenum type, GLuint, GLenum severity,
+    GLsizei, const GLchar* message, const void*)
+{
+    std::string srcStr = "UNDEFINED";
+    switch (source)
+
+    {
+    case GL_DEBUG_SOURCE_API:             srcStr = "API"; break;
+    case GL_DEBUG_SOURCE_WINDOW_SYSTEM:   srcStr = "WINDOW_SYSTEM"; break;
+    case GL_DEBUG_SOURCE_SHADER_COMPILER: srcStr = "SHADER_COMPILER"; break;
+    case GL_DEBUG_SOURCE_THIRD_PARTY:     srcStr = "THIRD_PARTY"; break;
+    case GL_DEBUG_SOURCE_APPLICATION:     srcStr = "APPLICATION"; break;
+    case GL_DEBUG_SOURCE_OTHER:           srcStr = "OTHER"; break;
+    }
+
+    std::string typeStr = "UNDEFINED";
+
+    osg::NotifySeverity osgSeverity = osg::DEBUG_INFO;
+    switch (type)
+    {
+
+    case GL_DEBUG_TYPE_ERROR:
+        //	__debugbreak();
+        typeStr = "ERROR";
+        osgSeverity = osg::FATAL;
+        break;
+    case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: typeStr = "DEPRECATED_BEHAVIOR"; break;
+    case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  typeStr = "UNDEFINED_BEHAVIOR"; break;
+    case GL_DEBUG_TYPE_PORTABILITY:         typeStr = "PORTABILITY"; break;
+    case GL_DEBUG_TYPE_PERFORMANCE:         typeStr = "PERFORMANCE"; break;
+    case GL_DEBUG_TYPE_OTHER:               typeStr = "OTHER"; break;
+    }
+
+
+    osg::notify(osgSeverity) << "OpenGL " << typeStr << " [" << srcStr << "]: " << message << std::endl;
+
+}
+
+void enableGLDebugExtension(int context_id)
+{
+    //create the extensions
+    PFNGLDEBUGMESSAGECONTROLPROC glDebugMessageControl = nullptr;
+    PFNGLDEBUGMESSAGECALLBACKPROC glDebugMessageCallback = nullptr;
+    if (osg::isGLExtensionSupported(context_id, "GL_KHR_debug"))
+    {
+        osg::setGLExtensionFuncPtr(glDebugMessageCallback, "glDebugMessageCallback");
+        osg::setGLExtensionFuncPtr(glDebugMessageControl, "glDebugMessageControl");
+
+    }
+    else if (osg::isGLExtensionSupported(context_id, "GL_ARB_debug_output"))
+    {
+        osg::setGLExtensionFuncPtr(glDebugMessageCallback, "glDebugMessageCallbackARB");
+        osg::setGLExtensionFuncPtr(glDebugMessageControl, "glDebugMessageControlARB");
+    }
+    else if (osg::isGLExtensionSupported(context_id, "GL_AMD_debug_output"))
+    {
+        osg::setGLExtensionFuncPtr(glDebugMessageCallback, "glDebugMessageCallbackAMD");
+        osg::setGLExtensionFuncPtr(glDebugMessageControl, "glDebugMessageControlAMD");
+    }
+
+    if (glDebugMessageCallback != nullptr && glDebugMessageControl != nullptr)
+    {
+        glEnable(GL_DEBUG_OUTPUT);
+        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_MEDIUM, 0, NULL, GL_TRUE);
+        glDebugMessageCallback(debugCallback, nullptr);
+    }
+}
+
+class EnableGLDebugOperation : public osg::GraphicsOperation
+{
+public:
+    EnableGLDebugOperation()
+        : osg::GraphicsOperation("EnableGLDebugOperation", false) {
+    }
+    virtual void operator ()(osg::GraphicsContext* gc) {
+        OpenThreads::ScopedLock<OpenThreads::Mutex> lock(_mutex);
+        int context_id = gc->getState()->getContextID();
+        enableGLDebugExtension(context_id);
+    }
+    OpenThreads::Mutex _mutex;
+};
+
 class TestVisitor : public osg::NodeVisitor
 {
 public:
@@ -60,14 +143,34 @@ public:
 };
 
 static const char* gSource = R"(
-void getMaterialParameters(in MaterialInputParameters inParam, out MaterialOutputParameters outParam)
+struct MaterialInputs
 {
-    outParam.baseColor = uBaseColor;
-    outParam.metallic = uMetallic;
-    outParam.roughness = uRoughness;
-    outParam.normal = uNormal;
-    outParam.emissive = uEmissive;
-    outParam.occlusion = 1.0f;
+    vec3 fragPosVS;
+    vec3 normalWS;
+    vec4 tangentWS;
+    vec4 color;
+    vec2 texcoord0;
+    vec2 texcoord1;
+};
+
+struct MaterialOutputs
+{
+    vec3 baseColor;
+    float metallic;
+    float roughness;
+    vec3 normal;
+    vec3 emissive;
+    float occlusion;
+};
+
+void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
+{
+    mo.baseColor = texture(uBaseColorTexture, mi.texcoord0).rgb;
+    mo.metallic = uMetallic;
+    mo.roughness = uRoughness;
+    mo.normal = uNormal;
+    mo.emissive = uEmissive;
+    mo.occlusion = 1.0f;
 }
 )";
 
@@ -88,50 +191,48 @@ int main()
     osg::ref_ptr<osgViewer::Viewer> viewer = new osgViewer::Viewer;
     osg::ref_ptr<osg::Group> rootGroup = new osg::Group;
     viewer->setSceneData(rootGroup);
+    viewer->setRealizeOperation(new EnableGLDebugOperation);
     osg::ref_ptr<osg::Camera> camera = viewer->getCamera();
     camera->setGraphicsContext(gc);
     camera->setViewport(0, 0, width, height);
     camera->setProjectionMatrixAsPerspective(90.0, double(width) / double(height), 0.1, 400.0);
 
-    osg::ref_ptr<xxx::Pipeline> pipeline = new xxx::Pipeline(viewer, gc);
-    osg::ref_ptr<xxx::Entity> entity = new xxx::Entity("test");
-    entity->appendComponent(new xxx::MeshRenderer);
+    /*osg::Image* image = osgDB::readImageFile(TEMP_DIR "awesomeface.png");
+    osg::Texture2D* texture = new osg::Texture2D(image);
+    texture->setInternalFormat(GL_RGBA8);
+    xxx::TextureAsset* textureAsset = new xxx::TextureAsset;
+    textureAsset->setTexture(texture);
+    xxx::AssetManager::storeAsset(TEMP_DIR "Texture.xast", textureAsset);*/
 
-    TestVisitor tv;
-    entity->accept(tv);
-
-    /*osg::ref_ptr<osg::Program> computeProgram = new osg::Program;
-    computeProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "Test/ComputeImage.comp.glsl"));
-    osg::ref_ptr<osg::Texture2D> computeTexture = new osg::Texture2D;
-    computeTexture->setInternalFormat(GL_RGBA16F);
-    computeTexture->setSourceFormat(GL_RGBA);
-    computeTexture->setSourceType(GL_HALF_FLOAT);
-    computeTexture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR_MIPMAP_LINEAR);
-    computeTexture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::LINEAR);
-    computeTexture->setTextureWidth(32);
-    computeTexture->setTextureHeight(32);
-    computeTexture->setNumMipmapLevels(5);
-    osg::ref_ptr<osg::BindImageTexture> computeImage = new osg::BindImageTexture(0, computeTexture, osg::BindImageTexture::WRITE_ONLY, GL_RGBA16F_ARB);
-    osg::ref_ptr<osg::DispatchCompute> computeDispatch = new osg::DispatchCompute(1, 1, 1);
-    computeDispatch->getOrCreateStateSet()->setAttributeAndModes(computeProgram);
-    computeDispatch->getOrCreateStateSet()->setAttributeAndModes(computeImage);
-    computeDispatch->setDrawCallback(new ComputeDrawCallback(computeTexture));
-    rootGroup->addChild(computeDispatch);*/
-
+    /*xxx::TextureAsset* baseColorTexture = dynamic_cast<xxx::TextureAsset*>(xxx::AssetManager::loadAsset(TEMP_DIR "Texture.xast"));
     xxx::MaterialAsset* materialAsset = new xxx::MaterialAsset;
-    materialAsset->appendParameter("BaseColor", osg::Vec3(0.8, 0.8, 0.8));
+    materialAsset->appendParameter("BaseColorTexture", baseColorTexture);
     materialAsset->appendParameter("Metallic", 0.0f);
     materialAsset->appendParameter("Roughness", 0.5f);
     materialAsset->appendParameter("Emissive", osg::Vec3(0.0, 0.0, 0.0));
     materialAsset->appendParameter("Normal", osg::Vec3(0.5, 0.5, 1.0));
     materialAsset->setSource(gSource);
-    xxx::AssetManager::storeAsset(TEMP_DIR "Material.xast", materialAsset);
+    xxx::AssetManager::storeAsset(TEMP_DIR "Material.xast", materialAsset);*/
 
-    //xxx::MaterialAsset* materialAsset = dynamic_cast<xxx::MaterialAsset*>(xxx::AssetManager::loadAsset(TEMP_DIR "Material.xast"));
+    xxx::MaterialAsset* materialAsset = dynamic_cast<xxx::MaterialAsset*>(xxx::AssetManager::loadAsset(TEMP_DIR "Material.xast"));
+    osg::ref_ptr<osg::StateSet> materialInstance = new osg::StateSet(*materialAsset->getStateSet());
+    osg::ref_ptr<osg::Program> realProgram = new osg::Program;
+    realProgram->addShader(osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Mesh/Mesh.vert.glsl"));
+    realProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Mesh/Mesh.frag.glsl"));
+    realProgram->addShader(new osg::Shader(*materialAsset->getShader()));
+    materialInstance->setAttribute(realProgram, osg::StateAttribute::ON);
 
+    osg::ref_ptr<osg::Node> meshNode = osgDB::readNodeFile(TEMP_DIR "suzanne.obj");
+    meshNode->setStateSet(materialInstance);
+    rootGroup->addChild(meshNode);
+
+    osg::ref_ptr<xxx::Pipeline> pipeline = new xxx::Pipeline(viewer, gc);
     using BufferType = xxx::Pipeline::Pass::BufferType;
     osg::ref_ptr<xxx::Pipeline::Pass> gbufferPass = pipeline->addInputPass("GBuffer", 0x00000001);
-    gbufferPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA8);
+    gbufferPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA32F);
+    gbufferPass->attach(BufferType::COLOR_BUFFER1, GL_RGBA16F);
+    gbufferPass->attach(BufferType::COLOR_BUFFER2, GL_RGBA8);
+    gbufferPass->attach(BufferType::COLOR_BUFFER3, GL_RGBA8);
     gbufferPass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT, osg::Texture::NEAREST, osg::Texture::NEAREST);
 
     osg::Shader* screenQuadShader = osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Common/ScreenQuad.vert.glsl");
@@ -139,7 +240,7 @@ int main()
     finalProgram->addShader(screenQuadShader);
     finalProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CopyColor.frag.glsl"));
     osg::ref_ptr<xxx::Pipeline::Pass> finalPass = pipeline->addFinalPass("Final", finalProgram);
-    finalPass->applyTexture(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorTexture", 0);
+    finalPass->applyTexture(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER2), "uColorTexture", 0);
     viewer->setCameraManipulator(new osgGA::TrackballManipulator);
     viewer->realize();
     while (!viewer->done())
