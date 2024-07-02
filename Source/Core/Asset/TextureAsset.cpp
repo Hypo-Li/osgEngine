@@ -223,6 +223,7 @@ namespace xxx
             json["WrapR"] = _sTextureWrapStringMap.forwardAt(_texture->getWrap(osg::Texture::WRAP_R));
         json["WrapS"] = _sTextureWrapStringMap.forwardAt(_texture->getWrap(osg::Texture::WRAP_S));
         json["WrapT"] = _sTextureWrapStringMap.forwardAt(_texture->getWrap(osg::Texture::WRAP_T));
+        json["MaxAnisotropy"] = _texture->getMaxAnisotropy();
 
         bool generationMipmap = _texture->getUseHardwareMipMapGeneration();
         json["GenerationMipmap"] = generationMipmap;
@@ -295,6 +296,7 @@ namespace xxx
             osg::Texture::WrapMode wrapR = _sTextureWrapStringMap.backwardAt(json["WrapR"].get<std::string>());
             _texture->setWrap(osg::Texture::WRAP_R, wrapR);
         }
+        _texture->setMaxAnisotropy(json["MaxAnisotropy"].get<float>());
 
         bool generationMipmap = json["GenerationMipmap"].get<bool>();
         _texture->setUseHardwareMipMapGeneration(generationMipmap);

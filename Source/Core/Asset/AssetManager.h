@@ -15,6 +15,12 @@ namespace xxx
 
         static Asset* loadAsset(const std::string& path);
 
+        template <typename T>
+        static T* loadAsset(const std::string& path)
+        {
+            return dynamic_cast<T*>(loadAsset(path));
+        }
+
         static void storeAsset(const std::string& path, Asset* asset);
 
         static Asset::Type getAssetType(const std::string& path);
@@ -26,6 +32,8 @@ namespace xxx
 #else
         static constexpr uint32_t _sAssetMagic = 0x54534158; // XAST
 #endif
+
+        static Asset* tryGetAssetFromCache(const std::string& path);
         
     };
 }

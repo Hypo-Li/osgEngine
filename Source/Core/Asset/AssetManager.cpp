@@ -8,11 +8,9 @@ namespace xxx
 
     Asset* AssetManager::loadAsset(const std::string& path)
     {
-        auto& result = _sAssetMap.find(path);
-        if (result != _sAssetMap.end())
-        {
-            return result->second;
-        }
+        Asset* asset = tryGetAssetFromCache(path);
+        if (asset)
+            return asset;
 
         std::ifstream ifs(path, std::ios::binary);
         if (!ifs.is_open())
@@ -31,8 +29,7 @@ namespace xxx
             return nullptr;
         }
 
-        // FIXME: should not modify here when add a new asset type
-        Asset* asset;
+        // NOTE: modify here when add a new asset type
         switch (static_cast<Asset::Type>(typeMagic))
         {
         case Asset::Type::Texture:
@@ -104,14 +101,18 @@ namespace xxx
         if (binarySize) ofs.write(binary.data(), binarySize);
         ofs.close();
 
-        _sAssetMap.insert(std::make_pair(path, asset));
+        if (asset->_path.size() == 0)
+        {
+            asset->_path = path;
+            _sAssetMap.insert(std::make_pair(path, asset));
+        }
     }
 
     Asset::Type AssetManager::getAssetType(const std::string& path)
     {
-        auto& result = _sAssetMap.find(path);
-        if (result != _sAssetMap.end())
-            return result->second->getType();
+        Asset* asset = tryGetAssetFromCache(path);
+        if (asset)
+            return asset->getType();
 
         std::ifstream ifs(path, std::ios::binary);
         if (!ifs.is_open())
@@ -123,6 +124,7 @@ namespace xxx
         uint32_t assetMagic, typeMagic;
         ifs.read((char*)&assetMagic, sizeof(uint32_t));
         ifs.read((char*)&typeMagic, sizeof(uint32_t));
+        ifs.close();
 
         if (assetMagic != _sAssetMagic)
         {
@@ -131,5 +133,13 @@ namespace xxx
         }
 
         return static_cast<Asset::Type>(typeMagic);
+    }
+
+    Asset* AssetManager::tryGetAssetFromCache(const std::string& path)
+    {
+        const auto& result = _sAssetMap.find(path);
+        if (result != _sAssetMap.end())
+            return result->second;
+        return nullptr;
     }
 }

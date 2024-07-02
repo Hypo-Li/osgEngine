@@ -51,24 +51,21 @@ namespace xxx
                 }
                 geometry->addPrimitiveSet(submesh._drawElements);
 
-                // set material
-                geometry->setCullCallback(new GeometryCullCallback);
-                setMaterial(submesh._previewMaterial, i, true);
+                // set preview material
+                geometry->setCullCallback(new SwitchMaterialCullCallback(submesh._previewMaterial));
+                _materials[i].first = submesh._previewMaterial;
+                _materials[i].second = false;
             }
         }
 
-        void setMaterial(MaterialAsset* material, uint32_t index, bool usePreviewMaterial = false)
+        void setMaterial(MaterialAsset* material, uint32_t index)
         {
+            if (_materials.size() <= index)
+                return;
             _materials[index].first = material;
-            _materials[index].second = usePreviewMaterial;
-            GeometryCullCallback* cullCallback = dynamic_cast<GeometryCullCallback*>(_geometries[index]->getCullCallback());
-            osg::StateSet* materialStateSet = new osg::StateSet(*material->_stateSet);
-            osg::Program* materialProgram = new osg::Program;
-            materialProgram->addShader(material->_shader);
-            materialStateSet->setAttribute(materialProgram, osg::StateAttribute::ON);
-            cullCallback->setGBufferStateSet(materialStateSet);
-            // create shadow cast stateSet and set it;
-            //cullCallback->setShadowCastStateSet();
+            _materials[index].second = true;
+            SwitchMaterialCullCallback* cullCallback = dynamic_cast<SwitchMaterialCullCallback*>(_geometries[index]->getCullCallback());
+            cullCallback->setMaterial(material);
         }
 
         uint32_t getSubmeshCount()
@@ -76,28 +73,28 @@ namespace xxx
             return _staticMesh ? _staticMesh->getSubmeshCount() : 0;
         }
 
-        MaterialAsset* getMaterialAsset(uint32_t index)
+        MaterialAsset* getMaterial(uint32_t index)
         {
             return _materials.size() > index ? _materials[index].first : nullptr;
         }
 
-
-
     private:
         osg::ref_ptr<StaticMeshAsset> _staticMesh;
-        // first is material asset, second indicates whether to use the preview material
+        // first is material asset, second means whether the material has been set
         std::vector<std::pair<osg::ref_ptr<MaterialAsset>, bool>> _materials;
         osg::ref_ptr<osg::Geode> _geode;
         std::vector<osg::ref_ptr<osg::Geometry>> _geometries;
 
-        class GeometryCullCallback : public osg::DrawableCullCallback
+        class SwitchMaterialCullCallback : public osg::DrawableCullCallback
         {
+            osg::ref_ptr<xxx::MaterialAsset> _material;
             osg::ref_ptr<osg::StateSet> _gbufferStateSet;
             osg::ref_ptr<osg::StateSet> _shadowCastStateSet;
         public:
-            GeometryCullCallback() :
-                _gbufferStateSet(nullptr),
-                _shadowCastStateSet(nullptr) {}
+            SwitchMaterialCullCallback(xxx::MaterialAsset* material) : _material(material)
+            {
+                applyMaterial();
+            }
 
             virtual bool cull(osg::NodeVisitor* nv, osg::Drawable* drawable, osg::RenderInfo* renderInfo) const
             {
@@ -114,16 +111,27 @@ namespace xxx
                 }
             }
 
-            void setGBufferStateSet(osg::StateSet* gbufferStateSet)
+            void setMaterial(xxx::MaterialAsset* material)
             {
-                _gbufferStateSet = gbufferStateSet;
+                _material = material;
+                applyMaterial();
             }
 
-            void setShadowCastStateSet(osg::StateSet* shadowCastStateSet)
+            const xxx::MaterialAsset* getMaterial() const
             {
-                _shadowCastStateSet = shadowCastStateSet;
+                return _material;
             }
 
+            void applyMaterial()
+            {
+                osg::ref_ptr<osg::Program> gbufferProgram = new osg::Program;
+                gbufferProgram->addShader(_material->getShader());
+
+                _gbufferStateSet = new osg::StateSet(*_material->getStateSet());
+                _gbufferStateSet->setAttribute(gbufferProgram, osg::StateAttribute::ON);
+
+                _shadowCastStateSet = new osg::StateSet;
+            }
         };
     };
 }

@@ -22,4 +22,4 @@ add_library (
     "Utility/StringHash.h"
     "Base/Reflection.h"
     "Engine.h"
-)
+ "Utility/GLTFLoader.h")

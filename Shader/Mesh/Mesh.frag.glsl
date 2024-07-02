@@ -1,4 +1,11 @@
 #version 460 core
+#pragma import_defines(UNLIT)
+#pragma import_defines(STANDARD)
+#pragma import_defines(OPAQUE)
+#pragma import_defines(ALPHA_MASK)
+#pragma import_defines(ALPHA_BLEND)
+#pragma import_defines(SHADING_MODEL)
+#pragma import_defines(ALPHA_MODE)
 in V2F
 {
     vec3 fragPosVS;
@@ -9,7 +16,11 @@ in V2F
     vec2 texcoord1;
 } v2f;
 
+#if (ALPHA_MODE != ALPHA_BLEND)
 out vec4 fragData[4];
+#else
+out vec4 fragData;
+#endif
 
 struct MaterialInputs
 {
@@ -23,12 +34,15 @@ struct MaterialInputs
 
 struct MaterialOutputs
 {
+    vec3 emissive;
+    float opaque;
+#if (SHADING_MODEL >= STANDARD)
     vec3 baseColor;
     float metallic;
     float roughness;
     vec3 normal;
-    vec3 emissive;
     float occlusion;
+#endif
 };
 
 void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo);
@@ -37,15 +51,27 @@ void main()
 {
     MaterialInputs mi;
     mi.fragPosVS = v2f.fragPosVS;
-    mi.normalWS = v2f.normalWS;
-    mi.tangentWS = v2f.tangentWS;
+    mi.normalWS = normalize(v2f.normalWS);
+    mi.tangentWS = normalize(v2f.tangentWS);
     mi.color = v2f.color;
     mi.texcoord0 = v2f.texcoord0;
     mi.texcoord1 = v2f.texcoord1;
     MaterialOutputs mo;
     calcMaterial(mi, mo);
+
+#if (ALPHA_MODE == ALPHA_MASK)
+    if (mo.opaque < 0.5)
+        discard;
+#endif
+
+#if (ALPHA_MODE != ALPHA_BLEND)
+    // GBuffer outputs
     fragData[0] = vec4(mo.emissive, 1.0);
     fragData[1] = vec4(mo.normal, 1.0);
     fragData[2] = vec4(mo.baseColor, mo.occlusion);
     fragData[3] = vec4(mo.metallic, mo.roughness, 0.0, 1.0);
+#else
+    // Forward outputs
+    fragData = vec4(0.0);
+#endif
 }

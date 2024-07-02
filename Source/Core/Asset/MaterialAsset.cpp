@@ -1,5 +1,51 @@
 #include "MaterialAsset.h"
 
+static const char* preDefines = R"(
+#pragma import_defines(UNLIT)
+#pragma import_defines(STANDARD)
+#pragma import_defines(OPAQUE)
+#pragma import_defines(ALPHA_MASK)
+#pragma import_defines(ALPHA_BLEND)
+#pragma import_defines(SHADING_MODEL)
+#pragma import_defines(ALPHA_MODE)
+
+struct MaterialInputs
+{
+    vec3 fragPosVS;
+    vec3 normalWS;
+    vec4 tangentWS;
+    vec4 color;
+    vec2 texcoord0;
+    vec2 texcoord1;
+};
+
+struct MaterialOutputs
+{
+    vec3 emissive;
+    float opaque;
+#if (SHADING_MODEL >= STANDARD)
+    vec3 baseColor;
+    float metallic;
+    float roughness;
+    vec3 normal;
+    float occlusion;
+#endif
+};
+)";
+
+static const char* standardDefaultSource = R"(
+void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
+{
+    mo.emissive = vec3(0.0);
+    mo.opaque = 1.0;
+    mo.baseColor = vec3(0.8);
+    mo.metallic = 0.0;
+    mo.roughness = 0.5;
+    mo.normal = vec3(0.5, 0.5, 1.0);
+    mo.occlusion = 1.0;
+}
+)";
+
 namespace xxx
 {
     const std::unordered_map<GLenum, std::string> MaterialAsset::_sTextureSamplerStringMap = {
@@ -9,12 +55,19 @@ namespace xxx
         {GL_TEXTURE_CUBE_MAP, "samplerCube"},
     };
 
-    MaterialAsset::MaterialAsset() : Asset(Type::Material), _stateSet(new osg::StateSet), _shader(new osg::Shader(osg::Shader::FRAGMENT))
+    MaterialAsset::MaterialAsset() :
+        Asset(Type::Material),
+        _stateSet(new osg::StateSet),
+        _shader(new osg::Shader(osg::Shader::FRAGMENT)),
+        _stateSetDirty(false),
+        _shaderDirty(false)
     {
         initializeShaderDefines();
         setShadingModel(ShadingModel::Standard);
-        setAlphaBlend(AlphaMode::Opaque);
+        setAlphaMode(AlphaMode::Opaque);
         setDoubleSided(false);
+        setSource(standardDefaultSource);
+        apply();
     }
 
     void MaterialAsset::serialize(Json& json, std::vector<char>& binary, std::vector<std::string>& reference) const
@@ -60,8 +113,9 @@ namespace xxx
     void MaterialAsset::deserialize(const Json& json, const std::vector<char>& binary, const std::vector<std::string>& reference)
     {
         setShadingModel(static_cast<ShadingModel>(json["ShadingModel"]));
-        setAlphaBlend(static_cast<AlphaMode>(json["AlphaMode"]));
+        setAlphaMode(static_cast<AlphaMode>(json["AlphaMode"]));
         setDoubleSided(json["DoubleSided"]);
+        setSource(json["Source"]);
         {
             const Json& parametersJson = json["Parameters"];
             for (Json::const_iterator it = parametersJson.begin(); it != parametersJson.end(); it++)
@@ -87,16 +141,17 @@ namespace xxx
                 }
             }
         }
-        setSource(json["Source"]);
+        apply();
     }
 
     void MaterialAsset::setShadingModel(ShadingModel shadingModel)
     {
         _shadingModel = shadingModel;
         _stateSet->setDefine("SHADING_MODEL", std::to_string(int(shadingModel)));
+        _stateSetDirty = true;
     }
 
-    void MaterialAsset::setAlphaBlend(AlphaMode alphaMode)
+    void MaterialAsset::setAlphaMode(AlphaMode alphaMode)
     {
         _alphaMode = alphaMode;
         switch (_alphaMode)
@@ -114,6 +169,7 @@ namespace xxx
             break;
         }
         _stateSet->setDefine("ALPHA_MODE", std::to_string(int(alphaMode)));
+        _stateSetDirty = true;
     }
 
     void MaterialAsset::setDoubleSided(bool doubleSided)
@@ -123,6 +179,7 @@ namespace xxx
             _stateSet->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
         else
             _stateSet->setMode(GL_CULL_FACE, osg::StateAttribute::ON);
+        _stateSetDirty = true;
     }
 
     bool MaterialAsset::removeParameter(const std::string& name)
@@ -138,6 +195,9 @@ namespace xxx
             _stateSet->removeUniform(_stateSet->getUniform(name));
             _parameters.erase(name);
             _uniformLines.erase(name);
+
+            _stateSetDirty = true;
+            _shaderDirty = true;
             return true;
         }
         return false;
@@ -146,11 +206,29 @@ namespace xxx
     void MaterialAsset::setSource(const std::string& source)
     {
         _source = source;
-        std::string shaderSource = "#version 460 core\n";
-        for (const auto& uniformLine : _uniformLines)
-            shaderSource += uniformLine.second;
-        shaderSource += _source;
-        _shader->setShaderSource(shaderSource);
+        _shaderDirty = true;
+    }
+
+    void MaterialAsset::apply()
+    {
+        // 将shader与stateset分开apply, 当只有涉及到shader上的修改时, 只需要更新shader而无需更新stateset
+        if (_shaderDirty)
+        {
+            std::string shaderSource = "#version 460 core\n";
+            for (const auto& uniformLine : _uniformLines)
+                shaderSource += uniformLine.second;
+            shaderSource += preDefines;
+            shaderSource += _source;
+            _shader->setShaderSource(shaderSource);
+            _shader->dirtyShader();
+            _shaderDirty = false;
+        }
+        if (_stateSetDirty)
+        {
+            // SceneMaterialUpdateVisitor smuv(this);
+            // sceneRoot->accept(smuv);
+            _stateSetDirty = false;
+        }
     }
 
     void MaterialAsset::initializeShaderDefines()
@@ -160,6 +238,7 @@ namespace xxx
         _stateSet->setDefine("OPAQUE", "0");
         _stateSet->setDefine("ALPHA_MASK", "1");
         _stateSet->setDefine("ALPHA_BLEND", "2");
+        _stateSetDirty = true;
     }
 
     int MaterialAsset::getAvailableUnit()
@@ -174,5 +253,4 @@ namespace xxx
             ++availableUnit;
         return availableUnit;
     }
-
 }

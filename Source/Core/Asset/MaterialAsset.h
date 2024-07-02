@@ -36,7 +36,7 @@ namespace xxx
 
         ShadingModel getShadingModel() const { return _shadingModel; }
 
-        void setAlphaBlend(AlphaMode alphaMode);
+        void setAlphaMode(AlphaMode alphaMode);
 
         AlphaMode getAlphaMode() const { return _alphaMode; }
 
@@ -118,13 +118,17 @@ namespace xxx
 
         void setSource(const std::string& source);
 
-        const osg::StateSet* getStateSet() const { return _stateSet; }
+        void apply();
 
-        const osg::Shader* getShader() const { return _shader; }
+        osg::StateSet* getStateSet() const { return _stateSet; }
+
+        osg::Shader* getShader() const { return _shader; }
 
     private:
         osg::ref_ptr<osg::StateSet> _stateSet;
         osg::ref_ptr<osg::Shader> _shader;
+        bool _stateSetDirty;
+        bool _shaderDirty;
         std::string _source;
         ShadingModel _shadingModel;
         AlphaMode _alphaMode;
@@ -221,6 +225,8 @@ namespace xxx
                 _stateSet->addUniform(new osg::Uniform(("u" + name).c_str(), value));
                 _uniformLines[name] = "uniform " + getParameterTypeString<T>() + " u" + name + ";\n";
             }
+            _stateSetDirty = true;
+            _shaderDirty = true;
             return true;
         }
 

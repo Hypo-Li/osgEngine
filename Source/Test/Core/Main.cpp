@@ -143,34 +143,16 @@ public:
 };
 
 static const char* gSource = R"(
-struct MaterialInputs
-{
-    vec3 fragPosVS;
-    vec3 normalWS;
-    vec4 tangentWS;
-    vec4 color;
-    vec2 texcoord0;
-    vec2 texcoord1;
-};
-
-struct MaterialOutputs
-{
-    vec3 baseColor;
-    float metallic;
-    float roughness;
-    vec3 normal;
-    vec3 emissive;
-    float occlusion;
-};
-
 void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
 {
-    mo.baseColor = texture(uBaseColorTexture, mi.texcoord0).rgb;
+    vec4 tColor = texture(uBaseColorTexture, mi.texcoord0);
+    mo.baseColor = tColor.rgb;
     mo.metallic = uMetallic;
     mo.roughness = uRoughness;
     mo.normal = uNormal;
     mo.emissive = uEmissive;
     mo.occlusion = 1.0f;
+    mo.opaque = tColor.a;
 }
 )";
 
@@ -197,34 +179,40 @@ int main()
     camera->setViewport(0, 0, width, height);
     camera->setProjectionMatrixAsPerspective(90.0, double(width) / double(height), 0.1, 400.0);
 
-    /*osg::Image* image = osgDB::readImageFile(TEMP_DIR "awesomeface.png");
-    osg::Texture2D* texture = new osg::Texture2D(image);
-    texture->setInternalFormat(GL_RGBA8);
-    xxx::TextureAsset* textureAsset = new xxx::TextureAsset;
-    textureAsset->setTexture(texture);
-    xxx::AssetManager::storeAsset(TEMP_DIR "Texture.xast", textureAsset);*/
+    //osg::Image* image = osgDB::readImageFile(TEMP_DIR "awesomeface.png");
+    //osg::Texture2D* texture = new osg::Texture2D(image);
+    //texture->setInternalFormat(GL_RGBA8);
+    //texture->setMaxAnisotropy(16.0f);
+    //xxx::TextureAsset* textureAsset = new xxx::TextureAsset;
+    //textureAsset->setTexture(texture);
+    ////xxx::AssetManager::storeAsset(TEMP_DIR "Texture.xast", textureAsset);
 
-    /*xxx::TextureAsset* baseColorTexture = dynamic_cast<xxx::TextureAsset*>(xxx::AssetManager::loadAsset(TEMP_DIR "Texture.xast"));
-    xxx::MaterialAsset* materialAsset = new xxx::MaterialAsset;
-    materialAsset->appendParameter("BaseColorTexture", baseColorTexture);
-    materialAsset->appendParameter("Metallic", 0.0f);
-    materialAsset->appendParameter("Roughness", 0.5f);
-    materialAsset->appendParameter("Emissive", osg::Vec3(0.0, 0.0, 0.0));
-    materialAsset->appendParameter("Normal", osg::Vec3(0.5, 0.5, 1.0));
-    materialAsset->setSource(gSource);
-    xxx::AssetManager::storeAsset(TEMP_DIR "Material.xast", materialAsset);*/
+    ////xxx::TextureAsset* textureAsset = dynamic_cast<xxx::TextureAsset*>(xxx::AssetManager::loadAsset(TEMP_DIR "Texture.xast"));
+    //xxx::MaterialAsset* materialAsset = new xxx::MaterialAsset;
+    //materialAsset->setAlphaMode(xxx::MaterialAsset::AlphaMode::Alpha_Mask);
+    //materialAsset->setDoubleSided(true);
+    //materialAsset->appendParameter("BaseColorTexture", textureAsset);
+    //materialAsset->appendParameter("Metallic", 0.0f);
+    //materialAsset->appendParameter("Roughness", 0.5f);
+    //materialAsset->appendParameter("Emissive", osg::Vec3(0.0, 0.0, 0.0));
+    //materialAsset->appendParameter("Normal", osg::Vec3(0.5, 0.5, 1.0));
+    //materialAsset->setSource(gSource);
+    //materialAsset->apply();
+    ////xxx::AssetManager::storeAsset(TEMP_DIR "Material.xast", materialAsset);
 
-    xxx::MaterialAsset* materialAsset = dynamic_cast<xxx::MaterialAsset*>(xxx::AssetManager::loadAsset(TEMP_DIR "Material.xast"));
-    osg::ref_ptr<osg::StateSet> materialInstance = new osg::StateSet(*materialAsset->getStateSet());
-    osg::ref_ptr<osg::Program> realProgram = new osg::Program;
-    realProgram->addShader(osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Mesh/Mesh.vert.glsl"));
-    realProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Mesh/Mesh.frag.glsl"));
-    realProgram->addShader(new osg::Shader(*materialAsset->getShader()));
-    materialInstance->setAttribute(realProgram, osg::StateAttribute::ON);
+    ////xxx::MaterialAsset* materialAsset = dynamic_cast<xxx::MaterialAsset*>(xxx::AssetManager::loadAsset(TEMP_DIR "Material.xast"));
+    //osg::ref_ptr<osg::StateSet> materialInstance = new osg::StateSet(*materialAsset->getStateSet());
+    //osg::ref_ptr<osg::Program> realProgram = new osg::Program;
+    //realProgram->addShader(osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Mesh/Mesh.vert.glsl"));
+    //realProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Mesh/Mesh.frag.glsl"));
+    //realProgram->addShader(materialAsset->getShader());
+    //materialInstance->setAttribute(realProgram, osg::StateAttribute::ON);
 
-    osg::ref_ptr<osg::Node> meshNode = osgDB::readNodeFile(TEMP_DIR "suzanne.obj");
-    meshNode->setStateSet(materialInstance);
-    rootGroup->addChild(meshNode);
+    //osg::ref_ptr<osg::Node> meshNode = osgDB::readNodeFile(TEMP_DIR "cube.obj");
+    //meshNode->setStateSet(materialInstance);
+    //rootGroup->addChild(meshNode);
+
+
 
     osg::ref_ptr<xxx::Pipeline> pipeline = new xxx::Pipeline(viewer, gc);
     using BufferType = xxx::Pipeline::Pass::BufferType;

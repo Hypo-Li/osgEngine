@@ -8,10 +8,6 @@ namespace xxx
 	class Component;
 	class Entity : public osg::MatrixTransform
 	{
-        template<class T>
-        friend class osg::ref_ptr;
-        template<class T>
-        friend class osg::observer_ptr;
 	public:
 		Entity(std::string&& name);
 		virtual ~Entity() = default;
@@ -159,5 +155,24 @@ namespace xxx
         osg::Vec3d _rotation;
         osg::Vec3d _scale;
         bool _needUpdateMatrix;
+
+        // disabled methods
+        using Group::addChild;
+        using Group::insertChild;
+        using Group::removeChild;
+        using Group::removeChildren;
+        using Group::replaceChild;
+        using Group::getNumChildren;
+        using Group::setChild;
+        using Group::getChild;
+        using Group::containsNode;
+        using Group::getChildIndex;
+        using Node::setNodeMask;
+        using Node::getNodeMask;
+        // void setStateSet(osg::StateSet* stateset);
+        // template<class T> void setStateSet(const osg::ref_ptr<T>& stateset);
+        // osg::StateSet* getOrCreateStateSet();
+        // osg::StateSet* getStateSet();
+        // const osg::StateSet* getStateSet() const;
 	};
 }
