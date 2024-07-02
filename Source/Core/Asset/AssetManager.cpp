@@ -35,8 +35,11 @@ namespace xxx
         case Asset::Type::Texture:
             asset = new TextureAsset;
             break;
-        case Asset::Type::Material:
-            asset = new MaterialAsset;
+        case Asset::Type::MaterialTemplate:
+            asset = new MaterialTemplateAsset;
+            break;
+        case Asset::Type::MaterialInstance:
+            asset = new MaterialInstanceAsset;
             break;
         case Asset::Type::StaticMesh:
             asset = new StaticMeshAsset;

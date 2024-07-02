@@ -17,19 +17,13 @@ namespace xxx
     {
         friend class AssetManager;
     public:
-        enum class Type : uint32_t
+        enum class Type : int32_t
         {
-#if (BYTE_ORDER == BIG_ENDIAN)
-            Unknow      = 0x58554B4E, // XUKN
-            Texture     = 0x58544558, // XTEX
-            Material    = 0x584D4154, // XMAT
-            StaticMesh  = 0x5853544D, // XSTM
-#else
-            Unknow      = 0x4E4B5558, // XUKN
-            Texture     = 0x58455458, // XTEX
-            Material    = 0x54414D58, // XMAT
-            StaticMesh  = 0x4D545358, // XSTM
-#endif
+            Unknow,
+            Texture,
+            MaterialTemplate,
+            MaterialInstance,
+            StaticMesh,
         };
 
         Asset(Type type) : _type(type) {}
@@ -81,5 +75,35 @@ namespace xxx
         };
 
         static size_t getReferenceIndex(const std::string& assetPath, std::vector<std::string>& reference);
+
+        static Json osgVec2ToJson(const osg::Vec2& v)
+        {
+            return Json::array({ v.x(), v.y() });
+        }
+
+        static Json osgVec3ToJson(const osg::Vec3& v)
+        {
+            return Json::array({ v.x(), v.y(), v.z() });
+        }
+
+        static Json osgVec4ToJson(const osg::Vec4& v)
+        {
+            return Json::array({ v.x(), v.y(), v.z() });
+        }
+
+        static osg::Vec2 jsonToOsgVec2(const Json& json)
+        {
+            return osg::Vec2(json[0].get<float>(), json[1].get<float>());
+        }
+
+        static osg::Vec3 jsonToOsgVec3(const Json& json)
+        {
+            return osg::Vec3(json[0].get<float>(), json[1].get<float>(), json[2].get<float>());
+        }
+
+        static osg::Vec4 jsonToOsgVec4(const Json& json)
+        {
+            return osg::Vec4(json[0].get<float>(), json[1].get<float>(), json[2].get<float>(), json[3].get<float>());
+        }
     };
 }

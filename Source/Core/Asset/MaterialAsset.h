@@ -12,8 +12,21 @@ namespace xxx
     {
         friend class MeshRenderer;
     public:
-        MaterialAsset();
+        MaterialAsset(Type type) : Asset(type) {}
         virtual ~MaterialAsset() = default;
+
+        virtual osg::StateSet* getStateSet() const = 0;
+        virtual osg::Shader* getShader() const = 0;
+    };
+
+    class MaterialInstanceAsset;
+    class MaterialTemplateAsset : public MaterialAsset
+    {
+        friend class MeshRenderer;
+        friend class MaterialInstanceAsset;
+    public:
+        MaterialTemplateAsset();
+        virtual ~MaterialTemplateAsset() = default;
 
         virtual void serialize(Json& json, std::vector<char>& binary, std::vector<std::string>& reference) const override;
 
@@ -34,95 +47,41 @@ namespace xxx
 
         void setShadingModel(ShadingModel shadingModel);
 
-        ShadingModel getShadingModel() const { return _shadingModel; }
-
         void setAlphaMode(AlphaMode alphaMode);
 
-        AlphaMode getAlphaMode() const { return _alphaMode; }
-
         void setDoubleSided(bool doubleSided);
-
-        bool getDoubleSided() const { return _doubleSided; }
-
-        bool appendParameter(const std::string& name, bool value)
-        {
-            return appendParameter<bool>(name, value);
-        }
-
-        void setParameter(const std::string& name, bool value)
-        {
-            setParameter<bool>(name, value);
-        }
-
-        bool appendParameter(const std::string& name, int value)
-        {
-            return appendParameter<int>(name, value);
-        }
-
-        void setParameter(const std::string& name, int value)
-        {
-            setParameter<int>(name, value);
-        }
-
-        bool appendParameter(const std::string& name, float value)
-        {
-            return appendParameter<float>(name, value);
-        }
-
-        void setParameter(const std::string& name, float value)
-        {
-            setParameter<float>(name, value);
-        }
-
-        bool appendParameter(const std::string& name, osg::Vec2 value)
-        {
-            return appendParameter<osg::Vec2>(name, value);
-        }
-
-        void setParameter(const std::string& name, osg::Vec2 value)
-        {
-            setParameter<osg::Vec2>(name, value);
-        }
-
-        bool appendParameter(const std::string& name, osg::Vec3 value)
-        {
-            return appendParameter<osg::Vec3>(name, value);
-        }
-
-        void setParameter(const std::string& name, osg::Vec3 value)
-        {
-            setParameter<osg::Vec3>(name, value);
-        }
-
-        bool appendParameter(const std::string& name, osg::Vec4 value)
-        {
-            return appendParameter<osg::Vec4>(name, value);
-        }
-
-        void setParameter(const std::string& name, osg::Vec4 value)
-        {
-            setParameter<osg::Vec4>(name, value);
-        }
-
-        bool appendParameter(const std::string& name, TextureAsset* value)
-        {
-            return appendParameter<TextureAsset*>(name, value);
-        }
-
-        void setParameter(const std::string& name, TextureAsset* value)
-        {
-            setParameter<TextureAsset*>(name, value);
-        }
-
-        bool removeParameter(const std::string& name);
 
         void setSource(const std::string& source);
 
         void apply();
 
-        osg::StateSet* getStateSet() const { return _stateSet; }
+        ShadingModel getShadingModel() const { return _shadingModel; }
 
-        osg::Shader* getShader() const { return _shader; }
+        AlphaMode getAlphaMode() const { return _alphaMode; }
+
+        bool getDoubleSided() const { return _doubleSided; }
+
+        virtual osg::StateSet* getStateSet() const override { return _stateSet; }
+
+        virtual osg::Shader* getShader() const override { return _shader; }
+
+        bool appendParameter(const std::string& name, bool value) { return appendParameter<bool>(name, value); }
+        bool appendParameter(const std::string& name, int value) { return appendParameter<int>(name, value); }
+        bool appendParameter(const std::string& name, float value) { return appendParameter<float>(name, value); }
+        bool appendParameter(const std::string& name, osg::Vec2 value) { return appendParameter<osg::Vec2>(name, value); }
+        bool appendParameter(const std::string& name, osg::Vec3 value) { return appendParameter<osg::Vec3>(name, value); }
+        bool appendParameter(const std::string& name, osg::Vec4 value) { return appendParameter<osg::Vec4>(name, value); }
+        bool appendParameter(const std::string& name, TextureAsset* value) { return appendParameter<TextureAsset*>(name, value); }
+
+        void setParameter(const std::string& name, bool value) { setParameter<bool>(name, value); }
+        void setParameter(const std::string& name, int value) { setParameter<int>(name, value); }
+        void setParameter(const std::string& name, float value) { setParameter<float>(name, value); }
+        void setParameter(const std::string& name, osg::Vec2 value) { setParameter<osg::Vec2>(name, value); }
+        void setParameter(const std::string& name, osg::Vec3 value) { setParameter<osg::Vec3>(name, value); }
+        void setParameter(const std::string& name, osg::Vec4 value) { setParameter<osg::Vec4>(name, value); }
+        void setParameter(const std::string& name, TextureAsset* value) { setParameter<TextureAsset*>(name, value); }
+
+        bool removeParameter(const std::string& name);
 
     private:
         osg::ref_ptr<osg::StateSet> _stateSet;
@@ -134,8 +93,8 @@ namespace xxx
         AlphaMode _alphaMode;
         bool _doubleSided;
         using TextureAssetAndUnit = std::pair<osg::ref_ptr<TextureAsset>, int>;
-        using MaterialParameterType = std::variant<bool, int, float, osg::Vec2, osg::Vec3, osg::Vec4, TextureAssetAndUnit>;
-        enum class MaterialParameterTypeIndex
+        using ParameterType = std::variant<bool, int, float, osg::Vec2, osg::Vec3, osg::Vec4, TextureAssetAndUnit>;
+        enum class ParameterTypeIndex
         {
             Bool,
             Int,
@@ -145,45 +104,15 @@ namespace xxx
             Float4,
             Texture,
         };
-        std::map<std::string, MaterialParameterType> _parameters;
+        std::map<std::string, ParameterType> _parameters;
         std::map<std::string, std::string> _uniformLines;
 
         static constexpr unsigned int _sMaxTextureCount = 16;
         static const std::unordered_map<GLenum, std::string> _sTextureSamplerStringMap;
-        
+
         void initializeShaderDefines();
 
         int getAvailableUnit();
-
-        static Json osgVec2ToJson(const osg::Vec2& v)
-        {
-            return Json::array({ v.x(), v.y() });
-        }
-
-        static Json osgVec3ToJson(const osg::Vec3& v)
-        {
-            return Json::array({ v.x(), v.y(), v.z() });
-        }
-
-        static Json osgVec4ToJson(const osg::Vec4& v)
-        {
-            return Json::array({ v.x(), v.y(), v.z() });
-        }
-
-        static osg::Vec2 jsonToOsgVec2(const Json& json)
-        {
-            return osg::Vec2(json[0].get<float>(), json[1].get<float>());
-        }
-
-        static osg::Vec3 jsonToOsgVec3(const Json& json)
-        {
-            return osg::Vec3(json[0].get<float>(), json[1].get<float>(), json[2].get<float>());
-        }
-
-        static osg::Vec4 jsonToOsgVec4(const Json& json)
-        {
-            return osg::Vec4(json[0].get<float>(), json[1].get<float>(), json[2].get<float>(), json[3].get<float>());
-        }
 
         template <typename T>
         static std::string getParameterTypeString()
@@ -240,6 +169,59 @@ namespace xxx
                     TextureAssetAndUnit textureAssetAndUnit = std::get<TextureAssetAndUnit>(_parameters[name]);
                     textureAssetAndUnit.first = value;
                     int unit = textureAssetAndUnit.second;
+                    _stateSet->setTextureAttribute(unit, value->_texture, osg::StateAttribute::ON);
+                }
+                else
+                {
+                    _parameters[name] = value;
+                    _stateSet->getUniform(name)->set(value);
+                }
+            }
+        }
+    };
+
+    class MaterialInstanceAsset : public MaterialAsset
+    {
+    public:
+        MaterialInstanceAsset();
+        virtual ~MaterialInstanceAsset() = default;
+
+        virtual void serialize(Json& json, std::vector<char>& binary, std::vector<std::string>& reference) const override;
+
+        virtual void deserialize(const Json& json, const std::vector<char>& binary, const std::vector<std::string>& reference) override;
+
+        void setMaterialTemplate(MaterialTemplateAsset* materialTemplate);
+
+        virtual osg::StateSet* getStateSet() const override { return _stateSet; }
+
+        virtual osg::Shader* getShader() const override { return _materialTemplate->getShader(); }
+
+        void setParameter(const std::string& name, bool value) { setParameter<bool>(name, value); }
+        void setParameter(const std::string& name, int value) { setParameter<int>(name, value); }
+        void setParameter(const std::string& name, float value) { setParameter<float>(name, value); }
+        void setParameter(const std::string& name, osg::Vec2 value) { setParameter<osg::Vec2>(name, value); }
+        void setParameter(const std::string& name, osg::Vec3 value) { setParameter<osg::Vec3>(name, value); }
+        void setParameter(const std::string& name, osg::Vec4 value) { setParameter<osg::Vec4>(name, value); }
+        void setParameter(const std::string& name, TextureAsset* value) { setParameter<TextureAsset*>(name, value); }
+
+    private:
+        osg::ref_ptr<MaterialTemplateAsset> _materialTemplate;
+        osg::ref_ptr<osg::StateSet> _stateSet;
+        using TextureAssetAndUnit = std::pair<osg::ref_ptr<TextureAsset>, int>;
+        using ParameterType = MaterialTemplateAsset::ParameterType;
+        using ParameterTypeIndex = MaterialTemplateAsset::ParameterTypeIndex;
+        std::map<std::string, ParameterType> _parameters;
+
+        template <typename T>
+        void setParameter(const std::string& name, T value)
+        {
+            if (_materialTemplate->_parameters.count(name))
+            {
+                if constexpr (std::is_same_v<T, TextureAsset*>)
+                {
+                    TextureAssetAndUnit textureAssetAndUnit = std::get<TextureAssetAndUnit>(_materialTemplate->_parameters[name]);
+                    int unit = textureAssetAndUnit.second;
+                    _parameters[name] = std::make_pair(value, unit);
                     _stateSet->setTextureAttribute(unit, value->_texture, osg::StateAttribute::ON);
                 }
                 else

@@ -119,29 +119,6 @@ public:
     }
 };
 
-class ComputeDrawCallback : public osg::Drawable::DrawCallback
-{
-    osg::ref_ptr<osg::Texture> _texture;
-public:
-    ComputeDrawCallback(osg::Texture* texture) : _texture(texture) {}
-
-    virtual void drawImplementation(osg::RenderInfo& renderInfo, const osg::Drawable* drawable) const
-    {
-        drawable->drawImplementation(renderInfo);
-        renderInfo.getState()->get<osg::GLExtensions>()->glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-        _texture->apply(*renderInfo.getState());
-        renderInfo.getState()->get<osg::GLExtensions>()->glGenerateMipmap(_texture->getTextureTarget());
-        std::cout << _texture->getNumImages() << std::endl;
-        osg::ref_ptr<osg::Image> image = new osg::Image;
-        image->readImageFromCurrentTexture(renderInfo.getContextID(), true, _texture->getSourceType());
-        _texture->setImage(0, image);
-        xxx::TextureAsset* textureAsset = new xxx::TextureAsset;
-        textureAsset->setTexture(_texture);
-        xxx::AssetManager::storeAsset(TEMP_DIR "Texture.xast", textureAsset);
-        return;
-    }
-};
-
 static const char* gSource = R"(
 void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
 {
@@ -179,40 +156,49 @@ int main()
     camera->setViewport(0, 0, width, height);
     camera->setProjectionMatrixAsPerspective(90.0, double(width) / double(height), 0.1, 400.0);
 
-    //osg::Image* image = osgDB::readImageFile(TEMP_DIR "awesomeface.png");
-    //osg::Texture2D* texture = new osg::Texture2D(image);
-    //texture->setInternalFormat(GL_RGBA8);
-    //texture->setMaxAnisotropy(16.0f);
-    //xxx::TextureAsset* textureAsset = new xxx::TextureAsset;
-    //textureAsset->setTexture(texture);
-    ////xxx::AssetManager::storeAsset(TEMP_DIR "Texture.xast", textureAsset);
+    osg::Image* image = osgDB::readImageFile(TEMP_DIR "awesomeface.png");
+    osg::Texture2D* texture = new osg::Texture2D(image);
+    texture->setInternalFormat(GL_RGBA8);
+    texture->setMaxAnisotropy(16.0f);
+    xxx::TextureAsset* textureAsset = new xxx::TextureAsset;
+    textureAsset->setTexture(texture);
+    //xxx::AssetManager::storeAsset(TEMP_DIR "Texture.xast", textureAsset);
 
-    ////xxx::TextureAsset* textureAsset = dynamic_cast<xxx::TextureAsset*>(xxx::AssetManager::loadAsset(TEMP_DIR "Texture.xast"));
-    //xxx::MaterialAsset* materialAsset = new xxx::MaterialAsset;
-    //materialAsset->setAlphaMode(xxx::MaterialAsset::AlphaMode::Alpha_Mask);
-    //materialAsset->setDoubleSided(true);
-    //materialAsset->appendParameter("BaseColorTexture", textureAsset);
-    //materialAsset->appendParameter("Metallic", 0.0f);
-    //materialAsset->appendParameter("Roughness", 0.5f);
-    //materialAsset->appendParameter("Emissive", osg::Vec3(0.0, 0.0, 0.0));
-    //materialAsset->appendParameter("Normal", osg::Vec3(0.5, 0.5, 1.0));
-    //materialAsset->setSource(gSource);
-    //materialAsset->apply();
-    ////xxx::AssetManager::storeAsset(TEMP_DIR "Material.xast", materialAsset);
+    osg::Image* image2 = osgDB::readImageFile(TEMP_DIR "container.jpg");
+    osg::Texture2D* texture2 = new osg::Texture2D(image2);
+    texture2->setInternalFormat(GL_RGBA8);
+    texture2->setMaxAnisotropy(16.0f);
+    xxx::TextureAsset* textureAsset2 = new xxx::TextureAsset;
+    textureAsset2->setTexture(texture2);
 
-    ////xxx::MaterialAsset* materialAsset = dynamic_cast<xxx::MaterialAsset*>(xxx::AssetManager::loadAsset(TEMP_DIR "Material.xast"));
-    //osg::ref_ptr<osg::StateSet> materialInstance = new osg::StateSet(*materialAsset->getStateSet());
-    //osg::ref_ptr<osg::Program> realProgram = new osg::Program;
-    //realProgram->addShader(osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Mesh/Mesh.vert.glsl"));
-    //realProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Mesh/Mesh.frag.glsl"));
-    //realProgram->addShader(materialAsset->getShader());
-    //materialInstance->setAttribute(realProgram, osg::StateAttribute::ON);
+    //xxx::TextureAsset* textureAsset = dynamic_cast<xxx::TextureAsset*>(xxx::AssetManager::loadAsset(TEMP_DIR "Texture.xast"));
+    xxx::MaterialTemplateAsset* materialTemplateAsset = new xxx::MaterialTemplateAsset;
+    materialTemplateAsset->setAlphaMode(xxx::MaterialTemplateAsset::AlphaMode::Alpha_Mask);
+    materialTemplateAsset->setDoubleSided(true);
+    materialTemplateAsset->appendParameter("BaseColorTexture", textureAsset);
+    materialTemplateAsset->appendParameter("Metallic", 0.0f);
+    materialTemplateAsset->appendParameter("Roughness", 0.5f);
+    materialTemplateAsset->appendParameter("Emissive", osg::Vec3(0.0, 0.0, 0.0));
+    materialTemplateAsset->appendParameter("Normal", osg::Vec3(0.5, 0.5, 1.0));
+    materialTemplateAsset->setSource(gSource);
+    materialTemplateAsset->apply();
+    //xxx::AssetManager::storeAsset(TEMP_DIR "Material.xast", materialAsset);
 
-    //osg::ref_ptr<osg::Node> meshNode = osgDB::readNodeFile(TEMP_DIR "cube.obj");
-    //meshNode->setStateSet(materialInstance);
-    //rootGroup->addChild(meshNode);
+    xxx::MaterialInstanceAsset* materialInstanceAsset = new xxx::MaterialInstanceAsset;
+    materialInstanceAsset->setMaterialTemplate(materialTemplateAsset);
+    materialInstanceAsset->setParameter("BaseColorTexture", textureAsset2);
 
+    //xxx::MaterialAsset* materialAsset = dynamic_cast<xxx::MaterialAsset*>(xxx::AssetManager::loadAsset(TEMP_DIR "Material.xast"));
+    osg::ref_ptr<osg::StateSet> materialInstance = new osg::StateSet(*materialInstanceAsset->getStateSet());
+    osg::ref_ptr<osg::Program> realProgram = new osg::Program;
+    realProgram->addShader(osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Mesh/Mesh.vert.glsl"));
+    realProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Mesh/Mesh.frag.glsl"));
+    realProgram->addShader(materialInstanceAsset->getShader());
+    materialInstance->setAttribute(realProgram, osg::StateAttribute::ON);
 
+    osg::ref_ptr<osg::Node> meshNode = osgDB::readNodeFile(TEMP_DIR "cube.obj");
+    meshNode->setStateSet(materialInstance);
+    rootGroup->addChild(meshNode);
 
     osg::ref_ptr<xxx::Pipeline> pipeline = new xxx::Pipeline(viewer, gc);
     using BufferType = xxx::Pipeline::Pass::BufferType;

@@ -5,10 +5,12 @@
 
 namespace xxx
 {
-    class MaterialAsset;
+    class MaterialTemplateAsset;
+    class MaterialInstanceAsset;
     class TextureAsset : public Asset
     {
-        friend class MaterialAsset;
+        friend class MaterialTemplateAsset;
+        friend class MaterialInstanceAsset;
     public:
         TextureAsset() : Asset(Type::Texture) {}
         virtual ~TextureAsset() = default;
