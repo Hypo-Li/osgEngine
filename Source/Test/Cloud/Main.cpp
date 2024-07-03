@@ -6,6 +6,7 @@
 #include <osg/Texture3D>
 #include <osg/BindImageTexture>
 #include <osg/BufferIndexBinding>
+#include <osg/BlendFunc>
 
 struct ViewData
 {
@@ -15,6 +16,68 @@ struct ViewData
     osg::Matrixf inverseProjectionMatrix;
 }gViewData;
 osg::ref_ptr<osg::UniformBufferBinding> gViewDataUBB;
+
+struct AtmosphereParameters
+{
+    float solarAltitude = 45.0f;
+    float solarAzimuth = 0.0f;
+    osg::Vec3 sunColor = osg::Vec3(1.0, 1.0, 1.0);
+    float sunIntensity = 6.0f;
+    float groundRadius = 6360.0f;
+    float atmosphereRadius = 6460.0f;
+    osg::Vec3 groundAlbedo = osg::Vec3(0.3, 0.3, 0.3);
+    osg::Vec3 rayleighScatteringCoeff = osg::Vec3(0.175287, 0.409607, 1.0);
+    float rayleighScatteringScale = 0.0331f;
+    float rayleighDensityH = 8.0f;
+    float mieScatteringBase = 0.003996f;
+    float mieAbsorptionBase = 0.000444f;
+    float mieDensityH = 1.2f;
+    osg::Vec3 ozoneAbsorptionCoeff = osg::Vec3(0.345561, 1.0, 0.045189);
+    float ozoneAbsorptionScale = 0.001881f;
+    float ozoneCenterHeight = 25.0f;
+    float ozoneThickness = 15.0f;
+}gAtmosphereParameters;
+
+struct AtmosphereShaderParameters
+{
+    osg::Vec3 rayleighScatteringBase;
+    float mieScatteringBase;
+    osg::Vec3 ozoneAbsorptionBase;
+    float mieAbsorptionBase;
+    float rayleighDensityH;
+    float mieDensityH;
+    float ozoneCenterHeight;
+    float ozoneThickness;
+    osg::Vec3 groundAlbedo;
+    float groundRadius;
+    osg::Vec3 sunDirection;
+    float atmosphereRadius;
+    osg::Vec3 sunIntensity;
+}gAtmosphereShaderParameters;
+osg::ref_ptr<osg::UniformBufferBinding> gAtmosphereShaderParametersUBB;
+
+void calcAtmosphereShaderParameters(const AtmosphereParameters& param, AtmosphereShaderParameters& shaderParam)
+{
+    shaderParam.rayleighScatteringBase = param.rayleighScatteringCoeff * param.rayleighScatteringScale;
+    shaderParam.mieScatteringBase = param.mieScatteringBase;
+    shaderParam.ozoneAbsorptionBase = param.ozoneAbsorptionCoeff * param.ozoneAbsorptionScale;
+    shaderParam.mieAbsorptionBase = param.mieAbsorptionBase;
+    shaderParam.rayleighDensityH = param.rayleighDensityH;
+    shaderParam.mieDensityH = param.mieDensityH;
+    shaderParam.ozoneCenterHeight = param.ozoneCenterHeight;
+    shaderParam.ozoneThickness = param.ozoneThickness;
+    shaderParam.groundAlbedo = param.groundAlbedo;
+    shaderParam.groundRadius = param.groundRadius;
+    float altitude = osg::DegreesToRadians(param.solarAltitude);
+    float azimuth = osg::DegreesToRadians(param.solarAzimuth);
+    shaderParam.sunDirection = osg::Vec3(
+        std::cos(altitude) * std::sin(azimuth),
+        std::cos(altitude) * std::cos(azimuth),
+        std::sin(altitude)
+    );
+    shaderParam.atmosphereRadius = param.atmosphereRadius;
+    shaderParam.sunIntensity = param.sunColor * param.sunIntensity;
+}
 
 class InputPassCameraPreDrawCallback : public osg::Camera::DrawCallback
 {
@@ -35,12 +98,35 @@ public:
     }
 };
 
-int main1()
+class DrawTimesCullCallback : public osg::DrawableCullCallback
+{
+    uint32_t _times;
+public:
+    DrawTimesCullCallback(uint32_t times) : _times(times) {}
+
+    virtual bool cull(osg::NodeVisitor* nv, osg::Drawable* drawable, osg::RenderInfo* renderInfo) const
+    {
+        if (_times > 0)
+        {
+            const_cast<uint32_t&>(_times)--;
+            return false;
+        }
+        return true;
+    }
+};
+
+int main()
 {
     osg::ref_ptr<osg::FloatArray> viewDataBuffer = new osg::FloatArray((float*)&gViewData, (float*)(&gViewData + 1));
     osg::ref_ptr<osg::UniformBufferObject> viewDataUBO = new osg::UniformBufferObject;
     viewDataBuffer->setBufferObject(viewDataUBO);
     gViewDataUBB = new osg::UniformBufferBinding(0, viewDataBuffer, 0, sizeof(ViewData));
+
+    calcAtmosphereShaderParameters(gAtmosphereParameters, gAtmosphereShaderParameters);
+    osg::ref_ptr<osg::FloatArray> atmosphereShaderParametersBuffer = new osg::FloatArray((float*)&gAtmosphereShaderParameters, (float*)(&gAtmosphereShaderParameters + 1));
+    osg::ref_ptr<osg::UniformBufferObject> atmosphereShaderParametersUBO = new osg::UniformBufferObject;
+    atmosphereShaderParametersBuffer->setBufferObject(atmosphereShaderParametersUBO);
+    gAtmosphereShaderParametersUBB = new osg::UniformBufferBinding(1, atmosphereShaderParametersBuffer, 0, sizeof(AtmosphereShaderParameters));
 
     const int width = 1024, height = 1024;
     osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits();
@@ -75,8 +161,10 @@ int main1()
     osg::ref_ptr<osg::Program> noise1Program = new osg::Program;
     noise1Program->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "VolumetricCloud/Noise1.comp.glsl"));
     osg::ref_ptr<osg::DispatchCompute> noise1Dispatch = new osg::DispatchCompute(32, 32, 2);
+    noise1Dispatch->setCullingActive(false);
     noise1Dispatch->getOrCreateStateSet()->setAttribute(noise1Program, osg::StateAttribute::ON);
     noise1Dispatch->getOrCreateStateSet()->setAttribute(noise1Image, osg::StateAttribute::ON);
+    noise1Dispatch->setCullCallback(new DrawTimesCullCallback(1));
     rootGroup->addChild(noise1Dispatch);
 
     osg::ref_ptr<osg::Texture3D> noise2Texture = new osg::Texture3D;
@@ -92,8 +180,10 @@ int main1()
     osg::ref_ptr<osg::Program> noise2Program = new osg::Program;
     noise2Program->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "VolumetricCloud/Noise2.comp.glsl"));
     osg::ref_ptr<osg::DispatchCompute> noise2Dispatch = new osg::DispatchCompute(8, 8, 1);
+    noise2Dispatch->setCullingActive(false);
     noise2Dispatch->getOrCreateStateSet()->setAttribute(noise2Program, osg::StateAttribute::ON);
     noise2Dispatch->getOrCreateStateSet()->setAttribute(noise2Image, osg::StateAttribute::ON);
+    noise2Dispatch->setCullCallback(new DrawTimesCullCallback(1));
     rootGroup->addChild(noise2Dispatch);
 
     /*osg::ref_ptr<osg::Texture2D> noise3Texture = new osg::Texture2D;
@@ -112,6 +202,95 @@ int main1()
     noise3Dispatch->getOrCreateStateSet()->setAttribute(noise3Image, osg::StateAttribute::ON);
     rootGroup->addChild(noise3Dispatch);*/
 
+    osg::ref_ptr<osg::Texture2D> transmittanceLutTexture = new osg::Texture2D;
+    transmittanceLutTexture->setTextureSize(256, 64);
+    transmittanceLutTexture->setInternalFormat(GL_RGBA16F);
+    transmittanceLutTexture->setSourceFormat(GL_RGBA);
+    transmittanceLutTexture->setSourceType(GL_HALF_FLOAT);
+    transmittanceLutTexture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR);
+    transmittanceLutTexture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::LINEAR);
+    transmittanceLutTexture->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE);
+    transmittanceLutTexture->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE);
+    osg::ref_ptr<osg::BindImageTexture> transmittanceLutImage = new osg::BindImageTexture(0, transmittanceLutTexture, osg::BindImageTexture::WRITE_ONLY, GL_RGBA16F);
+    osg::ref_ptr<osg::Program> transmittanceLutProgram = new osg::Program;
+    transmittanceLutProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "Atmosphere/Generated/TransmittanceLut.comp.glsl"));
+    osg::ref_ptr<osg::DispatchCompute> transmittanceLutDispatch = new osg::DispatchCompute(8, 2, 1);
+    transmittanceLutDispatch->setCullingActive(false);
+    transmittanceLutDispatch->getOrCreateStateSet()->setAttribute(transmittanceLutProgram, osg::StateAttribute::ON);
+    transmittanceLutDispatch->getOrCreateStateSet()->setAttribute(transmittanceLutImage, osg::StateAttribute::ON);
+    transmittanceLutDispatch->getOrCreateStateSet()->setAttribute(gAtmosphereShaderParametersUBB, osg::StateAttribute::ON);
+    rootGroup->addChild(transmittanceLutDispatch);
+
+    osg::ref_ptr<osg::Texture2D> multiScatteringLutTexture = new osg::Texture2D;
+    multiScatteringLutTexture->setTextureSize(32, 32);
+    multiScatteringLutTexture->setInternalFormat(GL_RGBA16F);
+    multiScatteringLutTexture->setSourceFormat(GL_RGBA);
+    multiScatteringLutTexture->setSourceType(GL_HALF_FLOAT);
+    multiScatteringLutTexture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR);
+    multiScatteringLutTexture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::LINEAR);
+    multiScatteringLutTexture->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE);
+    multiScatteringLutTexture->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE);
+    osg::ref_ptr<osg::BindImageTexture> multiScatteringLutImage = new osg::BindImageTexture(0, multiScatteringLutTexture, osg::BindImageTexture::WRITE_ONLY, GL_RGBA16F);
+    osg::ref_ptr<osg::Program> multiScatteringLutProgram = new osg::Program;
+    multiScatteringLutProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "Atmosphere/Generated/MultiScatteringLut.comp.glsl"));
+    osg::ref_ptr<osg::DispatchCompute> multiScatteringLutDispatch = new osg::DispatchCompute(32, 32, 1);
+    multiScatteringLutDispatch->setCullingActive(false);
+    multiScatteringLutDispatch->getOrCreateStateSet()->setAttribute(multiScatteringLutProgram, osg::StateAttribute::ON);
+    multiScatteringLutDispatch->getOrCreateStateSet()->setAttribute(multiScatteringLutImage, osg::StateAttribute::ON);
+    multiScatteringLutDispatch->getOrCreateStateSet()->setAttribute(gAtmosphereShaderParametersUBB, osg::StateAttribute::ON);
+    multiScatteringLutDispatch->getOrCreateStateSet()->addUniform(new osg::Uniform("uTransmittanceLutTexture", 0));
+    multiScatteringLutDispatch->getOrCreateStateSet()->setTextureAttribute(0, transmittanceLutTexture, osg::StateAttribute::ON);
+    rootGroup->addChild(multiScatteringLutDispatch);
+
+    osg::ref_ptr<osg::Texture2D> skyViewLutTexture = new osg::Texture2D;
+    skyViewLutTexture->setTextureSize(192, 108);
+    skyViewLutTexture->setInternalFormat(GL_RGBA16F);
+    skyViewLutTexture->setSourceFormat(GL_RGBA);
+    skyViewLutTexture->setSourceType(GL_HALF_FLOAT);
+    skyViewLutTexture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR);
+    skyViewLutTexture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::LINEAR);
+    skyViewLutTexture->setWrap(osg::Texture::WRAP_S, osg::Texture::MIRROR);
+    skyViewLutTexture->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE);
+    osg::ref_ptr<osg::BindImageTexture> skyViewLutImage = new osg::BindImageTexture(0, skyViewLutTexture, osg::BindImageTexture::WRITE_ONLY, GL_RGBA16F);
+    osg::ref_ptr<osg::Program> skyViewLutProgram = new osg::Program;
+    skyViewLutProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "Atmosphere/Generated/SkyViewLut.comp.glsl"));
+    osg::ref_ptr<osg::DispatchCompute> skyViewLutDispatch = new osg::DispatchCompute(6, 4, 1);
+    skyViewLutDispatch->setCullingActive(false);
+    skyViewLutDispatch->getOrCreateStateSet()->setAttribute(skyViewLutProgram, osg::StateAttribute::ON);
+    skyViewLutDispatch->getOrCreateStateSet()->setAttribute(skyViewLutImage, osg::StateAttribute::ON);
+    skyViewLutDispatch->getOrCreateStateSet()->setAttribute(gViewDataUBB, osg::StateAttribute::ON);
+    skyViewLutDispatch->getOrCreateStateSet()->setAttribute(gAtmosphereShaderParametersUBB, osg::StateAttribute::ON);
+    skyViewLutDispatch->getOrCreateStateSet()->addUniform(new osg::Uniform("uTransmittanceLutTexture", 0));
+    skyViewLutDispatch->getOrCreateStateSet()->setTextureAttribute(0, transmittanceLutTexture, osg::StateAttribute::ON);
+    skyViewLutDispatch->getOrCreateStateSet()->addUniform(new osg::Uniform("uMultiScatteringLutTexture", 1));
+    skyViewLutDispatch->getOrCreateStateSet()->setTextureAttribute(1, multiScatteringLutTexture, osg::StateAttribute::ON);
+    rootGroup->addChild(skyViewLutDispatch);
+
+    osg::ref_ptr<osg::Texture3D> aerialPerspectiveLutTexture = new osg::Texture3D;
+    aerialPerspectiveLutTexture->setTextureSize(32, 32, 16);
+    aerialPerspectiveLutTexture->setInternalFormat(GL_RGBA16F);
+    aerialPerspectiveLutTexture->setSourceFormat(GL_RGBA);
+    aerialPerspectiveLutTexture->setSourceType(GL_HALF_FLOAT);
+    aerialPerspectiveLutTexture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR);
+    aerialPerspectiveLutTexture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::LINEAR);
+    aerialPerspectiveLutTexture->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE);
+    aerialPerspectiveLutTexture->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE);
+    aerialPerspectiveLutTexture->setWrap(osg::Texture::WRAP_R, osg::Texture::CLAMP_TO_EDGE);
+    osg::ref_ptr<osg::BindImageTexture> aerialPerspectiveLutImage = new osg::BindImageTexture(0, aerialPerspectiveLutTexture, osg::BindImageTexture::WRITE_ONLY, GL_RGBA16F);
+    osg::ref_ptr<osg::Program> aerialPerspectiveLutProgram = new osg::Program;
+    aerialPerspectiveLutProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "Atmosphere/Generated/AerialPerspectiveLut.comp.glsl"));
+    osg::ref_ptr<osg::DispatchCompute> aerialPerspectiveLutDispatch = new osg::DispatchCompute(2, 2, 4);
+    aerialPerspectiveLutDispatch->setCullingActive(false);
+    aerialPerspectiveLutDispatch->getOrCreateStateSet()->setAttribute(aerialPerspectiveLutProgram, osg::StateAttribute::ON);
+    aerialPerspectiveLutDispatch->getOrCreateStateSet()->setAttribute(aerialPerspectiveLutImage, osg::StateAttribute::ON);
+    aerialPerspectiveLutDispatch->getOrCreateStateSet()->setAttribute(gViewDataUBB, osg::StateAttribute::ON);
+    aerialPerspectiveLutDispatch->getOrCreateStateSet()->setAttribute(gAtmosphereShaderParametersUBB, osg::StateAttribute::ON);
+    aerialPerspectiveLutDispatch->getOrCreateStateSet()->addUniform(new osg::Uniform("uTransmittanceLutTexture", 0));
+    aerialPerspectiveLutDispatch->getOrCreateStateSet()->setTextureAttribute(0, transmittanceLutTexture, osg::StateAttribute::ON);
+    aerialPerspectiveLutDispatch->getOrCreateStateSet()->addUniform(new osg::Uniform("uMultiScatteringLutTexture", 1));
+    aerialPerspectiveLutDispatch->getOrCreateStateSet()->setTextureAttribute(1, multiScatteringLutTexture, osg::StateAttribute::ON);
+    rootGroup->addChild(aerialPerspectiveLutDispatch);
+
     osg::Program* inputProgram = new osg::Program;
     inputProgram->addShader(osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Common/TestInput.vert.glsl"));
     inputProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/TestInput.frag.glsl"));
@@ -120,8 +299,8 @@ int main1()
     rootGroup->addChild(meshNode);
 
     using BufferType = xxx::Pipeline::Pass::BufferType;
-    osg::ref_ptr<xxx::Pipeline> pipeline = new xxx::Pipeline(viewer);
-    osg::ref_ptr<xxx::Pipeline::Pass> inputPass = pipeline->addInputPass("Input", 0xFFFFFFFF, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, false, osg::Vec2d(1.0, 1.0));
+    osg::ref_ptr<xxx::Pipeline> pipeline = new xxx::Pipeline(viewer, gc);
+    osg::ref_ptr<xxx::Pipeline::Pass> inputPass = pipeline->addInputPass("Input", 0xFFFFFFFF, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     //inputPass->getCamera()->setClearColor(osg::Vec4(0.0, 0.0, 0.0, 1.0));
     inputPass->getCamera()->setClearColor(osg::Vec4(0.09, 0.33, 0.81, 1.0));
     inputPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA8);
@@ -130,7 +309,7 @@ int main1()
 
     osg::ref_ptr<osg::Shader> screenQuadVertexShader = osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Common/ScreenQuad.vert.glsl");
 
-    osg::ref_ptr<osg::Program> noiseVisualizeProgram = new osg::Program;
+    /*osg::ref_ptr<osg::Program> noiseVisualizeProgram = new osg::Program;
     noiseVisualizeProgram->addShader(screenQuadVertexShader);
     noiseVisualizeProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "VolumetricCloud/RayMarching.frag.glsl"));
     osg::ref_ptr<xxx::Pipeline::Pass> workPass = pipeline->addWorkPass("Work", noiseVisualizeProgram);
@@ -139,13 +318,27 @@ int main1()
     workPass->applyTexture(noise2Texture, "uNoise2Texture", 1);
     workPass->applyTexture(inputPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorTexture", 2);
     workPass->applyTexture(inputPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uDepthTexture", 3);
-    workPass->setAttribute(gViewDataUBB);
+    workPass->setAttribute(gViewDataUBB);*/
 
-    osg::ref_ptr<osg::Program> copyColorProgram = new osg::Program;
-    copyColorProgram->addShader(screenQuadVertexShader);
-    copyColorProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CopyColor.frag.glsl"));
-    osg::ref_ptr<xxx::Pipeline::Pass> finalPass = pipeline->addFinalPass("Final", copyColorProgram);
-    finalPass->applyTexture(workPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorTexture", 0);
+    osg::ref_ptr<osg::Program> rayMarchingProgram = new osg::Program;
+    rayMarchingProgram->addShader(screenQuadVertexShader);
+    rayMarchingProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Atmosphere/Generated/RayMarching.frag.glsl"));
+    osg::ref_ptr<xxx::Pipeline::Pass> rayMarchingPass = pipeline->addWorkPass("RayMarching", rayMarchingProgram);
+    rayMarchingPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA32F);
+    rayMarchingPass->applyTexture(transmittanceLutTexture, "uTransmittanceLutTexture", 0);
+    rayMarchingPass->applyTexture(multiScatteringLutTexture, "uMultiScatteringLutTexture", 1);
+    rayMarchingPass->applyTexture(skyViewLutTexture, "uSkyViewLutTexture", 2);
+    rayMarchingPass->applyTexture(aerialPerspectiveLutTexture, "uAerialPerspectiveLutTexture", 3);
+    rayMarchingPass->applyTexture(inputPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uSceneDepthTexture", 4);
+    rayMarchingPass->setAttribute(gViewDataUBB);
+    rayMarchingPass->setMode(GL_BLEND);
+    rayMarchingPass->setAttribute(new osg::BlendFunc(GL_ONE, GL_SRC_ALPHA));
+
+    osg::ref_ptr<osg::Program> colorGradingProgram = new osg::Program;
+    colorGradingProgram->addShader(screenQuadVertexShader);
+    colorGradingProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/ColorGrading.frag.glsl"));
+    osg::ref_ptr<xxx::Pipeline::Pass> finalPass = pipeline->addFinalPass("Final", colorGradingProgram);
+    finalPass->applyTexture(rayMarchingPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorTexture", 0);
 
     viewer->setCameraManipulator(new osgGA::TrackballManipulator);
 

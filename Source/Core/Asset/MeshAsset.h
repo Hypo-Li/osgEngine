@@ -6,11 +6,19 @@
 namespace xxx
 {
     class MeshRenderer;
-    class StaticMeshAsset : public Asset
+
+    class MeshAsset : public Asset
+    {
+    public:
+        MeshAsset(Type type) : Asset(type) {}
+        virtual ~MeshAsset() = default;
+    };
+
+    class StaticMeshAsset : public MeshAsset
     {
         friend class MeshRenderer;
     public:
-        StaticMeshAsset() : Asset(Type::StaticMesh) {}
+        StaticMeshAsset() : MeshAsset(Type::StaticMesh) {}
         virtual ~StaticMeshAsset() = default;
 
         virtual void serialize(Json& json, std::vector<char>& binary, std::vector<std::string>& reference) const override
@@ -92,7 +100,7 @@ namespace xxx
 
                 const std::string& path = submeshJson["PreviewMaterial"].get<std::string>();
                 int index = std::stoi(path.substr(1));
-                submesh._previewMaterial = dynamic_cast<MaterialAsset*>(AssetManager::loadAsset(reference[index]));
+                submesh._previewMaterial = AssetManager::loadAsset<MaterialAsset>(reference[index]);
 
                 _submeshes.emplace_back(submesh);
             }

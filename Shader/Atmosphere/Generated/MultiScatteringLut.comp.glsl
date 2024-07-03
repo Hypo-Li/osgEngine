@@ -43,6 +43,7 @@ uniform sampler2D uTransmittanceLutTexture;
 
 const float PI = 3.14159265358979323846;
 
+
 layout(std140, binding = 1)uniform AtmosphereParameters
 {
     vec3 uRayleighScatteringBase;
@@ -121,7 +122,7 @@ bool moveToTopAtmosphere(inout vec3 worldPos, in vec3 worldDir)
         if(tTop >= 0.0)
         {
             vec3 upVector = vec3(worldPos / viewHeight);
-            vec3 upOffset = upVector * - 0.001;
+            vec3 upOffset = upVector * -(0.001 * 100.0);
             worldPos = worldPos + worldDir * tTop + upOffset;
         }
         else

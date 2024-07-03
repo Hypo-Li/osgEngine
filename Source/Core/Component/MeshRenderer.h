@@ -1,6 +1,6 @@
 #pragma once
 #include <Core/Base/Component.h>
-#include <Core/Asset/StaticMeshAsset.h>
+#include <Core/Asset/MeshAsset.h>
 
 #include <osg/Geode>
 #include <osg/Geometry>
@@ -130,7 +130,12 @@ namespace xxx
                 _gbufferStateSet = new osg::StateSet(*_material->getStateSet());
                 _gbufferStateSet->setAttribute(gbufferProgram, osg::StateAttribute::ON);
 
-                _shadowCastStateSet = new osg::StateSet;
+                osg::ref_ptr<osg::Program> shadowCastProgram = new osg::Program;
+                shadowCastProgram->addShader(_material->getShader());
+
+                _shadowCastStateSet = new osg::StateSet(*_material->getStateSet());
+                _gbufferStateSet->setAttribute(shadowCastProgram, osg::StateAttribute::ON);
+
             }
         };
     };

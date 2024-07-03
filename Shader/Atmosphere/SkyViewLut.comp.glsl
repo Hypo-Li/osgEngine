@@ -4,16 +4,13 @@ layout (local_size_x = 32, local_size_y = 27) in;
 layout (rgba16f, binding = 0) uniform image2D uSkyViewLutImage;
 uniform sampler2D uTransmittanceLutTexture;
 uniform sampler2D uMultiScatteringLutTexture;
+#define PLANET_TOP_AT_ABSOLUTE_WORLD_ORIGIN
 layout(std140, binding = 0) uniform ViewData
 {
     mat4 uViewMatrix;
     mat4 uInverseViewMatrix;
     mat4 uProjectionMatrix;
     mat4 uInverseProjectionMatrix;
-    mat4 uWorldToEnuMatrix;
-    vec2 uNearFarPlane1;
-    vec2 uNearFarPlane2;
-    vec2 uTotalNearFarPlane;
 };
 #define SKY_VIEW_LUT
 #define BINDING_INDEX 1

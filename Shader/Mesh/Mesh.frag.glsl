@@ -1,11 +1,18 @@
 #version 460 core
-#pragma import_defines(UNLIT)
-#pragma import_defines(STANDARD)
-#pragma import_defines(OPAQUE)
-#pragma import_defines(ALPHA_MASK)
-#pragma import_defines(ALPHA_BLEND)
 #pragma import_defines(SHADING_MODEL)
 #pragma import_defines(ALPHA_MODE)
+
+#ifdef SHADING_MODEL
+#define UNLIT 0
+#define STANDARD 1
+#endif
+
+#ifdef ALPHA_MODE
+#define OPAQUE 0
+#define ALPHA_MASK 1
+#define ALPHA BLEND 2
+#endif
+
 in V2F
 {
     vec3 fragPosVS;

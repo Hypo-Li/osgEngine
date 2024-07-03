@@ -27,10 +27,11 @@
 
 #define RAY_MARCHING_MIN_SPP 4
 #define RAY_MARCHING_MAX_SPP 32
-#define SLICE_COUNT 32.0
+#define SLICE_COUNT 16.0
 #define KM_PER_SLICE 4.0
 
-const float PI = 3.14159265358979323846;
+const float PI = 3.1415926535897932;
+
 #define PLANET_RADIUS_OFFSET 0.001
 layout (std140, binding = BINDING_INDEX) uniform AtmosphereParameters
 {
@@ -40,7 +41,7 @@ layout (std140, binding = BINDING_INDEX) uniform AtmosphereParameters
     float uMieAbsorptionBase;
     float uRayleighDensityH;
     float uMieDensityH;
-    float uOzoneHeight;
+    float uOzoneCenterHeight;
     float uOzoneThickness;
     vec3 uGroundAlbedo;
     float uGroundRadius;
@@ -203,7 +204,7 @@ void getScatteringAndExtinction(in vec3 worldPos, out vec3 rayleighScattering, o
     float mieDensity = exp(-altitude / uMieDensityH);
     mieScattering = uMieScatteringBase * mieDensity;
     float mieAbsorption = uMieAbsorptionBase * mieDensity;
-    vec3 ozoneAbsorption = uOzoneAbsorptionBase * max(0.0, 1.0 - abs(altitude - uOzoneHeight)/uOzoneThickness);
+    vec3 ozoneAbsorption = uOzoneAbsorptionBase * max(0.0, 1.0 - abs(altitude - uOzoneCenterHeight)/uOzoneThickness);
     extinction = rayleighScattering + mieScattering + mieAbsorption + ozoneAbsorption;
 }
 
@@ -258,24 +259,15 @@ void rayMarchAtmosphere(
     in float sceneDepth,
     in float tDepth,
 #endif
-#ifdef OUTPUT_MULTISCATAS1
-    out vec3 multiScatAs1,
-#endif
     out vec3 lum,
     out vec3 fms,
     out vec3 trans)
 {
-#ifdef OUTPUT_MULTISCATAS1
-    multiScatAs1 = vec3(0.0);
-#endif
     lum = vec3(0.0), fms = vec3(0.0), trans = vec3(1.0);
     float tGround = rayIntersectSphere(worldPos, worldDir, uGroundRadius);
     float tAtmosphere = rayIntersectSphere(worldPos, worldDir, uAtmosphereRadius);
     float tMax = 0.0;
-    // if (tGround < 0.0)
-    //     if (tAtmosphere < 0.0) return; else tMax = tAtmosphere;
-    // else
-    //     if (tAtmosphere > 0.0) tMax = min(tAtmosphere, tGround);
+
     if (tAtmosphere < 0) return;
     else if (tGround < 0) tMax = tAtmosphere;
     else tMax = max(0.0, tGround);
@@ -290,6 +282,7 @@ void rayMarchAtmosphere(
     float sampleCountFloor = floor(sampleCount);
     float tMaxFloor = tMax * sampleCountFloor / sampleCount;
 #endif
+
     const float uniformPhase = 1.0 / (4.0 * PI);
     const float cosTheta = dot(sunDir, worldDir);
     const float miePhaseValue = miePhase(0.8, -cosTheta);
@@ -312,6 +305,7 @@ void rayMarchAtmosphere(
         dt = newT - t;
         t = newT;
 #endif
+
         vec3 newPos = worldPos + t * worldDir;
         vec3 rayleighScattering, extinction;
         float mieScattering;
@@ -324,26 +318,28 @@ void rayMarchAtmosphere(
         vec2 uv;
         transmittanceLutParametersToUV(viewHeight, sunZenithCos, uv);
         vec3 transmittanceToSun = texture(uTransmittanceLutTexture, uv).rgb;
+
 #ifdef MIE_RAYLEIGH_PHASE_ENABLE
         vec3 phaseTimesScattering = mieScattering * miePhaseValue + rayleighScattering * rayleighPhaseValue;
 #else
         vec3 phaseTimesScattering = scattering * uniformPhase;
 #endif
+
         float tEarth = rayIntersectSphere(newPos, sunDir, PLANET_RADIUS_OFFSET * upVector, uGroundRadius);
         float earthShadow = step(tEarth, 0.0);
+
 #ifdef MULTISCATTERING_APPROX_SAMPLING_ENABLED
         vec3 multiScattering = texture(uMultiScatteringLutTexture, vec2(sunZenithCos * 0.5 + 0.5, (viewHeight - uGroundRadius) / (uAtmosphereRadius - uGroundRadius))).rgb;
 #else
         vec3 multiScattering = vec3(0.0);
 #endif
-#ifdef OUTPUT_MULTISCATAS1
-        multiScatAs1 += trans * scattering * dt;
-#endif
+
         vec3 S = earthShadow * transmittanceToSun * phaseTimesScattering + multiScattering * scattering;
         lum += trans * (S - S * sampleTransmittance) / extinction;
         fms += trans * (scattering - scattering * sampleTransmittance) / extinction;
         trans *= sampleTransmittance;
     }
+
 #ifdef GROUND_ALBEDO_ENABLE
     if (tMax == tGround && tGround > 0.0)
     {

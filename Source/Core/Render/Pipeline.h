@@ -10,6 +10,7 @@ namespace xxx
 {
     class Pipeline : public osg::Referenced
     {
+        class ResizedCallback;
     public:
         Pipeline(osg::View* view, osg::GraphicsContext* graphicsContext) : _view(view), _graphicsContext(graphicsContext)
         {
@@ -18,7 +19,6 @@ namespace xxx
         }
         virtual ~Pipeline() = default;
 
-        class ResizedCallback;
         class Pass : public osg::Referenced
         {
             friend class Pipeline;

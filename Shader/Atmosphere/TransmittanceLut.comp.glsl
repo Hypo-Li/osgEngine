@@ -4,7 +4,7 @@ layout (local_size_x = 32, local_size_y = 32) in;
 layout (rgba16f, binding = 0) uniform image2D uTransmittanceLutImage;
 #define TRANSMITTANCE_LUT
 #define BINDING_INDEX 1
-#include "AtmosphereCommon.h.glsl"
+#include "AtmosphereCommon.glsl"
 #define LUT_WIDTH 256
 #define LUT_HEIGHT 64
 

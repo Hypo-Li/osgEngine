@@ -1,6 +1,6 @@
 #version 460 core
 #extension GL_GOOGLE_include_directive : enable
-in vec2 texcoord;
+in vec2 uv;
 out vec4 fragData;
 uniform sampler2D uTransmittanceLutTexture;
 uniform sampler2D uMultiScatteringLutTexture;
@@ -8,16 +8,14 @@ uniform sampler2D uSkyViewLutTexture;
 uniform sampler3D uAerialPerspectiveLutTexture;
 uniform sampler2D uSceneDepthTexture;
 uniform uint osg_FrameNumber;
+
+#define PLANET_TOP_AT_ABSOLUTE_WORLD_ORIGIN
 layout(std140, binding = 0) uniform ViewData
 {
     mat4 uViewMatrix;
     mat4 uInverseViewMatrix;
     mat4 uProjectionMatrix;
     mat4 uInverseProjectionMatrix;
-    mat4 uWorldToEnuMatrix;
-    vec2 uNearFarPlane1;
-    vec2 uNearFarPlane2;
-    vec2 uTotalNearFarPlane;
 };
 #define ATMOSPHERE_RAY_MARCHING
 #define BINDING_INDEX 1
@@ -33,13 +31,13 @@ float interleavedGradientNoise(vec2 uv, float frameId)
 
 void main()
 {
-    vec4 clipSpace = vec4(texcoord * 2.0 - 1.0, 1.0, 1.0);
+    vec4 clipSpace = vec4(uv * 2.0 - 1.0, 1.0, 1.0);
     vec4 viewSpace = uInverseProjectionMatrix * clipSpace;
     //viewSpace *= 1.0 / viewSpace.w;
     vec3 worldDir = normalize(mat3(uInverseViewMatrix) * viewSpace.xyz);
     vec3 worldPos = getWorldPos(uInverseViewMatrix[3].xyz);
     float viewHeight = length(worldPos);
-    float sceneDepth = texture(uSceneDepthTexture, texcoord).r;
+    float sceneDepth = texture(uSceneDepthTexture, uv).r;
     bool intersectGround = rayIntersectSphere(worldPos, worldDir, uGroundRadius) >= 0.0;
 
     vec3 outLuminance = vec3(0.0);
@@ -81,7 +79,7 @@ void main()
         return;
     }
 
-    clipSpace = vec4(texcoord * 2.0 - 1.0, sceneDepth * 2.0 - 1.0, 1.0);
+    clipSpace = vec4(uv * 2.0 - 1.0, sceneDepth * 2.0 - 1.0, 1.0);
     viewSpace = uInverseProjectionMatrix * clipSpace;
     viewSpace *= 1.0 / viewSpace.w;
     float tDepth = abs(viewSpace.z) / 1000.0;
@@ -96,7 +94,7 @@ void main()
             slice = 0.5;
         }
         float w = sqrt(slice / SLICE_COUNT);
-        vec4 AP = weight * texture(uAerialPerspectiveLutTexture, vec3(texcoord, w));
+        vec4 AP = weight * texture(uAerialPerspectiveLutTexture, vec3(uv, w));
         fragData = vec4(AP.rgb * uSunIntensity, 1.0 - AP.a);
     }
     else

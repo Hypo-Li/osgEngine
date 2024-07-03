@@ -1,13 +1,19 @@
 #include "MaterialAsset.h"
 
 static const char* preDefines = R"(
-#pragma import_defines(UNLIT)
-#pragma import_defines(STANDARD)
-#pragma import_defines(OPAQUE)
-#pragma import_defines(ALPHA_MASK)
-#pragma import_defines(ALPHA_BLEND)
 #pragma import_defines(SHADING_MODEL)
 #pragma import_defines(ALPHA_MODE)
+
+#ifdef SHADING_MODEL
+#define UNLIT 0
+#define STANDARD 1
+#endif
+
+#ifdef ALPHA_MODE
+#define OPAQUE 0
+#define ALPHA_MASK 1
+#define ALPHA BLEND 2
+#endif
 
 struct MaterialInputs
 {
@@ -62,7 +68,6 @@ namespace xxx
         _stateSetDirty(false),
         _shaderDirty(false)
     {
-        initializeShaderDefines();
         setShadingModel(ShadingModel::Standard);
         setAlphaMode(AlphaMode::Opaque);
         setDoubleSided(false);
@@ -220,7 +225,6 @@ namespace xxx
             shaderSource += preDefines;
             shaderSource += _source;
             _shader->setShaderSource(shaderSource);
-            _shader->dirtyShader();
             _shaderDirty = false;
         }
         if (_stateSetDirty)
@@ -229,16 +233,6 @@ namespace xxx
             // sceneRoot->accept(smuv);
             _stateSetDirty = false;
         }
-    }
-
-    void MaterialTemplateAsset::initializeShaderDefines()
-    {
-        _stateSet->setDefine("UNLIT", "0");
-        _stateSet->setDefine("STANDARD", "1");
-        _stateSet->setDefine("OPAQUE", "0");
-        _stateSet->setDefine("ALPHA_MASK", "1");
-        _stateSet->setDefine("ALPHA_BLEND", "2");
-        _stateSetDirty = true;
     }
 
     int MaterialTemplateAsset::getAvailableUnit()
@@ -324,13 +318,39 @@ namespace xxx
 
     void MaterialInstanceAsset::setMaterialTemplate(MaterialTemplateAsset* materialTemplate)
     {
+        if (materialTemplate == _materialTemplate)
+            return;
         _materialTemplate = materialTemplate;
-        _stateSet = new osg::StateSet(*materialTemplate->getStateSet());
+        _stateSet = new osg::StateSet(*_materialTemplate->getStateSet());
         osg::StateSet::UniformList& uniformList = _stateSet->getUniformList();
+        // 替换新的uniform对象, 以免与材质模板产生关联
         for (auto& uniform : uniformList)
         {
             osg::ref_ptr<osg::Uniform> newUniform = new osg::Uniform(*uniform.second.first.get());
             uniform.second.first = newUniform;
+        }
+        _parameters.clear();
+    }
+
+    void MaterialInstanceAsset::syncMaterialTemplate()
+    {
+        _stateSet = new osg::StateSet(*_materialTemplate->getStateSet());
+        osg::StateSet::UniformList& uniformList = _stateSet->getUniformList();
+        for (auto& uniform : uniformList)
+        {
+            auto& itr = _parameters.find(uniform.first);
+            // 已重载的参数, 需要保持不变
+            if (itr != _parameters.end())
+            {
+                // 材质模板中存在与重载参数名字相同, 但类型不同的参数, 需要删去
+                if (itr->second.index() != _materialTemplate->_parameters[uniform.first].index())
+                {
+                    _parameters.erase(itr);
+                    // 替换新的uniform对象, 以免与材质模板产生关联
+                    osg::ref_ptr<osg::Uniform> newUniform = new osg::Uniform(*uniform.second.first.get());
+                    uniform.second.first = newUniform;
+                }
+            }
         }
     }
 }

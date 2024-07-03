@@ -171,7 +171,7 @@ int main()
     xxx::TextureAsset* textureAsset2 = new xxx::TextureAsset;
     textureAsset2->setTexture(texture2);
 
-    //xxx::TextureAsset* textureAsset = dynamic_cast<xxx::TextureAsset*>(xxx::AssetManager::loadAsset(TEMP_DIR "Texture.xast"));
+    //xxx::TextureAsset* textureAsset = xxx::AssetManager::loadAsset<TextureAsset>(TEMP_DIR "Texture.xast");
     xxx::MaterialTemplateAsset* materialTemplateAsset = new xxx::MaterialTemplateAsset;
     materialTemplateAsset->setAlphaMode(xxx::MaterialTemplateAsset::AlphaMode::Alpha_Mask);
     materialTemplateAsset->setDoubleSided(true);
@@ -188,7 +188,7 @@ int main()
     materialInstanceAsset->setMaterialTemplate(materialTemplateAsset);
     materialInstanceAsset->setParameter("BaseColorTexture", textureAsset2);
 
-    //xxx::MaterialAsset* materialAsset = dynamic_cast<xxx::MaterialAsset*>(xxx::AssetManager::loadAsset(TEMP_DIR "Material.xast"));
+    //xxx::MaterialAsset* materialAsset = xxx::AssetManager::loadAsset<MaterialAsset>(TEMP_DIR "Material.xast");
     osg::ref_ptr<osg::StateSet> materialInstance = new osg::StateSet(*materialInstanceAsset->getStateSet());
     osg::ref_ptr<osg::Program> realProgram = new osg::Program;
     realProgram->addShader(osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Mesh/Mesh.vert.glsl"));

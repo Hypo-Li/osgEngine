@@ -1,9 +1,9 @@
-//#version 460 core
+#version 460 core
 #extension GL_GOOGLE_include_directive : enable
 #line 1 "RayMarching.frag.glsl"
 
 #extension GL_GOOGLE_include_directive : enable
-in vec2 texcoord;
+in vec2 uv;
 out vec4 fragData;
 uniform sampler2D uTransmittanceLutTexture;
 uniform sampler2D uMultiScatteringLutTexture;
@@ -11,16 +11,14 @@ uniform sampler2D uSkyViewLutTexture;
 uniform sampler3D uAerialPerspectiveLutTexture;
 uniform sampler2D uSceneDepthTexture;
 uniform uint osg_FrameNumber;
+
+
 layout(std140, binding = 0)uniform ViewData
 {
     mat4 uViewMatrix;
     mat4 uInverseViewMatrix;
     mat4 uProjectionMatrix;
     mat4 uInverseProjectionMatrix;
-    mat4 uWorldToEnuMatrix;
-    vec2 uNearFarPlane1;
-    vec2 uNearFarPlane2;
-    vec2 uTotalNearFarPlane;
 };
 
 
@@ -59,6 +57,7 @@ layout(std140, binding = 0)uniform ViewData
 
 const float PI = 3.14159265358979323846;
 
+
 layout(std140, binding = 1)uniform AtmosphereParameters
 {
     vec3 uRayleighScatteringBase;
@@ -79,9 +78,9 @@ layout(std140, binding = 1)uniform AtmosphereParameters
 vec3 getWorldPos(vec3 pos)
 {
 
+    return pos / 1000.0 + vec3(0.0, 0.0, uGroundRadius);
 
 
-    return pos / 1000.0;
 
 }
 
@@ -137,7 +136,7 @@ bool moveToTopAtmosphere(inout vec3 worldPos, in vec3 worldDir)
         if(tTop >= 0.0)
         {
             vec3 upVector = vec3(worldPos / viewHeight);
-            vec3 upOffset = upVector * - 0.1;
+            vec3 upOffset = upVector * -(0.001 * 100.0);
             worldPos = worldPos + worldDir * tTop + upOffset;
         }
         else
@@ -387,7 +386,7 @@ void rayMarchAtmosphere(
 
 }
 
-#line 25 "RayMarching.frag.glsl"
+#line 23 "RayMarching.frag.glsl"
  const float cosHalfApex = 0.99998;
 
 float interleavedGradientNoise(vec2 uv, float frameId)
@@ -399,13 +398,13 @@ float interleavedGradientNoise(vec2 uv, float frameId)
 
 void main()
 {
-    vec4 clipSpace = vec4(texcoord * 2.0 - 1.0, 1.0, 1.0);
+    vec4 clipSpace = vec4(uv * 2.0 - 1.0, 1.0, 1.0);
     vec4 viewSpace = uInverseProjectionMatrix * clipSpace;
 
     vec3 worldDir = normalize(mat3(uInverseViewMatrix)* viewSpace . xyz);
     vec3 worldPos = getWorldPos(uInverseViewMatrix[3]. xyz);
     float viewHeight = length(worldPos);
-    float sceneDepth = texture(uSceneDepthTexture, texcoord). r;
+    float sceneDepth = texture(uSceneDepthTexture, uv). r;
     bool intersectGround = rayIntersectSphere(worldPos, worldDir, uGroundRadius)>= 0.0;
 
     vec3 outLuminance = vec3(0.0);
@@ -447,7 +446,7 @@ void main()
         return;
     }
 
-    clipSpace = vec4(texcoord * 2.0 - 1.0, sceneDepth * 2.0 - 1.0, 1.0);
+    clipSpace = vec4(uv * 2.0 - 1.0, sceneDepth * 2.0 - 1.0, 1.0);
     viewSpace = uInverseProjectionMatrix * clipSpace;
     viewSpace *= 1.0 / viewSpace . w;
     float tDepth = abs(viewSpace . z)/ 1000.0;
@@ -462,7 +461,7 @@ void main()
             slice = 0.5;
         }
         float w = sqrt(slice / 32.0);
-        vec4 AP = weight * texture(uAerialPerspectiveLutTexture, vec3(texcoord, w));
+        vec4 AP = weight * texture(uAerialPerspectiveLutTexture, vec3(uv, w));
         fragData = vec4(AP . rgb * uSunIntensity, 1.0 - AP . a);
     }
     else
@@ -470,6 +469,5 @@ void main()
         vec3 lum, fms, trans;
         rayMarchAtmosphere(interleavedGradientNoise(gl_FragCoord . xy, osg_FrameNumber % 8), worldPos, worldDir, uSunDirection, 0.0, 9000000, sceneDepth, tDepth, lum, fms, trans);
         fragData = vec4(lum * uSunIntensity, dot(trans, vec3(0.3333333)));
-        //fragData = vec4(lum, 0.0);
     }
 }

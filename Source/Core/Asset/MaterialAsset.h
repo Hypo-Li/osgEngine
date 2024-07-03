@@ -110,8 +110,6 @@ namespace xxx
         static constexpr unsigned int _sMaxTextureCount = 16;
         static const std::unordered_map<GLenum, std::string> _sTextureSamplerStringMap;
 
-        void initializeShaderDefines();
-
         int getAvailableUnit();
 
         template <typename T>
@@ -191,6 +189,10 @@ namespace xxx
         virtual void deserialize(const Json& json, const std::vector<char>& binary, const std::vector<std::string>& reference) override;
 
         void setMaterialTemplate(MaterialTemplateAsset* materialTemplate);
+
+        void syncMaterialTemplate();
+
+        void apply();
 
         virtual osg::StateSet* getStateSet() const override { return _stateSet; }
 
