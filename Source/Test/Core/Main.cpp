@@ -133,6 +133,19 @@ void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
 }
 )";
 
+static const char* gSource2 = R"(
+void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
+{
+    mo.baseColor = uBaseColor;
+    mo.metallic = uMetallic.x;
+    mo.roughness = uRoughness;
+    mo.normal = uNormal;
+    mo.emissive = uEmissive;
+    mo.occlusion = 1.0f;
+    mo.opaque = 1.0f;
+}
+)";
+
 int main()
 {
     const int width = 1280, height = 720;
@@ -188,16 +201,27 @@ int main()
     materialInstanceAsset->setMaterialTemplate(materialTemplateAsset);
     materialInstanceAsset->setParameter("BaseColorTexture", textureAsset2);
 
+    /*materialInstanceAsset->setParameter("Metallic", 1.0f);
+
+    materialTemplateAsset->removeParameter("BaseColorTexture");
+    materialTemplateAsset->appendParameter("BaseColor", osg::Vec3(0.8, 0.8, 0.8));
+    materialTemplateAsset->removeParameter("Metallic");
+    materialTemplateAsset->appendParameter("Metallic", osg::Vec3(0.8, 0.8, 0.8));
+    materialTemplateAsset->setSource(gSource2);
+    materialTemplateAsset->apply();
+
+    materialInstanceAsset->syncMaterialTemplate();*/
+
     //xxx::MaterialAsset* materialAsset = xxx::AssetManager::loadAsset<MaterialAsset>(TEMP_DIR "Material.xast");
-    osg::ref_ptr<osg::StateSet> materialInstance = new osg::StateSet(*materialInstanceAsset->getStateSet());
+    osg::ref_ptr<osg::StateSet> materialStateSet = new osg::StateSet(*materialInstanceAsset->getStateSet());
     osg::ref_ptr<osg::Program> realProgram = new osg::Program;
     realProgram->addShader(osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Mesh/Mesh.vert.glsl"));
     realProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Mesh/Mesh.frag.glsl"));
     realProgram->addShader(materialInstanceAsset->getShader());
-    materialInstance->setAttribute(realProgram, osg::StateAttribute::ON);
+    materialStateSet->setAttribute(realProgram, osg::StateAttribute::ON);
 
     osg::ref_ptr<osg::Node> meshNode = osgDB::readNodeFile(TEMP_DIR "cube.obj");
-    meshNode->setStateSet(materialInstance);
+    meshNode->setStateSet(materialStateSet);
     rootGroup->addChild(meshNode);
 
     osg::ref_ptr<xxx::Pipeline> pipeline = new xxx::Pipeline(viewer, gc);

@@ -9,9 +9,32 @@ namespace xxx
 
     class MeshAsset : public Asset
     {
+        friend class MeshRenderer;
     public:
         MeshAsset(Type type) : Asset(type) {}
         virtual ~MeshAsset() = default;
+
+        uint32_t getSubmeshCount() const
+        {
+            return _submeshes.size();
+        }
+
+        void setPreviewMaterial(MaterialAsset* material, uint32_t index)
+        {
+            _submeshes[index]._previewMaterial = material;
+        }
+
+    protected:
+        struct Submesh
+        {
+            std::map<uint32_t, osg::ref_ptr<osg::Array>> _vertexAttributes;
+            osg::ref_ptr<osg::DrawElementsUInt> _drawElements;
+            osg::ref_ptr<MaterialAsset> _previewMaterial;
+        };
+        std::vector<Submesh> _submeshes;
+
+        static const ConstBiMap<osg::Array::Type, std::string> _sArrayTypeStringMap;
+        static osg::ref_ptr<osg::Array> createArrayByType(osg::Array::Type type);
     };
 
     class StaticMeshAsset : public MeshAsset
@@ -105,28 +128,5 @@ namespace xxx
                 _submeshes.emplace_back(submesh);
             }
         }
-
-        uint32_t getSubmeshCount()
-        {
-            return _submeshes.size();
-        }
-
-        void setPreviewMaterial(MaterialAsset* material, uint32_t index)
-        {
-            _submeshes[index]._previewMaterial = material;
-            // refresh scene to update preview material
-        }
-
-    private:
-        struct Submesh
-        {
-            std::map<uint32_t, osg::ref_ptr<osg::Array>> _vertexAttributes;
-            osg::ref_ptr<osg::DrawElementsUInt> _drawElements;
-            osg::ref_ptr<MaterialAsset> _previewMaterial;
-        };
-        std::vector<Submesh> _submeshes;
-
-        static const ConstBiMap<osg::Array::Type, std::string> _sArrayTypeStringMap;
-        static osg::ref_ptr<osg::Array> createArrayByType(osg::Array::Type type);
     };
 }

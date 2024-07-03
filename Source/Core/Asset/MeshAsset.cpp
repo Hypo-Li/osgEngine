@@ -1,9 +1,9 @@
-#include "StaticMeshAsset.h"
+#include "MeshAsset.h"
 
 namespace xxx
 {
 
-    const Asset::ConstBiMap<osg::Array::Type, std::string> StaticMeshAsset::_sArrayTypeStringMap = {
+    const Asset::ConstBiMap<osg::Array::Type, std::string> MeshAsset::_sArrayTypeStringMap = {
         {osg::Array::Type::IntArrayType, "Int"},
         {osg::Array::Type::Vec2iArrayType, "Int2"},
         {osg::Array::Type::Vec3iArrayType, "Int3"},
@@ -28,7 +28,7 @@ namespace xxx
         {osg::Array::Type::MatrixdArrayType, "Double4x4"}
     };
 
-    osg::ref_ptr<osg::Array> StaticMeshAsset::createArrayByType(osg::Array::Type type)
+    osg::ref_ptr<osg::Array> MeshAsset::createArrayByType(osg::Array::Type type)
     {
         switch (type)
         {

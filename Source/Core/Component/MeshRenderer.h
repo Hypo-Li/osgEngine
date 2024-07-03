@@ -20,11 +20,11 @@ namespace xxx
         }
         virtual ~MeshRenderer() = default;
 
-        void setMesh(StaticMeshAsset* mesh)
+        void setMesh(MeshAsset* mesh)
         {
-            if (_staticMesh)
+            if (_mesh)
             {
-                _geode->removeDrawables(0, _staticMesh->_submeshes.size());
+                _geode->removeDrawables(0, _mesh->getSubmeshCount());
                 _materials.clear();
                 _geometries.clear();
             }
@@ -32,8 +32,8 @@ namespace xxx
             if (!mesh)
                 return;
 
-            _staticMesh = mesh;
-            uint32_t submeshCount = _staticMesh->_submeshes.size();
+            _mesh = mesh;
+            uint32_t submeshCount = _mesh->getSubmeshCount();
             _materials.resize(submeshCount);
             _geometries.resize(submeshCount);
 
@@ -44,7 +44,7 @@ namespace xxx
                 _geode->addDrawable(_geometries[i]);
 
                 // set vertices and indices
-                StaticMeshAsset::Submesh& submesh = _staticMesh->_submeshes[i];
+                MeshAsset::Submesh& submesh = _mesh->_submeshes[i];
                 for (auto& vertexAttribute : submesh._vertexAttributes)
                 {
                     geometry->setVertexAttribArray(vertexAttribute.first, vertexAttribute.second);
@@ -70,7 +70,7 @@ namespace xxx
 
         uint32_t getSubmeshCount()
         {
-            return _staticMesh ? _staticMesh->getSubmeshCount() : 0;
+            return _mesh ? _mesh->getSubmeshCount() : 0;
         }
 
         MaterialAsset* getMaterial(uint32_t index)
@@ -79,7 +79,7 @@ namespace xxx
         }
 
     private:
-        osg::ref_ptr<StaticMeshAsset> _staticMesh;
+        osg::ref_ptr<MeshAsset> _mesh;
         // first is material asset, second means whether the material has been set
         std::vector<std::pair<osg::ref_ptr<MaterialAsset>, bool>> _materials;
         osg::ref_ptr<osg::Geode> _geode;
@@ -124,6 +124,9 @@ namespace xxx
 
             void applyMaterial()
             {
+                if (_material->getType() == Asset::Type::MaterialInstance)
+                    dynamic_cast<MaterialInstanceAsset*>(_material.get())->syncMaterialTemplate();
+
                 osg::ref_ptr<osg::Program> gbufferProgram = new osg::Program;
                 gbufferProgram->addShader(_material->getShader());
 

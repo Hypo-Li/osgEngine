@@ -197,7 +197,7 @@ namespace xxx
                 TextureAssetAndUnit textureAssetAndUnit = std::get<TextureAssetAndUnit>(parameter);
                 _stateSet->removeTextureAttribute(textureAssetAndUnit.second, osg::StateAttribute::Type::TEXTURE);
             }
-            _stateSet->removeUniform(_stateSet->getUniform(name));
+            _stateSet->removeUniform(_stateSet->getUniform("u" + name));
             _parameters.erase(name);
             _uniformLines.erase(name);
 
@@ -334,23 +334,40 @@ namespace xxx
 
     void MaterialInstanceAsset::syncMaterialTemplate()
     {
-        _stateSet = new osg::StateSet(*_materialTemplate->getStateSet());
-        osg::StateSet::UniformList& uniformList = _stateSet->getUniformList();
-        for (auto& uniform : uniformList)
+        osg::ref_ptr<osg::StateSet> newStateSet = new osg::StateSet(*_materialTemplate->getStateSet());
+        osg::StateSet::UniformList& newUniformList = newStateSet->getUniformList();
+
+        // 替换新的uniform对象, 以免与材质模板产生关联
+        for (auto& uniform : newUniformList)
         {
-            auto& itr = _parameters.find(uniform.first);
-            // 已重载的参数, 需要保持不变
-            if (itr != _parameters.end())
+            osg::ref_ptr<osg::Uniform> newUniform = new osg::Uniform(*uniform.second.first.get());
+            uniform.second.first = newUniform;
+        }
+
+        // 设置已经重载且有效的参数的uniform
+        auto itr = _parameters.begin();
+        while (itr != _parameters.end())
+        {
+            auto findResult = _materialTemplate->_parameters.find(itr->first);
+            if (findResult == _materialTemplate->_parameters.end())
             {
-                // 材质模板中存在与重载参数名字相同, 但类型不同的参数, 需要删去
-                if (itr->second.index() != _materialTemplate->_parameters[uniform.first].index())
-                {
-                    _parameters.erase(itr);
-                    // 替换新的uniform对象, 以免与材质模板产生关联
-                    osg::ref_ptr<osg::Uniform> newUniform = new osg::Uniform(*uniform.second.first.get());
-                    uniform.second.first = newUniform;
-                }
+                // case 1: 重载参数在新材质模板中不存在
+                _parameters.erase(itr++);
+            }
+            else if (itr->second.index() != findResult->second.index())
+            {
+                // case 2: 重载参数在新材质中存在, 但类型不同
+                _parameters.erase(itr++);
+            }
+            else
+            {
+                // case 3: 重载参数在新材质中存在, 且类型相同
+                std::string uniformName = "u" + itr->first;
+                newUniformList.at(uniformName).first = _stateSet->getUniform(uniformName);
+                itr++;
             }
         }
+
+        _stateSet = newStateSet;
     }
 }

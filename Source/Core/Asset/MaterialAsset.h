@@ -172,7 +172,7 @@ namespace xxx
                 else
                 {
                     _parameters[name] = value;
-                    _stateSet->getUniform(name)->set(value);
+                    _stateSet->getUniform("u" + name)->set(value);
                 }
             }
         }
@@ -229,7 +229,7 @@ namespace xxx
                 else
                 {
                     _parameters[name] = value;
-                    _stateSet->getUniform(name)->set(value);
+                    _stateSet->getUniform("u" + name)->set(value);
                 }
             }
         }

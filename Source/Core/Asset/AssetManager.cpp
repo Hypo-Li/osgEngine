@@ -1,5 +1,5 @@
 #include "AssetManager.h"
-#include "StaticMeshAsset.h"
+#include "MeshAsset.h"
 #include <ThirdParty/nlohmann/json.hpp>
 
 namespace xxx
