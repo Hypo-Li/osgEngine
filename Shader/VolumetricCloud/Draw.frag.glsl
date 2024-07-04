@@ -242,7 +242,7 @@ float remap(float value, float orignalMin, float orignalMax, float newMin, float
 
 float getCloudDensity(vec3 p)
 {
-    vec3 uvw = p * 0.01;
+    vec3 uvw = p * 0.05;
     vec4 noise = textureLod(uNoise1Texture, uvw/* + mod(osg_FrameTime * 0.1, 1.0)*/, 0.0);
     float wfbm = dot(noise.gba, vec3(0.625, 0.125, 0.25));
     float density = remap(noise.r, wfbm - 1.0, 1.0, 0.0, 1.0);

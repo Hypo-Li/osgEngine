@@ -46,7 +46,7 @@ namespace xxx
                     {
                         for (auto ritr = nodePath.rbegin(); ritr != nodePath.rend(); ritr++)
                         {
-                            xxx::Entity* entity = castNodeTo<Entity>(*ritr);
+                            xxx::Entity* entity = dynamic_cast<Entity*>(*ritr);
                             if (entity)
                             {
                                 Context::get().setActivedEntity(entity);
