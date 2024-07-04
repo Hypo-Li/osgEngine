@@ -10,7 +10,7 @@
 #ifdef ALPHA_MODE
 #define OPAQUE 0
 #define ALPHA_MASK 1
-#define ALPHA BLEND 2
+#define ALPHA_BLEND 2
 #endif
 
 in V2F

@@ -4,7 +4,6 @@
 
 #ifdef MULTISCATTERING_LUT
 #define GROUND_ALBEDO_ENABLE
-//#define OUTPUT_MULTISCATAS1
 #endif
 
 #ifdef SKY_VIEW_LUT
@@ -335,8 +334,10 @@ void rayMarchAtmosphere(
 #endif
 
         vec3 S = earthShadow * transmittanceToSun * phaseTimesScattering + multiScattering * scattering;
-        lum += trans * (S - S * sampleTransmittance) / extinction;
-        fms += trans * (scattering - scattering * sampleTransmittance) / extinction;
+        vec3 Sint = (S - S * sampleTransmittance) / extinction;
+        lum += trans * Sint;
+        fms += trans * scattering * 1.0 * dt;
+        //fms += trans * (scattering - scattering * sampleTransmittance) / extinction;
         trans *= sampleTransmittance;
     }
 

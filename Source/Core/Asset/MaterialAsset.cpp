@@ -12,7 +12,7 @@ static const char* preDefines = R"(
 #ifdef ALPHA_MODE
 #define OPAQUE 0
 #define ALPHA_MASK 1
-#define ALPHA BLEND 2
+#define ALPHA_BLEND 2
 #endif
 
 struct MaterialInputs
@@ -323,7 +323,7 @@ namespace xxx
         _materialTemplate = materialTemplate;
         _stateSet = new osg::StateSet(*_materialTemplate->getStateSet());
         osg::StateSet::UniformList& uniformList = _stateSet->getUniformList();
-        // 替换新的uniform对象, 以免与材质模板产生关联
+        // 替换新的uniform对象, 以免影响材质模板
         for (auto& uniform : uniformList)
         {
             osg::ref_ptr<osg::Uniform> newUniform = new osg::Uniform(*uniform.second.first.get());
@@ -337,7 +337,7 @@ namespace xxx
         osg::ref_ptr<osg::StateSet> newStateSet = new osg::StateSet(*_materialTemplate->getStateSet());
         osg::StateSet::UniformList& newUniformList = newStateSet->getUniformList();
 
-        // 替换新的uniform对象, 以免与材质模板产生关联
+        // 替换新的uniform对象, 以免与影响材质模板
         for (auto& uniform : newUniformList)
         {
             osg::ref_ptr<osg::Uniform> newUniform = new osg::Uniform(*uniform.second.first.get());

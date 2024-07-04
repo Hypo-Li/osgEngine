@@ -123,7 +123,7 @@ vec4 rayMarchCloud(vec3 ro, vec3 rd, float dist, vec3 ld)
         }
         p += dt * rd;
     }
-    return vec4(color, trans);
+    return vec4(color, dot(trans, vec3(0.333333)));
 }
 
 vec3 aces(vec3 x)

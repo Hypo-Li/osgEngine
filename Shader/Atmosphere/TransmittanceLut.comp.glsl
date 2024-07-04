@@ -1,7 +1,7 @@
 #version 460 core
 #extension GL_GOOGLE_include_directive : enable
 layout (local_size_x = 32, local_size_y = 32) in;
-layout (rgba16f, binding = 0) uniform image2D uTransmittanceLutImage;
+layout (r11f_g11f_b10f, binding = 0) uniform image2D uTransmittanceLutImage;
 #define TRANSMITTANCE_LUT
 #define BINDING_INDEX 1
 #include "AtmosphereCommon.glsl"

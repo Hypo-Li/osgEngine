@@ -137,8 +137,8 @@ static const char* gSource2 = R"(
 void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
 {
     mo.baseColor = uBaseColor;
-    mo.metallic = uMetallic.x;
-    mo.roughness = uRoughness;
+    mo.metallic = uMetallic;
+    mo.roughness = uRoughness.x;
     mo.normal = uNormal;
     mo.emissive = uEmissive;
     mo.occlusion = 1.0f;
@@ -169,7 +169,7 @@ int main()
     camera->setViewport(0, 0, width, height);
     camera->setProjectionMatrixAsPerspective(90.0, double(width) / double(height), 0.1, 400.0);
 
-    osg::Image* image = osgDB::readImageFile(TEMP_DIR "awesomeface.png");
+    osg::Image* image = osgDB::readImageFile(TEMP_DIR "container.jpg");
     osg::Texture2D* texture = new osg::Texture2D(image);
     texture->setInternalFormat(GL_RGBA8);
     texture->setMaxAnisotropy(16.0f);
@@ -177,7 +177,7 @@ int main()
     textureAsset->setTexture(texture);
     //xxx::AssetManager::storeAsset(TEMP_DIR "Texture.xast", textureAsset);
 
-    osg::Image* image2 = osgDB::readImageFile(TEMP_DIR "container.jpg");
+    osg::Image* image2 = osgDB::readImageFile(TEMP_DIR "awesomeface.png");
     osg::Texture2D* texture2 = new osg::Texture2D(image2);
     texture2->setInternalFormat(GL_RGBA8);
     texture2->setMaxAnisotropy(16.0f);
@@ -190,7 +190,9 @@ int main()
     materialTemplateAsset->setDoubleSided(true);
     materialTemplateAsset->appendParameter("BaseColorTexture", textureAsset);
     materialTemplateAsset->appendParameter("Metallic", 0.0f);
+    materialTemplateAsset->setParameter("Metallic", osg::Vec3(1.0, 1.0, 1.0));
     materialTemplateAsset->appendParameter("Roughness", 0.5f);
+    materialTemplateAsset->setParameter("Roughness", 0.8f);
     materialTemplateAsset->appendParameter("Emissive", osg::Vec3(0.0, 0.0, 0.0));
     materialTemplateAsset->appendParameter("Normal", osg::Vec3(0.5, 0.5, 1.0));
     materialTemplateAsset->setSource(gSource);
@@ -200,17 +202,17 @@ int main()
     xxx::MaterialInstanceAsset* materialInstanceAsset = new xxx::MaterialInstanceAsset;
     materialInstanceAsset->setMaterialTemplate(materialTemplateAsset);
     materialInstanceAsset->setParameter("BaseColorTexture", textureAsset2);
-
-    /*materialInstanceAsset->setParameter("Metallic", 1.0f);
+    materialInstanceAsset->setParameter("Metallic", osg::Vec3(1.0, 1.0, 1.0));
+    materialInstanceAsset->setParameter("Roughness", 0.8f);
 
     materialTemplateAsset->removeParameter("BaseColorTexture");
     materialTemplateAsset->appendParameter("BaseColor", osg::Vec3(0.8, 0.8, 0.8));
-    materialTemplateAsset->removeParameter("Metallic");
-    materialTemplateAsset->appendParameter("Metallic", osg::Vec3(0.8, 0.8, 0.8));
+    materialTemplateAsset->removeParameter("Roughness");
+    materialTemplateAsset->appendParameter("Roughness", osg::Vec3(0.8, 0.8, 0.8));
     materialTemplateAsset->setSource(gSource2);
     materialTemplateAsset->apply();
 
-    materialInstanceAsset->syncMaterialTemplate();*/
+    materialInstanceAsset->syncMaterialTemplate();
 
     //xxx::MaterialAsset* materialAsset = xxx::AssetManager::loadAsset<MaterialAsset>(TEMP_DIR "Material.xast");
     osg::ref_ptr<osg::StateSet> materialStateSet = new osg::StateSet(*materialInstanceAsset->getStateSet());

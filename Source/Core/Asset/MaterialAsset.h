@@ -160,17 +160,39 @@ namespace xxx
         template <typename T>
         void setParameter(const std::string& name, T value)
         {
-            if (_parameters.count(name))
+            auto& findResult = _parameters.find(name);
+            if (findResult != _parameters.end())
             {
                 if constexpr (std::is_same_v<T, TextureAsset*>)
                 {
-                    TextureAssetAndUnit textureAssetAndUnit = std::get<TextureAssetAndUnit>(_parameters[name]);
+                    TextureAssetAndUnit textureAssetAndUnit = std::get<TextureAssetAndUnit>(findResult->second);
                     textureAssetAndUnit.first = value;
                     int unit = textureAssetAndUnit.second;
                     _stateSet->setTextureAttribute(unit, value->_texture, osg::StateAttribute::ON);
                 }
                 else
                 {
+                    bool typeIsSame = false;
+                    ParameterTypeIndex currentTypeIndex = static_cast<ParameterTypeIndex>(findResult->second.index());
+                    if constexpr (std::is_same_v<T, bool>)
+                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Bool;
+                    else if constexpr (std::is_same_v<T, int>)
+                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Int;
+                    else if constexpr (std::is_same_v<T, float>)
+                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Float;
+                    else if constexpr (std::is_same_v<T, osg::Vec2>)
+                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Float2;
+                    else if constexpr (std::is_same_v<T, osg::Vec3>)
+                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Float3;
+                    else if constexpr (std::is_same_v<T, osg::Vec4>)
+                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Float4;
+
+                    if (!typeIsSame)
+                    {
+                        // Warning: wrong parameter type
+                        return;
+                    }
+
                     _parameters[name] = value;
                     _stateSet->getUniform("u" + name)->set(value);
                 }
@@ -217,17 +239,39 @@ namespace xxx
         template <typename T>
         void setParameter(const std::string& name, T value)
         {
-            if (_materialTemplate->_parameters.count(name))
+            auto& findResult = _materialTemplate->_parameters.find(name);
+            if (findResult != _materialTemplate->_parameters.end())
             {
                 if constexpr (std::is_same_v<T, TextureAsset*>)
                 {
-                    TextureAssetAndUnit textureAssetAndUnit = std::get<TextureAssetAndUnit>(_materialTemplate->_parameters[name]);
+                    TextureAssetAndUnit textureAssetAndUnit = std::get<TextureAssetAndUnit>(findResult->second);
                     int unit = textureAssetAndUnit.second;
                     _parameters[name] = std::make_pair(value, unit);
                     _stateSet->setTextureAttribute(unit, value->_texture, osg::StateAttribute::ON);
                 }
                 else
                 {
+                    bool typeIsSame = false;
+                    ParameterTypeIndex currentTypeIndex = static_cast<ParameterTypeIndex>(findResult->second.index());
+                    if constexpr (std::is_same_v<T, bool>)
+                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Bool;
+                    else if constexpr (std::is_same_v<T, int>)
+                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Int;
+                    else if constexpr (std::is_same_v<T, float>)
+                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Float;
+                    else if constexpr (std::is_same_v<T, osg::Vec2>)
+                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Float2;
+                    else if constexpr (std::is_same_v<T, osg::Vec3>)
+                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Float3;
+                    else if constexpr (std::is_same_v<T, osg::Vec4>)
+                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Float4;
+
+                    if (!typeIsSame)
+                    {
+                        // Warning: wrong parameter type
+                        return;
+                    }
+
                     _parameters[name] = value;
                     _stateSet->getUniform("u" + name)->set(value);
                 }
