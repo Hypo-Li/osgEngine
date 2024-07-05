@@ -7,6 +7,7 @@ uniform sampler3D uNoise2Texture;
 uniform sampler2D uTransmittanceLutTexture;
 uniform sampler2D uMultiScatteringLutTexture;
 uniform sampler2D uSkyViewLutTexture;
+uniform sampler3D uAerialPerspectiveLutTexture;
 
 uniform float osg_FrameTime;
 
@@ -204,21 +205,7 @@ void transmittanceLutParametersToUV(in float viewHeight, in float viewZenithCos,
     uv = vec2(u, v); 
 }
 
-vec3 lookupSkyLight(vec3 worldDir, vec3 worldPos, float viewHeight, vec3 upVector)
-{
-    float viewZenithCos = dot(worldDir, upVector);
-    vec3 sideVector = normalize(cross(upVector, worldDir));
-    vec3 forwardVector = normalize(cross(sideVector, upVector));
-    vec2 lightOnPlane = vec2(dot(uSunDirection, forwardVector), dot(uSunDirection, sideVector));
-    lightOnPlane = normalize(lightOnPlane);
-    float lightViewCos = lightOnPlane.x;
-    vec2 skyViewUV;
-    skyViewLutParametersToUV(false, viewZenithCos, lightViewCos, viewHeight, skyViewUV);
-    vec3 luminance = textureLod(uSkyViewLutTexture, skyViewUV, 0.0).rgb * uSunIntensity;
-    return luminance;
-}
-
-const float cloudBottomRadius = 6361.0;
+const float cloudBottomRadius = 6370.0;
 const float cloudThickness = 10.0;
 const float cloudTopRadius = cloudBottomRadius + cloudThickness;
 const float cloudTracingStartMaxDistance = 50.0;
@@ -240,19 +227,53 @@ float remap(float value, float orignalMin, float orignalMax, float newMin, float
     return newMin + (saturate((value - orignalMin) / (orignalMax - orignalMin)) * (newMax - newMin));
 }
 
-float getCloudDensity(vec3 p)
+float sampleGradient(vec4 gradient, float normalizedHeight)
 {
-    vec3 uvw = p * 0.05;
-    vec4 noise = textureLod(uNoise1Texture, uvw/* + mod(osg_FrameTime * 0.1, 1.0)*/, 0.0);
-    float wfbm = dot(noise.gba, vec3(0.625, 0.125, 0.25));
-    float density = remap(noise.r, wfbm - 1.0, 1.0, 0.0, 1.0);
-    return clamp(remap(density, 0.85, 1., 0., 1.), 0.0, 1.0);
+    return smoothstep(gradient.x, gradient.y, normalizedHeight) - smoothstep(gradient.z, gradient.w, normalizedHeight);
+}
+
+float getDensityHeightGradient(float normalizedHeight, float cloudType)
+{
+    const vec4 cloudGradient1 = vec4(0.0, 0.065, 0.203, 0.371); //stratus
+    const vec4 cloudGradient2 = vec4(0.0, 0.156, 0.468, 0.674); //cumulus
+    const vec4 cloudGradient3 = vec4(0.0, 0.188, 0.818, 1); //cumulonimbus
+    vec4 gradient = mix(mix(cloudGradient1, cloudGradient2, cloudType * 2.0), cloudGradient3, saturate(cloudType - 0.5) * 2.0);
+    return sampleGradient(gradient, normalizedHeight);
+}
+
+float getCloudDensity(vec3 p, float normalizedHeight)
+{
+    vec3 basicUVW = p * 0.007;
+    vec4 low_frequency_noises = textureLod(uNoise1Texture, basicUVW + mod(osg_FrameTime * 0.1, 1.0), 0.0);
+    float low_freq_FBM = dot(low_frequency_noises.gba, vec3(0.625, 0.25, 0.125));
+    float base_cloud = remap(low_frequency_noises.r, low_freq_FBM - 1.0, 1.0, 0.0, 1.0);
+    base_cloud = remap(base_cloud, 0.85, 1.0, 0.0, 1.0);
+    float density_height_gradiant = getDensityHeightGradient(normalizedHeight, 1.0);
+
+    base_cloud *= density_height_gradiant;
+
+    //density *= saturate(remap(normalizedHeight, 0.0, 0.07, 0.0, 1.0));
+    //density *= saturate(remap(normalizedHeight, detailNoise * 0.2, 1.0, 1.0, 0.0));
+    return base_cloud;
+}
+
+#define SLICE_COUNT 16.0
+#define KM_PER_SLICE 4.0
+
+float aerialPerspectiveDepthToSlice(float depth)
+{
+    return depth * (1.0 / KM_PER_SLICE);
+}
+
+float aerialPerspectiveSliceToDepth(float slice)
+{
+    return slice * KM_PER_SLICE;
 }
 
 #define TRANS_STEPS 8
 
 // Scattering and absorption coefficients
-const vec3 sigmaS = vec3(1);
+const vec3 sigmaS = vec3(1.0);
 const vec3 sigmaA = vec3(0.0);
 // Extinction coefficient.
 const vec3 sigmaE = max(sigmaS + sigmaA, vec3(1e-6));
@@ -265,7 +286,7 @@ vec3 rayMarchTransmittance(vec3 ro, vec3 rd, float dist)
     
     for (uint i = 0; i < TRANS_STEPS; ++i)
     {
-        float density = getCloudDensity(p);
+        float density = getCloudDensity(p, saturate((length(p) - cloudBottomRadius) / cloudThickness));
         trans *= exp(-dt * density * sigmaE);
         p += rd * dt;
     }
@@ -323,13 +344,30 @@ vec4 getCloudColor(vec3 worldPos, vec3 worldDir)
     tMin = max(tMin, 0.0);
     tMax = max(tMax, 0.0);
 
-    if (tMax <= tMin || tMin > cloudTracingStartMaxDistance)
-    {
+    if (tMax <= tMin)
         return vec4(0.0, 0.0, 0.0, 1.0);
-    }
 
     const float marchingDistance = min(cloudTracingStartMaxDistance, tMax - tMin);
     tMax = tMin + marchingDistance;
+
+    vec4 AP;
+    if (viewHeight < cloudBottomRadius)
+    {
+        float slice = aerialPerspectiveDepthToSlice(tMin);
+        float weight = 1.0;
+        if (slice < 0.5)
+        {
+            weight = clamp(slice * 2.0, 0.0, 1.0);
+            slice = 0.5;
+        }
+        float w = sqrt(slice / SLICE_COUNT);
+        AP = weight * textureLod(uAerialPerspectiveLutTexture, vec3(uv, w), 0.0);
+    }
+    else
+    {
+        AP = vec4(0.0, 0.0, 0.0, 0.0);
+    }
+    AP.a = 1.0 - AP.a;
 
     const uint stepCountUint = uint(cloudMarchingStepCount);
     const float stepCount = cloudMarchingStepCount;
@@ -339,7 +377,6 @@ vec4 getCloudColor(vec3 worldPos, vec3 worldDir)
 
     // sampleT += stepT * blueNoise;
 
-    vec3 sunColor = uSunIntensity;
     float vdl = dot(worldDir, uSunDirection);
 
     const float cosTheta = -vdl;
@@ -356,26 +393,30 @@ vec4 getCloudColor(vec3 worldPos, vec3 worldDir)
     {
         vec3 samplePos = sampleT * worldDir + worldPos;
         float sampleHeight = length(samplePos);
-        float normalizedHeight = (sampleHeight - cloudBottomRadius) / cloudThickness;
-        float density = getCloudDensity(samplePos);//cloudMap(samplePosMeter, normalizedHeight);
+        float density = getCloudDensity(samplePos, saturate((sampleHeight - cloudBottomRadius) / cloudThickness));
         vec3 sampleSigmaS = sigmaS * density;
-        vec3 sampleSigmaE = sigmaE * density;
+        vec3 sampleSigmaE = max(sigmaE * density, vec3(1e-6));
 
         if (density > 0)
         {
-            float distFromSamplePosToCloudTop = raySphereIntersectInside(samplePos, uSunDirection, vec3(0.0), cloudTopRadius);
-            vec3 cloudTopPos = samplePos + distFromSamplePosToCloudTop * uSunDirection;
-            vec3 transFromCloudTopToSun;
+            float distOfSampleToCloudTop = raySphereIntersectInside(samplePos, uSunDirection, vec3(0.0), cloudTopRadius);
+            vec3 cloudTopPos = samplePos + distOfSampleToCloudTop * uSunDirection;
+            vec3 transOfCloudTopToSun;
             {
                 const vec3 upVector = cloudTopPos / cloudTopRadius;
                 float viewZenithCos = dot(uSunDirection, upVector);
                 vec2 sampleUV;
                 transmittanceLutParametersToUV(cloudTopRadius, viewZenithCos, sampleUV);
-                transFromCloudTopToSun = texture(uTransmittanceLutTexture, sampleUV).rgb;
+                transOfCloudTopToSun = texture(uTransmittanceLutTexture, sampleUV).rgb;
             }
-            vec3 cloudTransmittance = rayMarchTransmittance(samplePos, uSunDirection, distFromSamplePosToCloudTop);
-            vec3 transToSun = transFromCloudTopToSun * cloudTransmittance;
-            vec3 luminance = uSunIntensity * sampleSigmaS * phase * transToSun;
+            vec3 transOfSampleToCloudTop = rayMarchTransmittance(samplePos, uSunDirection, distOfSampleToCloudTop);
+            vec3 transToSun = transOfCloudTopToSun * transOfSampleToCloudTop;
+
+            vec3 upVector = samplePos * (1.0 / sampleHeight);
+            float sunZenithCos = dot(uSunDirection, upVector);
+            vec3 multiScattering = textureLod(uMultiScatteringLutTexture, vec2(sunZenithCos * 0.5 + 0.5, (sampleHeight - uGroundRadius) / (uAtmosphereRadius - uGroundRadius)), 0.0).rgb;
+
+            vec3 luminance = uSunIntensity * (sampleSigmaS * phase * transToSun + multiScattering * sampleSigmaS);
             vec3 sampleTrans = exp(-sampleSigmaE * stepT);
             vec3 Sint = (luminance - luminance * sampleTrans) / sampleSigmaE;
             scatteredLuminance += transmittance * Sint;
@@ -385,7 +426,8 @@ vec4 getCloudColor(vec3 worldPos, vec3 worldDir)
         }
         sampleT += stepT;
     }
-    return vec4(scatteredLuminance, dot(transmittance, vec3(0.3333333)));
+    
+    return vec4(scatteredLuminance, dot(transmittance, vec3(0.33333)));
 }
 
 void main()

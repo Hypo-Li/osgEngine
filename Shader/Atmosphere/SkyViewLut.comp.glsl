@@ -22,7 +22,7 @@ void main()
 {
     vec2 uv = (gl_GlobalInvocationID.xy + 0.5) / vec2(LUT_WIDTH, LUT_HEIGHT);
     vec3 worldPos = getWorldPos(uInverseViewMatrix[3].xyz);
-    float viewHeight = length(worldPos);
+    float viewHeight = max(length(worldPos), uGroundRadius + 0.005);
     float viewZenithCos, lightViewCos;
     uvToSkyViewLutParameters(viewHeight, uv, viewZenithCos, lightViewCos);
     vec3 upVector = vec3(worldPos / viewHeight);

@@ -173,12 +173,13 @@ void uvToSkyViewLutParameters(in float viewHeight, in vec2 uv, out float viewZen
 void skyViewLutParametersToUV(in bool intersectGround, in float viewZenithCos, in float lightViewCos, in float viewHeight, out vec2 uv)
 {
     float vHorizon = sqrt(viewHeight * viewHeight - uGroundRadius * uGroundRadius);
-    float cosBeta = float(vHorizon / viewHeight); // GroundToHorizonCos
+    float cosBeta = vHorizon / viewHeight; // GroundToHorizonCos
     float beta = acos(cosBeta);
     float zenithHorizonAngle = PI - beta;
+    float viewZenithAngle = acos(viewZenithCos);
     if (!intersectGround)
     {
-        float coord = acos(viewZenithCos) / zenithHorizonAngle;
+        float coord = viewZenithAngle / zenithHorizonAngle;
         coord = 1.0 - coord;
         coord = sqrt(coord);
         coord = 1.0 - coord;
@@ -186,7 +187,7 @@ void skyViewLutParametersToUV(in bool intersectGround, in float viewZenithCos, i
     }
     else
     {
-        float coord = (acos(viewZenithCos) - zenithHorizonAngle) / beta;
+        float coord = (viewZenithAngle - zenithHorizonAngle) / beta;
         coord = sqrt(coord);
         uv.y = coord * 0.5 + 0.5;
     }
@@ -316,7 +317,7 @@ void rayMarchAtmosphere(
         float sunZenithCos = dot(sunDir, upVector);
         vec2 uv;
         transmittanceLutParametersToUV(viewHeight, sunZenithCos, uv);
-        vec3 transmittanceToSun = texture(uTransmittanceLutTexture, uv).rgb;
+        vec3 transmittanceToSun = textureLod(uTransmittanceLutTexture, uv, 0.0).rgb;
 
 #ifdef MIE_RAYLEIGH_PHASE_ENABLE
         vec3 phaseTimesScattering = mieScattering * miePhaseValue + rayleighScattering * rayleighPhaseValue;
@@ -328,7 +329,7 @@ void rayMarchAtmosphere(
         float earthShadow = step(tEarth, 0.0);
 
 #ifdef MULTISCATTERING_APPROX_SAMPLING_ENABLED
-        vec3 multiScattering = texture(uMultiScatteringLutTexture, vec2(sunZenithCos * 0.5 + 0.5, (viewHeight - uGroundRadius) / (uAtmosphereRadius - uGroundRadius))).rgb;
+        vec3 multiScattering = textureLod(uMultiScatteringLutTexture, vec2(sunZenithCos * 0.5 + 0.5, (viewHeight - uGroundRadius) / (uAtmosphereRadius - uGroundRadius)), 0.0).rgb;
 #else
         vec3 multiScattering = vec3(0.0);
 #endif
@@ -350,7 +351,7 @@ void rayMarchAtmosphere(
         float sunZenithCos = dot(sunDir, upVector);
         vec2 uv;
         transmittanceLutParametersToUV(viewHeight, sunZenithCos, uv);
-        vec3 transmittanceToSun = texture(uTransmittanceLutTexture, uv).rgb;
+        vec3 transmittanceToSun = textureLod(uTransmittanceLutTexture, uv, 0.0).rgb;
         float ndl = max(dot(upVector, sunDir), 0.0);
         lum += transmittanceToSun * trans * ndl * uGroundAlbedo / PI;
     }

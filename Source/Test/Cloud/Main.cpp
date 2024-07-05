@@ -1,4 +1,5 @@
 #include <Core/Render/Pipeline.h>
+#include "ControllerManipulator.h"
 #include <osgViewer/Viewer>
 #include <osgDB/ReadFile>
 #include <osgGA/TrackballManipulator>
@@ -19,7 +20,7 @@ osg::ref_ptr<osg::UniformBufferBinding> gViewDataUBB;
 
 struct AtmosphereParameters
 {
-    float solarAltitude = 90.0f;
+    float solarAltitude = 30.0f;
     float solarAzimuth = 0.0f;
     osg::Vec3 sunColor = osg::Vec3(1.0, 1.0, 1.0);
     float sunIntensity = 6.0f;
@@ -233,7 +234,7 @@ int main()
     osg::ref_ptr<osg::BindImageTexture> multiScatteringLutImage = new osg::BindImageTexture(0, multiScatteringLutTexture, osg::BindImageTexture::WRITE_ONLY, GL_R11F_G11F_B10F);
     osg::ref_ptr<osg::Program> multiScatteringLutProgram = new osg::Program;
     multiScatteringLutProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "Atmosphere/MultiScatteringLut.comp.glsl"));
-    osg::ref_ptr<osg::DispatchCompute> multiScatteringLutDispatch = new osg::DispatchCompute(32, 32, 1);
+    osg::ref_ptr<osg::DispatchCompute> multiScatteringLutDispatch = new osg::DispatchCompute(1, 1, 1);
     multiScatteringLutDispatch->setCullingActive(false);
     multiScatteringLutDispatch->getOrCreateStateSet()->setAttribute(multiScatteringLutProgram, osg::StateAttribute::ON);
     multiScatteringLutDispatch->getOrCreateStateSet()->setAttribute(multiScatteringLutImage, osg::StateAttribute::ON);
@@ -350,11 +351,12 @@ int main()
 
     osg::ref_ptr<osg::Program> colorGradingProgram = new osg::Program;
     colorGradingProgram->addShader(screenQuadVertexShader);
-    colorGradingProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/ColorGrading.frag.glsl"));
+    colorGradingProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CombineAtmosphereAndCloud.frag.glsl"));
     osg::ref_ptr<xxx::Pipeline::Pass> finalPass = pipeline->addFinalPass("Final", colorGradingProgram);
-    finalPass->applyTexture(volumetricCloudPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorTexture", 0);
+    finalPass->applyTexture(atmospherePass->getBufferTexture(BufferType::COLOR_BUFFER0), "uAtmosphereColorTexture", 0);
+    finalPass->applyTexture(volumetricCloudPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uCloudColorTexture", 1);
 
-    viewer->setCameraManipulator(new osgGA::TrackballManipulator);
+    viewer->setCameraManipulator(new ControllerManipulator(20.0));
 
     viewer->realize();
     while (!viewer->done())

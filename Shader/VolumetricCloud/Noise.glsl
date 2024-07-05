@@ -1,7 +1,3 @@
-#version 430 core
-layout(local_size_x = 4, local_size_y = 4, local_size_z = 64) in;
-layout(rgba8, binding = 0) uniform image3D uNoise1Image;
-
 // Hash by David_Hoskins
 #define UI0 1597334673U
 #define UI1 3812015801U
@@ -14,11 +10,6 @@ vec3 hash33(vec3 p)
     uvec3 q = uvec3(ivec3(p)) * UI3;
     q = (q.x ^ q.y ^ q.z) * UI3;
     return -1. + 2. * vec3(q) * UIF;
-}
-
-float remap(float x, float a, float b, float c, float d)
-{
-    return (((x - a) / (b - a)) * (d - c)) + c;
 }
 
 // Gradient noise by iq (modified to be tileable)
@@ -111,20 +102,4 @@ float worleyFbm(vec3 p, float freq)
     return worleyNoise(p*freq, freq) * 0.625 +
         worleyNoise(p*freq*2., freq*2.) * 0.250 +
         worleyNoise(p*freq*4., freq*4.) * 0.125;
-}
-
-void main()
-{
-    const float freq = 4.0;
-    vec3 uvw = (gl_GlobalInvocationID.xyz + 0.5) / vec3(128);
-    float pfbm = abs(perlinFbm(uvw, freq, 7));
-    vec3 wfbm = vec3(
-        worleyFbm(uvw, freq),
-        worleyFbm(uvw, freq * 2.0),
-        worleyFbm(uvw, freq * 4.0)
-    );
-    float perlinWorley = remap(pfbm, 0.0, 1.0, wfbm.x, 1.0);
-    imageStore(uNoise1Image, ivec3(gl_GlobalInvocationID.xyz), vec4(perlinWorley, wfbm));
-    //float density = remap(perlinWorley, dot(wfbm, vec3(0.625, 0.125, 0.25)) - 1.0, 1.0, 0.0, 1.0);
-    //imageStore(uNoise1Image, ivec3(gl_GlobalInvocationID.xyz), vec4(density));
 }

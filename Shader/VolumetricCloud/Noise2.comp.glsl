@@ -66,4 +66,5 @@ void main()
         worleyFbm(uvw, freq * 4.0)
     );
     imageStore(uNoise2Image, ivec3(gl_GlobalInvocationID.xyz), vec4(wfbm, 1.0));
+    //imageStore(uNoise2Image, ivec3(gl_GlobalInvocationID.xyz), vec4(dot(wfbm, vec3(0.625, 0.250, 0.125))));
 }

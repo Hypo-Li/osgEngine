@@ -64,5 +64,5 @@ void main()
     }
     vec3 lum, fms, trans;
     rayMarchAtmosphere(0.3, worldPos, worldDir, uSunDirection, max(1.0, float(gl_GlobalInvocationID.z + 1.0) * 2.0), tMaxMax, lum, fms, trans);
-    imageStore(uAerialPerspectiveLutImage, ivec3(gl_GlobalInvocationID.xyz), vec4(lum, 1.0 - dot(trans, vec3(1.0/3.3))));
+    imageStore(uAerialPerspectiveLutImage, ivec3(gl_GlobalInvocationID.xyz), vec4(lum, 1.0 - dot(trans, vec3(0.333333))));
 }
