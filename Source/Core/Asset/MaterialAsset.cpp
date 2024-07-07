@@ -1,4 +1,7 @@
 #include "MaterialAsset.h"
+#include <Core/Base/Context.h>
+#include <Core/Component/MeshRenderer.h>
+#include <osg/NodeVisitor>
 
 static const char* preDefines = R"(
 #pragma import_defines(SHADING_MODEL)
@@ -37,6 +40,19 @@ struct MaterialOutputs
     float occlusion;
 #endif
 };
+
+float decodeColor(float data);
+vec2 decodeColor(vec2 data);
+vec3 decodeColor(vec3 data);
+vec4 decodeColor(vec4 data);
+
+float encodeColor(float color);
+vec2 encodeColor(vec2 color);
+vec3 encodeColor(vec3 color);
+vec4 encodeColor(vec4 color);
+
+vec3 decodeNormal(vec3 data);
+vec3 encodeNormal(vec3 normal);
 )";
 
 static const char* standardDefaultSource = R"(
@@ -198,8 +214,8 @@ namespace xxx
                 _stateSet->removeTextureAttribute(textureAssetAndUnit.second, osg::StateAttribute::Type::TEXTURE);
             }
             _stateSet->removeUniform(_stateSet->getUniform("u" + name));
-            _parameters.erase(name);
             _uniformLines.erase(name);
+            _parameters.erase(name);
 
             _stateSetDirty = true;
             _shaderDirty = true;
@@ -213,6 +229,36 @@ namespace xxx
         _source = source;
         _shaderDirty = true;
     }
+
+    class MaterialTemplateApplyVisitor : public osg::NodeVisitor
+    {
+        MaterialTemplateAsset* _materialTemplate;
+    public:
+        MaterialTemplateApplyVisitor(MaterialTemplateAsset* materialTemplate) :
+            osg::NodeVisitor(TRAVERSE_ALL_CHILDREN),
+            _materialTemplate(materialTemplate)
+        {}
+
+        virtual void apply(osg::Group& node) override
+        {
+            MeshRenderer* meshRenderer = dynamic_cast<MeshRenderer*>(&node);
+            if (meshRenderer)
+            {
+                uint32_t submeshCount = meshRenderer->getSubmeshesCount();
+                for (uint32_t i = 0; i < submeshCount; ++i)
+                {
+                    MaterialAsset* material = meshRenderer->getMaterial(i);
+                    if ((material->getType() == Asset::Type::MaterialTemplate && material == _materialTemplate) ||
+                        (material->getType() == Asset::Type::MaterialInstance && dynamic_cast<MaterialInstanceAsset*>(material)->getMaterialTemplate() == _materialTemplate))
+                    {
+                        meshRenderer->applyMaterial(i);
+                    }
+                }
+            }
+
+            traverse(node);
+        }
+    };
 
     void MaterialTemplateAsset::apply()
     {
@@ -229,8 +275,10 @@ namespace xxx
         }
         if (_stateSetDirty)
         {
-            // SceneMaterialUpdateVisitor smuv(this);
-            // sceneRoot->accept(smuv);
+            MaterialTemplateApplyVisitor mtav(this);
+            osg::Node* sceneRoot = Context::get().getSceneRoot();
+            if (sceneRoot)
+                sceneRoot->accept(mtav);
             _stateSetDirty = false;
         }
     }

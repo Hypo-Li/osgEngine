@@ -1,15 +1,10 @@
 #version 460 core
-// layout(location = 0) in vec3 iPosition;
-// layout(location = 2) in vec3 iNormal;
-// layout(location = 3) in vec4 iColor;
-// layout(location = 6) in vec4 iTangent;
-// layout(location = 8) in vec2 iTexcoord0;
-// layout(location = 9) in vec2 iTexcoord1;
-in vec3 osg_Vertex;
-in vec3 osg_Normal;
-in vec4 osg_Color;
-in vec2 osg_MultiTexCoord0;
-in vec2 osg_MultiTexCoord1;
+layout(location = 0) in vec3 iPosition;
+layout(location = 1) in vec3 iNormal;
+layout(location = 2) in vec4 iColor;
+layout(location = 6) in vec4 iTangent;
+layout(location = 3) in vec2 iTexcoord0;
+layout(location = 4) in vec2 iTexcoord1;
 
 out V2F
 {
@@ -28,25 +23,14 @@ uniform mat4 osg_ViewMatrixInverse;
 
 void main()
 {
-    // vec4 fragPosVS = osg_ModelViewMatrix * vec4(iPosition, 1.0);
-    // gl_Position = osg_ProjectionMatrix * fragPosVS;
-    // v2f.fragPosVS = fragPosVS.xyz;
-    // vec3 normalVS = osg_NormalMatrix * iNormal;
-    // vec3 tangentVS = osg_NormalMatrix * iTangent.xyz;
-    // v2f.normalWS = mat3(osg_ViewMatrixInverse) * normalVS;
-    // v2f.tangentWS = vec4(mat3(osg_ViewMatrixInverse) * tangentVS, iTangent.w);
-    // v2f.color = iColor;
-    // v2f.texcoord0 = iTexcoord0;
-    // v2f.texcoord1 = iTexcoord1;
-
-    vec4 fragPosVS = osg_ModelViewMatrix * vec4(osg_Vertex, 1.0);
+    vec4 fragPosVS = osg_ModelViewMatrix * vec4(iPosition, 1.0);
     gl_Position = osg_ProjectionMatrix * fragPosVS;
     v2f.fragPosVS = fragPosVS.xyz;
-    vec3 normalVS = osg_NormalMatrix * osg_Normal;
-    //vec3 tangentVS = osg_NormalMatrix * iTangent.xyz;
+    vec3 normalVS = osg_NormalMatrix * iNormal;
+    vec3 tangentVS = osg_NormalMatrix * iTangent.xyz;
     v2f.normalWS = mat3(osg_ViewMatrixInverse) * normalVS;
-    //v2f.tangentWS = vec4(mat3(osg_ViewMatrixInverse) * tangentVS, iTangent.w);
-    v2f.color = osg_Color;
-    v2f.texcoord0 = osg_MultiTexCoord0;
-    v2f.texcoord1 = osg_MultiTexCoord1;
+    v2f.tangentWS = vec4(mat3(osg_ViewMatrixInverse) * tangentVS, iTangent.w);
+    v2f.color = iColor;
+    v2f.texcoord0 = iTexcoord0;
+    v2f.texcoord1 = iTexcoord1;
 }

@@ -17,9 +17,11 @@ namespace xxx
 		void appendChildEntity(Entity* child);
 		void removeChildEntity(Entity* child);
 		Entity* getChildEntity(uint32_t index);
-        uint32_t getNumChildrenEntities() { return _childrenEntitiesGroup->getNumChildren(); }
+        uint32_t getChildrenEntitiesCount() { return _childrenEntitiesGroup->getNumChildren(); }
 		void appendComponent(Component* component);
 		void removeComponent(Component* component);
+        uint32_t getComponentsCount() { return _componentsGroup->getNumChildren(); }
+        Component* getComponent(uint32_t index);
         
 		template<typename T, typename = typename std::enable_if_t<std::is_base_of_v<Component, T>>>
 		T* getComponent(uint32_t index)

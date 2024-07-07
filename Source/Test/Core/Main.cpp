@@ -1,13 +1,16 @@
 #include <Core/Render/Pipeline.h>
 #include <Core/Base/Entity.h>
+#include <Core/Base/Context.h>
 #include <Core/Component/MeshRenderer.h>
+#include <Core/Asset/AssetManager.h>
 #include <osgViewer/Viewer>
 #include <osgDB/ReadFile>
 #include <osgGA/TrackballManipulator>
 #include <osg/BindImageTexture>
 #include <osg/DispatchCompute>
 #include <osgDB/WriteFile>
-#include <Core/Asset/AssetManager.h>
+#include "GLTFLoader.h"
+#include "TestEventHandler.h"
 
 void debugCallback(GLenum source, GLenum type, GLuint, GLenum severity,
     GLsizei, const GLchar* message, const void*)
@@ -92,62 +95,28 @@ public:
     OpenThreads::Mutex _mutex;
 };
 
-class TestVisitor : public osg::NodeVisitor
-{
-public:
-    TestVisitor() : osg::NodeVisitor(osg::NodeVisitor::TRAVERSE_ALL_CHILDREN) {}
-    ~TestVisitor() = default;
-
-    void apply(osg::MatrixTransform& node)
-    {
-        xxx::Entity* entity = dynamic_cast<xxx::Entity*>(&node);
-        if (entity)
-        {
-            std::cout << "get entity" << std::endl;
-        }
-        traverse(node);
-    }
-
-    void apply(osg::Group& node)
-    {
-        xxx::MeshRenderer* meshRenderer = dynamic_cast<xxx::MeshRenderer*>(&node);
-        if (meshRenderer)
-        {
-            std::cout << "get mesh renderer" << std::endl;
-        }
-        traverse(node);
-    }
-};
-
 static const char* gSource = R"(
 void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
 {
-    vec4 tColor = texture(uBaseColorTexture, mi.texcoord0);
-    mo.baseColor = tColor.rgb;
-    mo.metallic = uMetallic;
-    mo.roughness = uRoughness;
-    mo.normal = uNormal;
-    mo.emissive = uEmissive;
-    mo.occlusion = 1.0f;
-    mo.opaque = tColor.a;
-}
-)";
+    vec4 tColor0 = decodeColor(texture(uTexture0, mi.texcoord0));
+    vec4 tColor1 = texture(uTexture1, mi.texcoord0);
+    vec3 local0 = mix(0.5, 1.0, tColor1.r) * mix(uColor3.rgb, uColor2.rgb, vec3(tColor1.b));
+    mo.baseColor = tColor0.rgb * local0;
 
-static const char* gSource2 = R"(
-void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
-{
-    mo.baseColor = uBaseColor;
-    mo.metallic = uMetallic;
-    mo.roughness = uRoughness.x;
-    mo.normal = uNormal;
-    mo.emissive = uEmissive;
-    mo.occlusion = 1.0f;
-    mo.opaque = 1.0f;
+    vec4 tColor2 = texture(uTexture2, mi.texcoord0 * 0.05);
+    float local1 = mix(-20.0, 20.0, tColor2.r);
+    float local2 = clamp((local1 + (-mi.fragPosVS.z) - 10.0) / 10.0, 0.0, 1.0);
+    float local3 = mix(tColor0.a, 0.5, local2);
+    mo.roughness = mix(0.5, 0.2, local3);
+
+    mo.normal = decodeNormal(texture(uTexture3, mi.texcoord0).rgb);
 }
 )";
 
 int main()
 {
+    xxx::Context::get();
+
     const int width = 1280, height = 720;
     osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits();
     traits->width = width; traits->height = height;
@@ -163,74 +132,57 @@ int main()
     osg::ref_ptr<osgViewer::Viewer> viewer = new osgViewer::Viewer;
     osg::ref_ptr<osg::Group> rootGroup = new osg::Group;
     viewer->setSceneData(rootGroup);
-    viewer->setRealizeOperation(new EnableGLDebugOperation);
+    //viewer->setRealizeOperation(new EnableGLDebugOperation);
+    viewer->setRealizeOperation(new xxx::ImGuiInitOperation);
     osg::ref_ptr<osg::Camera> camera = viewer->getCamera();
     camera->setGraphicsContext(gc);
     camera->setViewport(0, 0, width, height);
-    camera->setProjectionMatrixAsPerspective(90.0, double(width) / double(height), 0.1, 400.0);
+    camera->setProjectionMatrixAsPerspective(60.0, double(width) / double(height), 0.1, 400.0);
 
-    osg::Image* image = osgDB::readImageFile(TEMP_DIR "container.jpg");
+    /*osg::Image* image = osgDB::readImageFile(TEMP_DIR "T_Rock_Marble_Polished_D.PNG");
     osg::Texture2D* texture = new osg::Texture2D(image);
-    texture->setInternalFormat(GL_RGBA8);
+    texture->setInternalFormat(GL_COMPRESSED_RGB_S3TC_DXT1_EXT);
+    texture->setWrap(osg::Texture::WRAP_S, osg::Texture::REPEAT);
+    texture->setWrap(osg::Texture::WRAP_T, osg::Texture::REPEAT);
     texture->setMaxAnisotropy(16.0f);
     xxx::TextureAsset* textureAsset = new xxx::TextureAsset;
     textureAsset->setTexture(texture);
-    //xxx::AssetManager::storeAsset(TEMP_DIR "Texture.xast", textureAsset);
+    xxx::AssetManager::storeAsset("Texture/T_Rock_Marble_Polished_D.xast", textureAsset);*/
 
-    osg::Image* image2 = osgDB::readImageFile(TEMP_DIR "awesomeface.png");
-    osg::Texture2D* texture2 = new osg::Texture2D(image2);
-    texture2->setInternalFormat(GL_RGBA8);
-    texture2->setMaxAnisotropy(16.0f);
-    xxx::TextureAsset* textureAsset2 = new xxx::TextureAsset;
-    textureAsset2->setTexture(texture2);
-
-    //xxx::TextureAsset* textureAsset = xxx::AssetManager::loadAsset<TextureAsset>(TEMP_DIR "Texture.xast");
-    xxx::MaterialTemplateAsset* materialTemplateAsset = new xxx::MaterialTemplateAsset;
-    materialTemplateAsset->setAlphaMode(xxx::MaterialTemplateAsset::AlphaMode::Alpha_Mask);
-    materialTemplateAsset->setDoubleSided(true);
-    materialTemplateAsset->appendParameter("BaseColorTexture", textureAsset);
-    materialTemplateAsset->appendParameter("Metallic", 0.0f);
-    materialTemplateAsset->setParameter("Metallic", osg::Vec3(1.0, 1.0, 1.0));
-    materialTemplateAsset->appendParameter("Roughness", 0.5f);
-    materialTemplateAsset->setParameter("Roughness", 0.8f);
-    materialTemplateAsset->appendParameter("Emissive", osg::Vec3(0.0, 0.0, 0.0));
-    materialTemplateAsset->appendParameter("Normal", osg::Vec3(0.5, 0.5, 1.0));
+    /*xxx::MaterialTemplateAsset* materialTemplateAsset = new xxx::MaterialTemplateAsset;
+    materialTemplateAsset->appendParameter("Texture0", xxx::AssetManager::loadAsset<xxx::TextureAsset>("Texture/T_Rock_Marble_Polished_D.xast"));
+    materialTemplateAsset->appendParameter("Texture1", xxx::AssetManager::loadAsset<xxx::TextureAsset>("Texture/T_Ceramic_Tile_M.xast"));
+    materialTemplateAsset->appendParameter("Texture2", xxx::AssetManager::loadAsset<xxx::TextureAsset>("Texture/T_Perlin_Noise_M.xast"));
+    materialTemplateAsset->appendParameter("Texture3", xxx::AssetManager::loadAsset<xxx::TextureAsset>("Texture/T_Ceramic_Tile_N.xast"));
+    materialTemplateAsset->appendParameter("Color2", osg::Vec3(0.41, 0.41, 0.41));
+    materialTemplateAsset->appendParameter("Color3", osg::Vec3(0.825, 0.81, 0.788));
     materialTemplateAsset->setSource(gSource);
     materialTemplateAsset->apply();
-    //xxx::AssetManager::storeAsset(TEMP_DIR "Material.xast", materialAsset);
+    xxx::AssetManager::storeAsset("Material/TestMaterialTemplate.xast", materialTemplateAsset);*/
 
-    xxx::MaterialInstanceAsset* materialInstanceAsset = new xxx::MaterialInstanceAsset;
+    /*xxx::MaterialInstanceAsset* materialInstanceAsset = new xxx::MaterialInstanceAsset;
     materialInstanceAsset->setMaterialTemplate(materialTemplateAsset);
     materialInstanceAsset->setParameter("BaseColorTexture", textureAsset2);
     materialInstanceAsset->setParameter("Metallic", osg::Vec3(1.0, 1.0, 1.0));
     materialInstanceAsset->setParameter("Roughness", 0.8f);
+    xxx::AssetManager::storeAsset("Material/TestMaterialInstance.xast", materialInstanceAsset);*/
 
-    materialTemplateAsset->removeParameter("BaseColorTexture");
-    materialTemplateAsset->appendParameter("BaseColor", osg::Vec3(0.8, 0.8, 0.8));
-    materialTemplateAsset->removeParameter("Roughness");
-    materialTemplateAsset->appendParameter("Roughness", osg::Vec3(0.8, 0.8, 0.8));
-    materialTemplateAsset->setSource(gSource2);
-    materialTemplateAsset->apply();
+    /*std::vector<osg::ref_ptr<xxx::MeshAsset>> meshes = xxx::GLTFLoader::load(TEMP_DIR "Test.glb");
+    meshes[0]->setPreviewMaterial(0, xxx::AssetManager::loadAsset<xxx::MaterialAsset>("Material/TestMaterialTemplate.xast"));
+    xxx::AssetManager::storeAsset("Mesh/Test.xast", meshes[0]);*/
 
-    materialInstanceAsset->syncMaterialTemplate();
-
-    //xxx::MaterialAsset* materialAsset = xxx::AssetManager::loadAsset<MaterialAsset>(TEMP_DIR "Material.xast");
-    osg::ref_ptr<osg::StateSet> materialStateSet = new osg::StateSet(*materialInstanceAsset->getStateSet());
-    osg::ref_ptr<osg::Program> realProgram = new osg::Program;
-    realProgram->addShader(osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Mesh/Mesh.vert.glsl"));
-    realProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Mesh/Mesh.frag.glsl"));
-    realProgram->addShader(materialInstanceAsset->getShader());
-    materialStateSet->setAttribute(realProgram, osg::StateAttribute::ON);
-
-    osg::ref_ptr<osg::Node> meshNode = osgDB::readNodeFile(TEMP_DIR "cube.obj");
-    meshNode->setStateSet(materialStateSet);
-    rootGroup->addChild(meshNode);
+    xxx::Entity* entity = new xxx::Entity("TestEntity");
+    xxx::MeshRenderer* meshRenderer = new xxx::MeshRenderer;
+    //meshRenderer->setMesh(meshes[0]);
+    meshRenderer->setMesh(xxx::AssetManager::loadAsset<xxx::MeshAsset>("Mesh/Test.xast"));
+    entity->appendComponent(meshRenderer);
+    rootGroup->addChild(entity);
 
     osg::ref_ptr<xxx::Pipeline> pipeline = new xxx::Pipeline(viewer, gc);
     using BufferType = xxx::Pipeline::Pass::BufferType;
     osg::ref_ptr<xxx::Pipeline::Pass> gbufferPass = pipeline->addInputPass("GBuffer", 0x00000001);
-    gbufferPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA32F);
-    gbufferPass->attach(BufferType::COLOR_BUFFER1, GL_RGBA16F);
+    gbufferPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F);
+    gbufferPass->attach(BufferType::COLOR_BUFFER1, GL_RGB10_A2);
     gbufferPass->attach(BufferType::COLOR_BUFFER2, GL_RGBA8);
     gbufferPass->attach(BufferType::COLOR_BUFFER3, GL_RGBA8);
     gbufferPass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT, osg::Texture::NEAREST, osg::Texture::NEAREST);
@@ -238,9 +190,13 @@ int main()
     osg::Shader* screenQuadShader = osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Common/ScreenQuad.vert.glsl");
     osg::Program* finalProgram = new osg::Program;
     finalProgram->addShader(screenQuadShader);
-    finalProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CopyColor.frag.glsl"));
+    finalProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/Empty.frag.glsl"));
     osg::ref_ptr<xxx::Pipeline::Pass> finalPass = pipeline->addFinalPass("Final", finalProgram);
     finalPass->applyTexture(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER2), "uColorTexture", 0);
+
+    xxx::ImGuiHandler* imguiHandler = new xxx::ImGuiHandler(viewer, finalPass->getCamera(), dynamic_cast<osg::Texture2D*>(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER2)), pipeline);
+    viewer->addEventHandler(imguiHandler);
+    viewer->addEventHandler(new xxx::TestEventHandler(gbufferPass->getCamera(), imguiHandler));
     viewer->setCameraManipulator(new osgGA::TrackballManipulator);
     viewer->realize();
     while (!viewer->done())

@@ -4,6 +4,7 @@
 
 #include <osg/Geode>
 #include <osg/Geometry>
+#include <osgDB/ReadFile>
 #include <osgUtil/CullVisitor>
 
 #define GBUFFER_MASK        0x00000001
@@ -14,7 +15,7 @@ namespace xxx
     class MeshRenderer : public Component
     {
     public:
-        MeshRenderer() : _geode(new osg::Geode)
+        MeshRenderer() : Component(Type::MeshRenderer), _geode(new osg::Geode)
         {
             Group::addChild(_geode);
         }
@@ -24,7 +25,7 @@ namespace xxx
         {
             if (_mesh)
             {
-                _geode->removeDrawables(0, _mesh->getSubmeshCount());
+                _geode->removeDrawables(0, _mesh->getSubmeshesCount());
                 _materials.clear();
                 _geometries.clear();
             }
@@ -33,7 +34,7 @@ namespace xxx
                 return;
 
             _mesh = mesh;
-            uint32_t submeshCount = _mesh->getSubmeshCount();
+            uint32_t submeshCount = _mesh->getSubmeshesCount();
             _materials.resize(submeshCount);
             _geometries.resize(submeshCount);
 
@@ -48,6 +49,7 @@ namespace xxx
                 for (auto& vertexAttribute : submesh._vertexAttributes)
                 {
                     geometry->setVertexAttribArray(vertexAttribute.first, vertexAttribute.second);
+                    geometry->setVertexAttribBinding(vertexAttribute.first, osg::Geometry::BIND_PER_VERTEX);
                 }
                 geometry->addPrimitiveSet(submesh._drawElements);
 
@@ -58,7 +60,7 @@ namespace xxx
             }
         }
 
-        void setMaterial(MaterialAsset* material, uint32_t index)
+        void setMaterial(uint32_t index, MaterialAsset* material)
         {
             if (_materials.size() <= index)
                 return;
@@ -68,9 +70,15 @@ namespace xxx
             cullCallback->setMaterial(material);
         }
 
-        uint32_t getSubmeshCount()
+        void applyMaterial(uint32_t index)
         {
-            return _mesh ? _mesh->getSubmeshCount() : 0;
+            SwitchMaterialCullCallback* cullCallback = dynamic_cast<SwitchMaterialCullCallback*>(_geometries[index]->getCullCallback());
+            cullCallback->applyMaterial();
+        }
+
+        uint32_t getSubmeshesCount()
+        {
+            return _mesh ? _mesh->getSubmeshesCount() : 0;
         }
 
         MaterialAsset* getMaterial(uint32_t index)
@@ -109,6 +117,7 @@ namespace xxx
                 default:
                     break;
                 }
+                return false;
             }
 
             void setMaterial(xxx::MaterialAsset* material)
@@ -128,17 +137,31 @@ namespace xxx
                     dynamic_cast<MaterialInstanceAsset*>(_material.get())->syncMaterialTemplate();
 
                 osg::ref_ptr<osg::Program> gbufferProgram = new osg::Program;
+                gbufferProgram->addShader(getGBufferVertexShader());
+                gbufferProgram->addShader(getGBufferFragmentShader());
                 gbufferProgram->addShader(_material->getShader());
 
                 _gbufferStateSet = new osg::StateSet(*_material->getStateSet());
                 _gbufferStateSet->setAttribute(gbufferProgram, osg::StateAttribute::ON);
 
-                osg::ref_ptr<osg::Program> shadowCastProgram = new osg::Program;
+                /*osg::ref_ptr<osg::Program> shadowCastProgram = new osg::Program;
                 shadowCastProgram->addShader(_material->getShader());
 
                 _shadowCastStateSet = new osg::StateSet(*_material->getStateSet());
-                _gbufferStateSet->setAttribute(shadowCastProgram, osg::StateAttribute::ON);
+                _gbufferStateSet->setAttribute(shadowCastProgram, osg::StateAttribute::ON);*/
 
+            }
+
+        private:
+            static osg::ref_ptr<osg::Shader> getGBufferVertexShader()
+            {
+                static osg::ref_ptr<osg::Shader> gbufferVertexShader = osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Mesh/Mesh.vert.glsl");
+                return gbufferVertexShader;
+            }
+            static osg::ref_ptr<osg::Shader> getGBufferFragmentShader()
+            {
+                static osg::ref_ptr<osg::Shader> gbufferFragmentShader = osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Mesh/Mesh.frag.glsl");
+                return gbufferFragmentShader;
             }
         };
     };

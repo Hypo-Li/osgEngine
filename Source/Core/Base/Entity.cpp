@@ -57,4 +57,9 @@ namespace xxx
 		component->_owner = nullptr;
 		_componentsGroup->removeChild(component);
 	}
+
+    Component* Entity::getComponent(uint32_t index)
+    {
+        return dynamic_cast<Component*>(_componentsGroup->getChild(index));
+    }
 }

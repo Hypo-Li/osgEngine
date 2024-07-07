@@ -1,6 +1,7 @@
 #pragma once
 #include <Core/Base/Entity.h>
 #include <osg/ref_ptr>
+#include <filesystem>
 namespace xxx
 {
     class Engine;
@@ -8,26 +9,28 @@ namespace xxx
     {
         friend class Engine;
     public:
+        Context()
+        {
+            std::filesystem::path currentPath = std::filesystem::current_path();
+            _engineAssetPath = currentPath / "../Asset";
+        }
+
         static Context& get()
         {
             static Context context;
             return context;
         }
 
-        void appendAssetsPath(const std::string& path)
-        {
-            _assetsPaths.insert(path);
-        }
+        const std::filesystem::path& getEngineAssetPath() { return _engineAssetPath; }
+        const std::filesystem::path& getProjectAssetPath() { return _projectAssetPath; }
 
-        void removeAssetsPath(const std::string& path)
-        {
-            _assetsPaths.erase(path);
-        }
+        void setSceneRoot(osg::Node* sceneRoot) { _sceneRoot = sceneRoot; }
+        osg::Node* getSceneRoot() const { return _sceneRoot; }
 
-        void appendEntity(Entity* entity, Entity* parent = nullptr)
+        /*void appendEntity(Entity* entity, Entity* parent = nullptr)
         {
             if (parent)
-                parent->appendChild(entity);
+                parent->appendChildEntity(entity);
             else
                 _sceneRoot->addChild(entity->asMatrixTransform());
         }
@@ -35,10 +38,10 @@ namespace xxx
         void removeEntity(Entity* entity, Entity* parent = nullptr)
         {
             if (parent)
-                parent->removeChild(entity);
+                parent->removeChildEntity(entity);
             else
                 _sceneRoot->removeChild(entity->asMatrixTransform());
-        }
+        }*/
 
         osg::ref_ptr<Entity> getActivedEntity() const
         {
@@ -73,13 +76,13 @@ namespace xxx
     private:
         bool _isEditorMode;
         // Assets search paths
-        std::set<std::string> _assetsPaths;
+        std::filesystem::path _engineAssetPath;
+        std::filesystem::path _projectAssetPath;
 
         osg::observer_ptr<Entity> _activedEntity;
         std::set<osg::observer_ptr<Entity>> _selectedEntities;
 
-        
-        // current scene
+        osg::ref_ptr<osg::Node> _sceneRoot;
 
     };
 }

@@ -16,12 +16,12 @@ namespace xxx
 
         {osg::Array::Type::FloatArrayType, "Float"},
         {osg::Array::Type::Vec2ArrayType, "Float2"},
-        {osg::Array::Type::Vec3ArrayType, "Float2"},
+        {osg::Array::Type::Vec3ArrayType, "Float3"},
         {osg::Array::Type::Vec4ArrayType, "Float4"},
 
         {osg::Array::Type::DoubleArrayType, "Double"},
         {osg::Array::Type::Vec2dArrayType, "Double2"},
-        {osg::Array::Type::Vec3dArrayType, "Double2"},
+        {osg::Array::Type::Vec3dArrayType, "Double3"},
         {osg::Array::Type::Vec4dArrayType, "Double4"},
 
         {osg::Array::Type::MatrixArrayType, "Float4x4"},

@@ -24,4 +24,4 @@ add_library (
     "Engine.h"
     "Utility/GLTFLoader.h"
     "Utility/GLTFLoader.cpp"
-)
+ "Component/MeshRenderer.cpp")

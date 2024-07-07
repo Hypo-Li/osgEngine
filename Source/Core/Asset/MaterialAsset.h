@@ -19,9 +19,11 @@ namespace xxx
         virtual osg::Shader* getShader() const = 0;
     };
 
+    class ImGuiHandler;
     class MaterialInstanceAsset;
     class MaterialTemplateAsset : public MaterialAsset
     {
+        friend class ImGuiHandler;
         friend class MeshRenderer;
         friend class MaterialInstanceAsset;
     public:
@@ -214,7 +216,7 @@ namespace xxx
 
         void syncMaterialTemplate();
 
-        void apply();
+        MaterialTemplateAsset* getMaterialTemplate() { return _materialTemplate; }
 
         virtual osg::StateSet* getStateSet() const override { return _stateSet; }
 
@@ -231,7 +233,7 @@ namespace xxx
     private:
         osg::ref_ptr<MaterialTemplateAsset> _materialTemplate;
         osg::ref_ptr<osg::StateSet> _stateSet;
-        using TextureAssetAndUnit = std::pair<osg::ref_ptr<TextureAsset>, int>;
+        using TextureAssetAndUnit = MaterialTemplateAsset::TextureAssetAndUnit;
         using ParameterType = MaterialTemplateAsset::ParameterType;
         using ParameterTypeIndex = MaterialTemplateAsset::ParameterTypeIndex;
         std::map<std::string, ParameterType> _parameters;

@@ -1,6 +1,8 @@
 #pragma once
 #include <Core/Render/Pipeline.h>
 #include <Core/Base/Context.h>
+#include <Core/Base/Component.h>
+#include <Core/Component/MeshRenderer.h>
 #include <osgViewer/ViewerEventHandlers>
 #include <ThirdParty/imgui/imgui.h>
 #include <ThirdParty/imgui/imgui_impl_opengl3.h>
@@ -82,13 +84,8 @@ namespace xxx
                 halfWidth, 0.0, 0.0, 0.0,
                 0.0, halfHeight, 0.0, 0.0,
                 0.0, 0.0, 0.5, 0.0,
-                halfWidth, halfHeight, 0.5, 1.0
+                _sceneViewX + halfWidth, _sceneViewY + halfHeight, 0.5, 1.0
             );
-        }
-
-        osg::Vec2d getSceneViewSize()
-        {
-            return osg::Vec2d(_sceneViewWidth, _sceneViewHeight);
         }
 
 	private:
@@ -97,6 +94,7 @@ namespace xxx
         osg::ref_ptr<Pipeline> _pipeline;
         bool _sceneViewWindowIsFocused = false;
         bool _sceneViewItemIsHovered = false;
+        int _sceneViewX, _sceneViewY;
         int _sceneViewWidth, _sceneViewHeight;
         bool _sceneViewSizeDirty = false;
 
@@ -117,6 +115,99 @@ namespace xxx
 				ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 			}
 		};
+
+        void drawMeshRendererInspector(MeshRenderer* meshRenderer)
+        {
+            
+            if (ImGui::TreeNode("MeshRenderer"))
+            {
+                uint32_t submeshesCount = meshRenderer->getSubmeshesCount();
+                for (uint32_t i = 0; i < submeshesCount; ++i)
+                {
+                    if (ImGui::TreeNode(("Material" + std::to_string(i)).c_str()))
+                    {
+                        MaterialAsset* material = meshRenderer->getMaterial(i);
+                        ImGui::Text(material->getPath().c_str());
+
+                        MaterialTemplateAsset* materialTemplate;
+                        if (material->getType() == Asset::Type::MaterialTemplate)
+                            materialTemplate = reinterpret_cast<MaterialTemplateAsset*>(material);
+                        else if (material->getType() == Asset::Type::MaterialInstance)
+                            materialTemplate = dynamic_cast<MaterialInstanceAsset*>(material)->getMaterialTemplate();
+
+                        auto itr = materialTemplate->_parameters.begin();
+                        uint32_t buttonId = 0;
+                        while (itr != materialTemplate->_parameters.end())
+                        {
+                            switch (itr->second.index())
+                            {
+                            case size_t(MaterialTemplateAsset::ParameterTypeIndex::Bool):
+                            {
+                                bool boolValue = std::get<bool>(itr->second);
+                                if (ImGui::Checkbox(itr->first.c_str(), &boolValue))
+                                    materialTemplate->setParameter(itr->first, boolValue);
+                                break;
+                            }
+                            case size_t(MaterialTemplateAsset::ParameterTypeIndex::Int):
+                            {
+                                int intValue = std::get<int>(itr->second);
+                                if (ImGui::DragInt(itr->first.c_str(), &intValue))
+                                    materialTemplate->setParameter(itr->first, intValue);
+                                break;
+                            }
+                            case size_t(MaterialTemplateAsset::ParameterTypeIndex::Float):
+                            {
+                                float floatValue = std::get<float>(itr->second);
+                                if (ImGui::DragFloat(itr->first.c_str(), &floatValue))
+                                    materialTemplate->setParameter(itr->first, floatValue);
+                                break;
+                            }
+                            case size_t(MaterialTemplateAsset::ParameterTypeIndex::Float2):
+                            {
+                                osg::Vec2 float2Value = std::get<osg::Vec2>(itr->second);
+                                if (ImGui::DragFloat2(itr->first.c_str(), &float2Value.x()))
+                                    materialTemplate->setParameter(itr->first, float2Value);
+                                break;
+                            }
+                            case size_t(MaterialTemplateAsset::ParameterTypeIndex::Float3):
+                            {
+                                osg::Vec3 float3Value = std::get<osg::Vec3>(itr->second);
+                                if (ImGui::ColorEdit3(itr->first.c_str(), &float3Value.x()))
+                                    materialTemplate->setParameter(itr->first, float3Value);
+                                break;
+                            }
+                            case size_t(MaterialTemplateAsset::ParameterTypeIndex::Float4):
+                            {
+                                osg::Vec4 float4Value = std::get<osg::Vec4>(itr->second);
+                                if (ImGui::ColorEdit4(itr->first.c_str(), &float4Value.x()))
+                                    materialTemplate->setParameter(itr->first, float4Value);
+                                break;
+                            }
+                            case size_t(MaterialTemplateAsset::ParameterTypeIndex::Texture):
+                            {
+                                using TextureAssetAndUnit = MaterialTemplateAsset::TextureAssetAndUnit;
+                                TextureAssetAndUnit& textureAssetAndUnit = std::get<TextureAssetAndUnit>(itr->second);
+                                ImGui::Text(itr->first.c_str());
+                                ImGui::Text(textureAssetAndUnit.first->getPath().c_str());
+                                break;
+                            }
+                            default:
+                                break;
+                            }
+
+                            ImGui::SameLine();
+                            auto removedItr = itr++;
+                            if (ImGui::Button(("×##" + std::to_string(buttonId)).c_str()))
+                                materialTemplate->removeParameter(removedItr->first);
+                            buttonId++;
+                        }
+
+                        ImGui::TreePop();
+                    }
+                }
+                ImGui::TreePop();
+            }
+        }
 
 		virtual void draw()
 		{
@@ -162,20 +253,20 @@ namespace xxx
 			}
 			ImGui::End();
 
-			if (ImGui::Begin("Hierarchy"))
-			{
-				/*if (ImGui::TreeNodeEx())*/
-				static char textbuf[1024] = {};
-				ImGui::InputText("中文测试", textbuf, 1024);
-			}
-			ImGui::End();
+			//if (ImGui::Begin("Hierarchy"))
+			//{
+			//	/*if (ImGui::TreeNodeEx())*/
+			//	static char textbuf[1024] = {};
+			//	ImGui::InputText("中文测试", textbuf, 1024);
+			//}
+			//ImGui::End();
 
             if (ImGui::Begin("Inspector"))
             {
                 Entity* activedEntity = Context::get().getActivedEntity();
                 if (activedEntity)
                 {
-                    ImGui::Text(activedEntity->getName().c_str());
+                    ImGui::Text(activedEntity->getEntityName().c_str());
                     if (ImGui::TreeNode("Transform"))
                     {
                         /*static float position[3] = { 0.0f, 0.0f, 0.0f };
@@ -207,6 +298,13 @@ namespace xxx
                         }
                         ImGui::TreePop();
                     }
+                    uint32_t componentsCount = activedEntity->getComponentsCount();
+                    for (uint32_t i = 0; i < componentsCount; ++i)
+                    {
+                        Component* component = activedEntity->getComponent(i);
+                        if (component->getType() == Component::Type::MeshRenderer)
+                            drawMeshRendererInspector(dynamic_cast<MeshRenderer*>(component));
+                    }
                 }
                 
             }
@@ -226,8 +324,8 @@ namespace xxx
                     ImVec2 itemRectMin = ImGui::GetItemRectMin();
                     ImVec2 itemRectMax = ImGui::GetItemRectMax();
 
-                    int x = itemRectMin.x;
-                    int y = io.DisplaySize.y - itemRectMax.y;
+                    _sceneViewX = itemRectMin.x;
+                    _sceneViewY = io.DisplaySize.y - itemRectMax.y;
                     int width = itemRectMax.x - itemRectMin.x;
                     int height = itemRectMax.y - itemRectMin.y;
                     if (width != _sceneViewWidth || height != _sceneViewHeight)

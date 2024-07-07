@@ -88,7 +88,7 @@ namespace xxx
 
         static Json osgVec4ToJson(const osg::Vec4& v)
         {
-            return Json::array({ v.x(), v.y(), v.z() });
+            return Json::array({ v.x(), v.y(), v.z(), v.w() });
         }
 
         static osg::Vec2 jsonToOsgVec2(const Json& json)

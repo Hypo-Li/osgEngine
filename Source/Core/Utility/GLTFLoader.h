@@ -1,4 +1,5 @@
 #pragma once
+#include <Core/Asset/MeshAsset.h>
 #include <osg/MatrixTransform>
 #include <osg/Geode>
 #include <osg/Geometry>
@@ -55,5 +56,6 @@ namespace xxx
         static osg::Image* createImage(int index, tinygltf::Model& model, MapCache& cache);
 
         static osg::Geometry* createPrimitive(tinygltf::Primitive& primitive, tinygltf::Model& model);
+
     };
 }

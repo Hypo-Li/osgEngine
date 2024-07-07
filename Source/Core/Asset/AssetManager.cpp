@@ -1,6 +1,8 @@
 #include "AssetManager.h"
 #include "MeshAsset.h"
+#include <Core/Base/Context.h>
 #include <ThirdParty/nlohmann/json.hpp>
+#include <ThirdParty/fast-lzma2/fast-lzma2.h>
 
 namespace xxx
 {
@@ -12,7 +14,8 @@ namespace xxx
         if (asset)
             return asset;
 
-        std::ifstream ifs(path, std::ios::binary);
+        std::filesystem::path realPath = Context::get().getEngineAssetPath() / path;
+        std::ifstream ifs(realPath, std::ios::binary);
         if (!ifs.is_open())
         {
             std::cerr << "failed to open file: " << path << std::endl;
@@ -50,14 +53,21 @@ namespace xxx
         }
         asset->_path = path;
 
-        uint64_t jsonStrSize, binarySize;
+        uint64_t jsonStrSize, binarySize, compressedSize;
         ifs.read((char*)&jsonStrSize, sizeof(uint64_t));
         ifs.read((char*)&binarySize, sizeof(uint64_t));
+        ifs.read((char*)&compressedSize, sizeof(uint64_t));
 
         std::string jsonStr(jsonStrSize, 0);
         std::vector<char> binary(binarySize);
-        ifs.read(jsonStr.data(), jsonStrSize);
-        ifs.read(binary.data(), binarySize);
+        std::vector<char> compressedBinary(compressedSize);
+        if (jsonStrSize > 0)
+            ifs.read(jsonStr.data(), jsonStrSize);
+        if (binarySize > 0)
+        {
+            ifs.read(compressedBinary.data(), compressedSize);
+            uint64_t decompressedSize = FL2_decompress(binary.data(), binarySize, compressedBinary.data(), compressedSize);
+        }
         ifs.close();
 
         Json root = Json::parse(jsonStr);
@@ -75,7 +85,8 @@ namespace xxx
 
     void AssetManager::storeAsset(const std::string& path, Asset* asset)
     {
-        std::ofstream ofs(path, std::ios::binary);
+        std::filesystem::path realPath = Context::get().getEngineAssetPath() / path;
+        std::ofstream ofs(realPath, std::ios::binary);
         if (!ofs.is_open())
         {
             std::cerr << "failed to open file: " << path << std::endl;
@@ -98,10 +109,20 @@ namespace xxx
         ofs.write((char*)&typeMagic, sizeof(uint32_t));
         uint64_t jsonStrSize = jsonStr.size();
         uint64_t binarySize = binary.size();
+        std::vector<char> compressedBinary(binarySize);
+
         ofs.write((char*)&jsonStrSize, sizeof(uint64_t));
         ofs.write((char*)&binarySize, sizeof(uint64_t));
-        if (jsonStrSize) ofs.write(jsonStr.data(), jsonStrSize);
-        if (binarySize) ofs.write(binary.data(), binarySize);
+
+        uint64_t compressedSize = 0;
+        if (binarySize > 0)
+            compressedSize = FL2_compress(compressedBinary.data(), binarySize, binary.data(), binarySize, 6);
+        ofs.write((char*)&compressedSize, sizeof(uint64_t));
+
+        if (jsonStrSize > 0)
+            ofs.write(jsonStr.data(), jsonStrSize);
+        if (binarySize > 0)
+            ofs.write(compressedBinary.data(), compressedSize);
         ofs.close();
 
         if (asset->_path.size() == 0)
@@ -117,7 +138,8 @@ namespace xxx
         if (asset)
             return asset->getType();
 
-        std::ifstream ifs(path, std::ios::binary);
+        std::filesystem::path realPath = Context::get().getEngineAssetPath() / path;
+        std::ifstream ifs(realPath, std::ios::binary);
         if (!ifs.is_open())
         {
             std::cerr << "failed to open file: " << path << std::endl;
