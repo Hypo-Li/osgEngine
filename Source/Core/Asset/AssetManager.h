@@ -27,6 +27,7 @@ namespace xxx
 
     private:
         static std::unordered_map<std::string, osg::ref_ptr<Asset>> _sAssetMap;
+
 #if (BYTE_ORDER == BIG_ENDIAN)
         static constexpr uint32_t _sAssetMagic = 0x58415354; // XAST
 #else

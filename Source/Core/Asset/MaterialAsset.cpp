@@ -210,7 +210,7 @@ namespace xxx
             ParameterType& parameter = _parameters[name];
             if (parameter.index() == size_t(ParameterTypeIndex::Texture))
             {
-                TextureAssetAndUnit textureAssetAndUnit = std::get<TextureAssetAndUnit>(parameter);
+                TextureAssetAndUnit& textureAssetAndUnit = std::get<TextureAssetAndUnit>(parameter);
                 _stateSet->removeTextureAttribute(textureAssetAndUnit.second, osg::StateAttribute::Type::TEXTURE);
             }
             _stateSet->removeUniform(_stateSet->getUniform("u" + name));

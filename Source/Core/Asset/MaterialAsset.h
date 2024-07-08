@@ -169,10 +169,11 @@ namespace xxx
             {
                 if constexpr (std::is_same_v<T, TextureAsset*>)
                 {
-                    TextureAssetAndUnit textureAssetAndUnit = std::get<TextureAssetAndUnit>(findResult->second);
+                    TextureAssetAndUnit& textureAssetAndUnit = std::get<TextureAssetAndUnit>(findResult->second);
                     textureAssetAndUnit.first = value;
                     int unit = textureAssetAndUnit.second;
                     _stateSet->setTextureAttribute(unit, value->_texture, osg::StateAttribute::ON);
+                    _stateSetDirty = true;
                 }
                 else
                 {
@@ -248,7 +249,7 @@ namespace xxx
             {
                 if constexpr (std::is_same_v<T, TextureAsset*>)
                 {
-                    TextureAssetAndUnit textureAssetAndUnit = std::get<TextureAssetAndUnit>(findResult->second);
+                    TextureAssetAndUnit& textureAssetAndUnit = std::get<TextureAssetAndUnit>(findResult->second);
                     int unit = textureAssetAndUnit.second;
                     _parameters[name] = std::make_pair(value, unit);
                     _stateSet->setTextureAttribute(unit, value->_texture, osg::StateAttribute::ON);

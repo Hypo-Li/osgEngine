@@ -15,6 +15,7 @@ namespace xxx
             return asset;
 
         std::filesystem::path realPath = Context::get().getEngineAssetPath() / path;
+        realPath += ".xast";
         std::ifstream ifs(realPath, std::ios::binary);
         if (!ifs.is_open())
         {
@@ -86,6 +87,7 @@ namespace xxx
     void AssetManager::storeAsset(const std::string& path, Asset* asset)
     {
         std::filesystem::path realPath = Context::get().getEngineAssetPath() / path;
+        realPath += ".xast";
         std::ofstream ofs(realPath, std::ios::binary);
         if (!ofs.is_open())
         {
@@ -139,6 +141,7 @@ namespace xxx
             return asset->getType();
 
         std::filesystem::path realPath = Context::get().getEngineAssetPath() / path;
+        realPath += ".xast";
         std::ifstream ifs(realPath, std::ios::binary);
         if (!ifs.is_open())
         {

@@ -62,7 +62,7 @@ namespace xxx
 			ImGuiStyle& style = ImGui::GetStyle();
 			style.WindowRounding = 6.0;
 			//style.Colors[ImGuiCol_WindowBg].w = 1.0;
-            style.ScaleAllSizes(1.5);
+            //style.ScaleAllSizes(1.0);
 			ImGui_ImplOsg_Init(viewer, camera);
 		}
 
@@ -119,7 +119,14 @@ namespace xxx
 
         void drawMeshRendererInspector(MeshRenderer* meshRenderer)
         {
-            
+            static std::string paths[] = {
+                "Texture/AwesomeFace",
+                "Texture/Container",
+                "Texture/T_Ceramic_Tile_M",
+                "Texture/T_Ceramic_Tile_N",
+                "Texture/T_Perlin_Noise_M",
+                "Texture/T_Rock_Marble_Polished_D",
+            };
             if (ImGui::TreeNode("MeshRenderer"))
             {
                 uint32_t submeshesCount = meshRenderer->getSubmeshesCount();
@@ -188,18 +195,35 @@ namespace xxx
                             {
                                 using TextureAssetAndUnit = MaterialTemplateAsset::TextureAssetAndUnit;
                                 TextureAssetAndUnit& textureAssetAndUnit = std::get<TextureAssetAndUnit>(itr->second);
-                                ImGui::Text(itr->first.c_str());
-                                ImGui::Text(textureAssetAndUnit.first->getPath().c_str());
+
+                                if (ImGui::BeginCombo(itr->first.c_str(), textureAssetAndUnit.first->getPath().c_str()))
+                                {
+                                    for (int n = 0; n < IM_ARRAYSIZE(paths); ++n)
+                                    {
+                                        const bool is_selected = (textureAssetAndUnit.first->getPath() == paths[n]);
+                                        if (ImGui::Selectable(paths[n].c_str(), is_selected))
+                                            materialTemplate->setParameter(itr->first, xxx::AssetManager::loadAsset<xxx::TextureAsset>(paths[n]));
+
+                                        // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+                                        if (is_selected)
+                                            ImGui::SetItemDefaultFocus();
+                                    }
+                                    ImGui::EndCombo();
+                                }
+
+                                //ImGui::Text(textureAssetAndUnit.first->getPath().c_str());
                                 break;
                             }
                             default:
                                 break;
                             }
 
-                            ImGui::SameLine();
+                            ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - 30);
                             auto removedItr = itr++;
-                            if (ImGui::Button(("×##" + std::to_string(buttonId)).c_str()))
+                            ImGui::PushID(buttonId);
+                            if (ImGui::Button("×"))
                                 materialTemplate->removeParameter(removedItr->first);
+                            ImGui::PopID();
                             buttonId++;
                         }
 

@@ -132,6 +132,7 @@ int main()
     osg::ref_ptr<osgViewer::Viewer> viewer = new osgViewer::Viewer;
     osg::ref_ptr<osg::Group> rootGroup = new osg::Group;
     viewer->setSceneData(rootGroup);
+    xxx::Context::get().setSceneRoot(rootGroup);
     //viewer->setRealizeOperation(new EnableGLDebugOperation);
     viewer->setRealizeOperation(new xxx::ImGuiInitOperation);
     osg::ref_ptr<osg::Camera> camera = viewer->getCamera();
@@ -150,15 +151,15 @@ int main()
     xxx::AssetManager::storeAsset("Texture/T_Rock_Marble_Polished_D.xast", textureAsset);*/
 
     /*xxx::MaterialTemplateAsset* materialTemplateAsset = new xxx::MaterialTemplateAsset;
-    materialTemplateAsset->appendParameter("Texture0", xxx::AssetManager::loadAsset<xxx::TextureAsset>("Texture/T_Rock_Marble_Polished_D.xast"));
-    materialTemplateAsset->appendParameter("Texture1", xxx::AssetManager::loadAsset<xxx::TextureAsset>("Texture/T_Ceramic_Tile_M.xast"));
-    materialTemplateAsset->appendParameter("Texture2", xxx::AssetManager::loadAsset<xxx::TextureAsset>("Texture/T_Perlin_Noise_M.xast"));
-    materialTemplateAsset->appendParameter("Texture3", xxx::AssetManager::loadAsset<xxx::TextureAsset>("Texture/T_Ceramic_Tile_N.xast"));
+    materialTemplateAsset->appendParameter("Texture0", xxx::AssetManager::loadAsset<xxx::TextureAsset>("Texture/T_Rock_Marble_Polished_D"));
+    materialTemplateAsset->appendParameter("Texture1", xxx::AssetManager::loadAsset<xxx::TextureAsset>("Texture/T_Ceramic_Tile_M"));
+    materialTemplateAsset->appendParameter("Texture2", xxx::AssetManager::loadAsset<xxx::TextureAsset>("Texture/T_Perlin_Noise_M"));
+    materialTemplateAsset->appendParameter("Texture3", xxx::AssetManager::loadAsset<xxx::TextureAsset>("Texture/T_Ceramic_Tile_N"));
     materialTemplateAsset->appendParameter("Color2", osg::Vec3(0.41, 0.41, 0.41));
     materialTemplateAsset->appendParameter("Color3", osg::Vec3(0.825, 0.81, 0.788));
     materialTemplateAsset->setSource(gSource);
     materialTemplateAsset->apply();
-    xxx::AssetManager::storeAsset("Material/TestMaterialTemplate.xast", materialTemplateAsset);*/
+    xxx::AssetManager::storeAsset("Material/TestMaterialTemplate", materialTemplateAsset);*/
 
     /*xxx::MaterialInstanceAsset* materialInstanceAsset = new xxx::MaterialInstanceAsset;
     materialInstanceAsset->setMaterialTemplate(materialTemplateAsset);
@@ -168,13 +169,13 @@ int main()
     xxx::AssetManager::storeAsset("Material/TestMaterialInstance.xast", materialInstanceAsset);*/
 
     /*std::vector<osg::ref_ptr<xxx::MeshAsset>> meshes = xxx::GLTFLoader::load(TEMP_DIR "Test.glb");
-    meshes[0]->setPreviewMaterial(0, xxx::AssetManager::loadAsset<xxx::MaterialAsset>("Material/TestMaterialTemplate.xast"));
-    xxx::AssetManager::storeAsset("Mesh/Test.xast", meshes[0]);*/
+    meshes[0]->setPreviewMaterial(0, xxx::AssetManager::loadAsset<xxx::MaterialAsset>("Material/TestMaterialTemplate"));
+    xxx::AssetManager::storeAsset("Mesh/Test", meshes[0]);*/
 
     xxx::Entity* entity = new xxx::Entity("TestEntity");
     xxx::MeshRenderer* meshRenderer = new xxx::MeshRenderer;
     //meshRenderer->setMesh(meshes[0]);
-    meshRenderer->setMesh(xxx::AssetManager::loadAsset<xxx::MeshAsset>("Mesh/Test.xast"));
+    meshRenderer->setMesh(xxx::AssetManager::loadAsset<xxx::MeshAsset>("Mesh/Test"));
     entity->appendComponent(meshRenderer);
     rootGroup->addChild(entity);
 
