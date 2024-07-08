@@ -63,6 +63,8 @@ namespace xxx
 
         bool getDoubleSided() const { return _doubleSided; }
 
+        std::string& getSource() { return _source; }
+
         virtual osg::StateSet* getStateSet() const override { return _stateSet; }
 
         virtual osg::Shader* getShader() const override { return _shader; }

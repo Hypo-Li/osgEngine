@@ -7,6 +7,7 @@
 #include <ThirdParty/imgui/imgui.h>
 #include <ThirdParty/imgui/imgui_impl_opengl3.h>
 #include <ThirdParty/imgui/imgui_impl_osg.h>
+#include <ThirdParty/imgui/imgui_stdlib.h>
 namespace xxx
 {
     class ImGuiInitOperation : public osg::Operation
@@ -200,6 +201,14 @@ namespace xxx
                             if (ImGui::Button(("×##" + std::to_string(buttonId)).c_str()))
                                 materialTemplate->removeParameter(removedItr->first);
                             buttonId++;
+                        }
+
+                        if (ImGui::InputTextMultiline("Source", &materialTemplate->getSource()))
+                            materialTemplate->_shaderDirty = true;
+
+                        if (ImGui::Button("Apply"))
+                        {
+                            materialTemplate->apply();
                         }
 
                         ImGui::TreePop();

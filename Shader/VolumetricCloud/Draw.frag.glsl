@@ -1,9 +1,9 @@
 #version 460 core
 in vec2 uv;
 out vec4 fragData;
-
-uniform sampler3D uNoise1Texture;
-uniform sampler3D uNoise2Texture;
+uniform sampler2D uCloudMapTexture;
+uniform sampler3D uBasicNoiseTexture;
+uniform sampler3D uDetailNoiseTexture;
 uniform sampler2D uTransmittanceLutTexture;
 uniform sampler2D uMultiScatteringLutTexture;
 uniform sampler2D uSkyViewLutTexture;
@@ -244,17 +244,27 @@ float getDensityHeightGradient(float normalizedHeight, float cloudType)
 float getCloudDensity(vec3 p, float normalizedHeight)
 {
     vec3 basicUVW = p * 0.007;
-    vec4 low_frequency_noises = textureLod(uNoise1Texture, basicUVW + mod(osg_FrameTime * 0.1, 1.0), 0.0);
+    vec4 low_frequency_noises = textureLod(uBasicNoiseTexture, basicUVW, 0.0);
     float low_freq_FBM = dot(low_frequency_noises.gba, vec3(0.625, 0.25, 0.125));
-    float base_cloud = remap(low_frequency_noises.r, low_freq_FBM - 1.0, 1.0, 0.0, 1.0);
-    base_cloud = remap(base_cloud, 0.85, 1.0, 0.0, 1.0);
-    float density_height_gradiant = getDensityHeightGradient(normalizedHeight, 1.0);
+    float base_cloud = remap(low_frequency_noises.r, -(1.0 - low_freq_FBM), 1.0, 0.0, 1.0);
+    //base_cloud = remap(base_cloud, 0.2, 1.0, 0.0, 1.0);
+    float density_height_gradiant = getDensityHeightGradient(normalizedHeight, 0.0);
 
     base_cloud *= density_height_gradiant;
 
-    //density *= saturate(remap(normalizedHeight, 0.0, 0.07, 0.0, 1.0));
-    //density *= saturate(remap(normalizedHeight, detailNoise * 0.2, 1.0, 1.0, 0.0));
-    return base_cloud;
+    float cloud_coverage = textureLod(uCloudMapTexture, p.xy * 0.006, 0.0).r;
+    cloud_coverage = pow(cloud_coverage, remap(normalizedHeight, 0.7, 0.8, 1.0, mix(1.0, 0.5, 0.0)));
+    float base_cloud_with_coverage = remap(base_cloud, cloud_coverage, 1.0, 0.0, 1.0);
+
+    base_cloud_with_coverage *= cloud_coverage;
+
+    vec3 detailUVW = p * 0.1;
+    vec3 high_frequency_noise = textureLod(uDetailNoiseTexture, detailUVW, 0.0).rgb;
+    float high_freq_FBM = dot(high_frequency_noise, vec3(0.625, 0.25, 0.125));
+    float high_freq_noise_modiffer = mix(high_freq_FBM, 1.0 - high_freq_FBM, clamp(normalizedHeight * 10.0, 0.0, 1.0));
+    float final_cloud = remap(base_cloud_with_coverage, high_freq_noise_modiffer * 0.2, 1.0, 0.0, 1.0);
+    
+    return final_cloud;
 }
 
 #define SLICE_COUNT 16.0
@@ -427,7 +437,9 @@ vec4 getCloudColor(vec3 worldPos, vec3 worldDir)
         sampleT += stepT;
     }
     
-    return vec4(scatteredLuminance, dot(transmittance, vec3(0.33333)));
+    vec4 cloudColor = vec4(scatteredLuminance, dot(transmittance, vec3(0.33333)));
+    return cloudColor;
+    //return vec4(AP.rgb * uSunIntensity + AP.a * cloudColor.rgb, AP.a * cloudColor.a);
 }
 
 void main()

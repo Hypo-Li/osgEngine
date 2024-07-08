@@ -103,3 +103,8 @@ float worleyFbm(vec3 p, float freq)
         worleyNoise(p*freq*2., freq*2.) * 0.250 +
         worleyNoise(p*freq*4., freq*4.) * 0.125;
 }
+
+float remap(float x, float a, float b, float c, float d)
+{
+    return (((x - a) / (b - a)) * (d - c)) + c;
+}
