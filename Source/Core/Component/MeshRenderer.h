@@ -109,6 +109,7 @@ namespace xxx
                 switch (nv->asCullVisitor()->getCurrentCamera()->getCullMask())
                 {
                 case GBUFFER_MASK:
+                    //_material->getStateSet()->getAttributePair(osg::StateAttribute::PROGRAM)->first = new osg::Program;
                     drawable->setStateSet(_gbufferStateSet);
                     break;
                 case SHADOW_CAST_MASK:

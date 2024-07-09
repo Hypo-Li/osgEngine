@@ -66,7 +66,7 @@ void main()
             float lightViewCos = lightOnPlane.x;
     
             vec2 skyViewUV;
-            skyViewLutParametersToUV(intersectGround, viewZenithCos, lightViewCos, max(viewHeight, uGroundRadius + 0.005), skyViewUV);
+            skyViewLutParametersToUV(intersectGround, viewZenithCos, lightViewCos, viewHeight, skyViewUV);
             outLuminance += texture(uSkyViewLutTexture, skyViewUV).rgb * uSunIntensity;
             fragData = vec4(outLuminance, 1.0);
             return;

@@ -52,10 +52,13 @@ layout (std140, binding = BINDING_INDEX) uniform AtmosphereParameters
 vec3 getWorldPos(vec3 pos)
 {
 #ifdef PLANET_TOP_AT_ABSOLUTE_WORLD_ORIGIN
-    return pos / 1000.0 + vec3(0.0, 0.0, uGroundRadius);
+    vec3 worldPos = pos / 1000.0 + vec3(0.0, 0.0, uGroundRadius);
 #else
-    return pos / 1000.0;
+    vec3 worldPos = pos / 1000.0;
 #endif
+    float viewHeight = length(worldPos);
+    vec3 upVector = worldPos / viewHeight;
+    return upVector * max(viewHeight, uGroundRadius + 0.005);
 }
 
 float aerialPerspectiveDepthToSlice(float depth)

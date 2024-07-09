@@ -20,7 +20,7 @@ osg::ref_ptr<osg::UniformBufferBinding> gViewDataUBB;
 
 struct AtmosphereParameters
 {
-    float solarAltitude = 30.0f;
+    float solarAltitude = 5.0f;
     float solarAzimuth = 0.0f;
     osg::Vec3 sunColor = osg::Vec3(1.0, 1.0, 1.0);
     float sunIntensity = 6.0f;
