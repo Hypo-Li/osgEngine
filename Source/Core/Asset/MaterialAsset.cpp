@@ -70,13 +70,6 @@ void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
 
 namespace xxx
 {
-    const std::unordered_map<GLenum, std::string> MaterialTemplateAsset::_sTextureSamplerStringMap = {
-        {GL_TEXTURE_2D, "sampler2D"},
-        {GL_TEXTURE_2D_ARRAY, "sampler2DArray"},
-        {GL_TEXTURE_3D, "sampler3D"},
-        {GL_TEXTURE_CUBE_MAP, "samplerCube"},
-    };
-
     MaterialTemplateAsset::MaterialTemplateAsset() :
         MaterialAsset(Type::MaterialTemplate),
         _stateSet(new osg::StateSet),
@@ -168,38 +161,18 @@ namespace xxx
     void MaterialTemplateAsset::setShadingModel(ShadingModel shadingModel)
     {
         _shadingModel = shadingModel;
-        _stateSet->setDefine("SHADING_MODEL", std::to_string(int(shadingModel)));
         _stateSetDirty = true;
     }
 
     void MaterialTemplateAsset::setAlphaMode(AlphaMode alphaMode)
     {
         _alphaMode = alphaMode;
-        switch (_alphaMode)
-        {
-        case AlphaMode::Opaque:
-        case AlphaMode::Alpha_Mask:
-            _stateSet->setMode(GL_BLEND, osg::StateAttribute::OFF);
-            _stateSet->setRenderingHint(osg::StateSet::OPAQUE_BIN);
-            break;
-        case AlphaMode::Alpha_Blend:
-            _stateSet->setMode(GL_BLEND, osg::StateAttribute::ON);
-            _stateSet->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
-            break;
-        default:
-            break;
-        }
-        _stateSet->setDefine("ALPHA_MODE", std::to_string(int(alphaMode)));
         _stateSetDirty = true;
     }
 
     void MaterialTemplateAsset::setDoubleSided(bool doubleSided)
     {
         _doubleSided = doubleSided;
-        if (_doubleSided)
-            _stateSet->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
-        else
-            _stateSet->setMode(GL_CULL_FACE, osg::StateAttribute::ON);
         _stateSetDirty = true;
     }
 
@@ -207,16 +180,7 @@ namespace xxx
     {
         if (_parameters.count(name))
         {
-            ParameterType& parameter = _parameters[name];
-            if (parameter.index() == size_t(ParameterTypeIndex::Texture))
-            {
-                TextureAssetAndUnit& textureAssetAndUnit = std::get<TextureAssetAndUnit>(parameter);
-                _stateSet->removeTextureAttribute(textureAssetAndUnit.second, osg::StateAttribute::Type::TEXTURE);
-            }
-            _stateSet->removeUniform(_stateSet->getUniform("u" + name));
-            _uniformLines.erase(name);
             _parameters.erase(name);
-
             _stateSetDirty = true;
             _shaderDirty = true;
             return true;
@@ -230,55 +194,49 @@ namespace xxx
         _shaderDirty = true;
     }
 
-    class MaterialTemplateApplyVisitor : public osg::NodeVisitor
-    {
-        MaterialTemplateAsset* _materialTemplate;
-    public:
-        MaterialTemplateApplyVisitor(MaterialTemplateAsset* materialTemplate) :
-            osg::NodeVisitor(TRAVERSE_ALL_CHILDREN),
-            _materialTemplate(materialTemplate)
-        {}
-
-        virtual void apply(osg::Group& node) override
-        {
-            MeshRenderer* meshRenderer = dynamic_cast<MeshRenderer*>(&node);
-            if (meshRenderer)
-            {
-                uint32_t submeshCount = meshRenderer->getSubmeshesCount();
-                for (uint32_t i = 0; i < submeshCount; ++i)
-                {
-                    MaterialAsset* material = meshRenderer->getMaterial(i);
-                    if ((material->getType() == Asset::Type::MaterialTemplate && material == _materialTemplate) ||
-                        (material->getType() == Asset::Type::MaterialInstance && dynamic_cast<MaterialInstanceAsset*>(material)->getMaterialTemplate() == _materialTemplate))
-                    {
-                        meshRenderer->applyMaterial(i);
-                    }
-                }
-            }
-
-            traverse(node);
-        }
-    };
-
     void MaterialTemplateAsset::apply()
     {
         // 将shader与stateset分开apply, 当只有涉及到shader上的修改时, 只需要更新shader而无需更新stateset
         if (_shaderDirty)
         {
             std::string shaderSource = "#version 460 core\n";
-            for (const auto& uniformLine : _uniformLines)
-                shaderSource += uniformLine.second;
             shaderSource += preDefines;
+            for (auto& parameter : _parameters)
+                shaderSource += "uniform " + getParameterTypeString(parameter.second) + " u" + parameter.first + ";\n";
             shaderSource += _source;
             _shader->setShaderSource(shaderSource);
             _shaderDirty = false;
         }
         if (_stateSetDirty)
         {
-            MaterialTemplateApplyVisitor mtav(this);
-            osg::Node* sceneRoot = Context::get().getSceneRoot();
-            if (sceneRoot)
-                sceneRoot->accept(mtav);
+            _stateSet->setDefine("SHADING_MODEL", std::to_string(int(_shadingModel)));
+
+            switch (_alphaMode)
+            {
+            case AlphaMode::Opaque:
+            case AlphaMode::Alpha_Mask:
+                _stateSet->setMode(GL_BLEND, osg::StateAttribute::OFF);
+                _stateSet->setRenderingHint(osg::StateSet::OPAQUE_BIN);
+                break;
+            case AlphaMode::Alpha_Blend:
+                _stateSet->setMode(GL_BLEND, osg::StateAttribute::ON);
+                _stateSet->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+                break;
+            default:
+                break;
+            }
+            _stateSet->setDefine("ALPHA_MODE", std::to_string(int(_alphaMode)));
+
+            if (_doubleSided)
+                _stateSet->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
+            else
+                _stateSet->setMode(GL_CULL_FACE, osg::StateAttribute::ON);
+
+            _stateSet->getUniformList().clear();
+            _stateSet->getTextureAttributeList().clear();
+
+            applyParameters();
+
             _stateSetDirty = false;
         }
     }
@@ -294,6 +252,79 @@ namespace xxx
         while (unavailableUnit.count(availableUnit))
             ++availableUnit;
         return availableUnit;
+    }
+
+    void MaterialTemplateAsset::applyParameters()
+    {
+        for (auto& parameter : _parameters)
+        {
+            switch (parameter.second.index())
+            {
+            case size_t(ParameterTypeIndex::Bool):
+                _stateSet->addUniform(new osg::Uniform(("u" + parameter.first).c_str(), std::get<bool>(parameter.second)));
+                break;
+            case size_t(ParameterTypeIndex::Int):
+                _stateSet->addUniform(new osg::Uniform(("u" + parameter.first).c_str(), std::get<int>(parameter.second)));
+                break;
+            case size_t(ParameterTypeIndex::Float):
+                _stateSet->addUniform(new osg::Uniform(("u" + parameter.first).c_str(), std::get<float>(parameter.second)));
+                break;
+            case size_t(ParameterTypeIndex::Float2):
+                _stateSet->addUniform(new osg::Uniform(("u" + parameter.first).c_str(), std::get<osg::Vec2>(parameter.second)));
+                break;
+            case size_t(ParameterTypeIndex::Float3):
+                _stateSet->addUniform(new osg::Uniform(("u" + parameter.first).c_str(), std::get<osg::Vec3>(parameter.second)));
+                break;
+            case size_t(ParameterTypeIndex::Float4):
+                _stateSet->addUniform(new osg::Uniform(("u" + parameter.first).c_str(), std::get<osg::Vec4>(parameter.second)));
+                break;
+            case size_t(ParameterTypeIndex::Texture):
+            {
+                TextureAssetAndUnit& textureAssetAndUnit = std::get<TextureAssetAndUnit>(parameter.second);
+                _stateSet->addUniform(new osg::Uniform(("u" + parameter.first).c_str(), textureAssetAndUnit.second));
+                _stateSet->setTextureAttribute(textureAssetAndUnit.second, textureAssetAndUnit.first->_texture, osg::StateAttribute::ON);
+            }
+            default:
+                break;
+            }
+        }
+    }
+
+    std::string MaterialTemplateAsset::getParameterTypeString(const ParameterType& parameterType)
+    {
+        switch (parameterType.index())
+        {
+        case size_t(ParameterTypeIndex::Bool):
+            return "bool";
+        case size_t(ParameterTypeIndex::Int):
+            return "int";
+        case size_t(ParameterTypeIndex::Float):
+            return "float";
+        case size_t(ParameterTypeIndex::Float2):
+            return "vec2";
+        case size_t(ParameterTypeIndex::Float3):
+            return "vec3";
+        case size_t(ParameterTypeIndex::Float4):
+            return "vec4";
+        case size_t(ParameterTypeIndex::Texture):
+        {
+            switch (std::get<TextureAssetAndUnit>(parameterType).first->_texture->getTextureTarget())
+            {
+            case GL_TEXTURE_2D:
+                return "sampler2D";
+            case GL_TEXTURE_2D_ARRAY:
+                return "sampler2DArray";
+            case GL_TEXTURE_3D:
+                return "sampler3D";
+            case GL_TEXTURE_CUBE_MAP:
+                return "samplerCube";
+            default:
+                return "";
+            }
+        }
+        default:
+            return "";
+        }
     }
 
     MaterialInstanceAsset::MaterialInstanceAsset() : MaterialAsset(Type::MaterialInstance) {}

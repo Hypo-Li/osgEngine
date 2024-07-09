@@ -134,7 +134,7 @@ int main()
     viewer->setSceneData(rootGroup);
     xxx::Context::get().setSceneRoot(rootGroup);
     //viewer->setRealizeOperation(new EnableGLDebugOperation);
-    viewer->setRealizeOperation(new xxx::ImGuiInitOperation);
+    //viewer->setRealizeOperation(new xxx::ImGuiInitOperation);
     osg::ref_ptr<osg::Camera> camera = viewer->getCamera();
     camera->setGraphicsContext(gc);
     camera->setViewport(0, 0, width, height);
@@ -172,12 +172,12 @@ int main()
     meshes[0]->setPreviewMaterial(0, xxx::AssetManager::loadAsset<xxx::MaterialAsset>("Material/TestMaterialTemplate"));
     xxx::AssetManager::storeAsset("Mesh/Test", meshes[0]);*/
 
-    xxx::Entity* entity = new xxx::Entity("TestEntity");
-    xxx::MeshRenderer* meshRenderer = new xxx::MeshRenderer;
-    //meshRenderer->setMesh(meshes[0]);
-    meshRenderer->setMesh(xxx::AssetManager::loadAsset<xxx::MeshAsset>("Mesh/Test"));
-    entity->appendComponent(meshRenderer);
-    rootGroup->addChild(entity);
+    //xxx::Entity* entity = new xxx::Entity("TestEntity");
+    //xxx::MeshRenderer* meshRenderer = new xxx::MeshRenderer;
+    ////meshRenderer->setMesh(meshes[0]);
+    //meshRenderer->setMesh(xxx::AssetManager::loadAsset<xxx::MeshAsset>("Mesh/Test"));
+    //entity->appendComponent(meshRenderer);
+    //rootGroup->addChild(entity);
 
     osg::ref_ptr<xxx::Pipeline> pipeline = new xxx::Pipeline(viewer, gc);
     using BufferType = xxx::Pipeline::Pass::BufferType;
@@ -191,13 +191,13 @@ int main()
     osg::Shader* screenQuadShader = osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Common/ScreenQuad.vert.glsl");
     osg::Program* finalProgram = new osg::Program;
     finalProgram->addShader(screenQuadShader);
-    finalProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/Empty.frag.glsl"));
+    finalProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CopyColor.frag.glsl"));
     osg::ref_ptr<xxx::Pipeline::Pass> finalPass = pipeline->addFinalPass("Final", finalProgram);
     finalPass->applyTexture(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER2), "uColorTexture", 0);
 
-    xxx::ImGuiHandler* imguiHandler = new xxx::ImGuiHandler(viewer, finalPass->getCamera(), dynamic_cast<osg::Texture2D*>(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER2)), pipeline);
-    viewer->addEventHandler(imguiHandler);
-    viewer->addEventHandler(new xxx::TestEventHandler(gbufferPass->getCamera(), imguiHandler));
+    //xxx::ImGuiHandler* imguiHandler = new xxx::ImGuiHandler(viewer, finalPass->getCamera(), dynamic_cast<osg::Texture2D*>(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER2)), pipeline);
+    //viewer->addEventHandler(imguiHandler);
+    //viewer->addEventHandler(new xxx::TestEventHandler(gbufferPass->getCamera(), imguiHandler));
     viewer->setCameraManipulator(new osgGA::TrackballManipulator);
     viewer->realize();
     while (!viewer->done())

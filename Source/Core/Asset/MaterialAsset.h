@@ -92,10 +92,10 @@ namespace xxx
         osg::ref_ptr<osg::Shader> _shader;
         bool _stateSetDirty;
         bool _shaderDirty;
-        std::string _source;
         ShadingModel _shadingModel;
         AlphaMode _alphaMode;
         bool _doubleSided;
+        std::string _source;
         using TextureAssetAndUnit = std::pair<osg::ref_ptr<TextureAsset>, int>;
         using ParameterType = std::variant<bool, int, float, osg::Vec2, osg::Vec3, osg::Vec4, TextureAssetAndUnit>;
         enum class ParameterTypeIndex
@@ -109,31 +109,14 @@ namespace xxx
             Texture,
         };
         std::map<std::string, ParameterType> _parameters;
-        std::map<std::string, std::string> _uniformLines;
 
         static constexpr unsigned int _sMaxTextureCount = 16;
-        static const std::unordered_map<GLenum, std::string> _sTextureSamplerStringMap;
 
         int getAvailableUnit();
 
-        template <typename T>
-        static std::string getParameterTypeString()
-        {
-            if constexpr (std::is_same_v<T, bool>)
-                return "bool";
-            else if constexpr (std::is_same_v<T, int>)
-                return "int";
-            else if constexpr (std::is_same_v<T, float>)
-                return "float";
-            else if constexpr (std::is_same_v<T, osg::Vec2>)
-                return "vec2";
-            else if constexpr (std::is_same_v<T, osg::Vec3>)
-                return "vec3";
-            else if constexpr (std::is_same_v<T, osg::Vec4>)
-                return "vec4";
-            else
-                return "";
-        }
+        void applyParameters();
+
+        static std::string getParameterTypeString(const ParameterType& parameterType);
 
         template <typename T>
         bool appendParameter(const std::string& name, T value)
@@ -146,15 +129,10 @@ namespace xxx
                 if (unit >= _sMaxTextureCount)
                     return false;
                 _parameters[name] = std::make_pair(value, unit);
-                _stateSet->addUniform(new osg::Uniform(("u" + name).c_str(), unit));
-                _stateSet->setTextureAttribute(unit, value->_texture, osg::StateAttribute::ON);
-                _uniformLines[name] = "uniform " + _sTextureSamplerStringMap.at(value->_texture->getTextureTarget()) + " u" + name + ";\n";
             }
             else
             {
                 _parameters[name] = value;
-                _stateSet->addUniform(new osg::Uniform(("u" + name).c_str(), value));
-                _uniformLines[name] = "uniform " + getParameterTypeString<T>() + " u" + name + ";\n";
             }
             _stateSetDirty = true;
             _shaderDirty = true;
@@ -173,7 +151,6 @@ namespace xxx
                     textureAssetAndUnit.first = value;
                     int unit = textureAssetAndUnit.second;
                     _stateSet->setTextureAttribute(unit, value->_texture, osg::StateAttribute::ON);
-                    _stateSetDirty = true;
                 }
                 else
                 {
