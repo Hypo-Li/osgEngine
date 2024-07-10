@@ -164,7 +164,7 @@ int main()
     cloudMapDispatch->setCullingActive(false);
     cloudMapDispatch->getOrCreateStateSet()->setAttribute(cloudMapProgram, osg::StateAttribute::ON);
     cloudMapDispatch->getOrCreateStateSet()->setAttribute(cloudMapImage, osg::StateAttribute::ON);
-    //cloudMapDispatch->setCullCallback(new DrawTimesCullCallback(1));
+    cloudMapDispatch->setCullCallback(new DrawTimesCullCallback(1));
     rootGroup->addChild(cloudMapDispatch);
 
     osg::ref_ptr<osg::Texture3D> basicNoiseTexture = new osg::Texture3D;

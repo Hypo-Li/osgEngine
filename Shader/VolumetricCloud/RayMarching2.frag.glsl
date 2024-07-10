@@ -51,7 +51,7 @@ const float cloudPhaseForward = 0.5;
 const float cloudPhaseBackward = -0.5;
 const float cloudPhaseMixFactor = 0.2;
 const float tracingStartMaxDistance = 350.0; // km
-const float tracingMaxDistance = 50.0;
+const float tracingMaxDistance = 40.0;
 const uint sampleCountMin = 2;
 const uint sampleCountMax = 128;
 const float invDistanceToSampleCountMax = 0.06667;
@@ -274,6 +274,10 @@ vec4 rayMarchCloud(vec3 worldPos, vec3 worldDir)
 
     const float cosTheta = dot(-worldDir, uSunDirection);
     float phase = dualLobPhase(cloudPhaseForward, cloudPhaseBackward, cloudPhaseMixFactor, cosTheta);
+    
+    //const float silver_intensity = 1.0;
+    //const float silver_spread = 0.1;
+    //float phase = max(hgPhase(0.2, cosTheta), silver_intensity * hgPhase(0.99 - silver_spread, cosTheta));
 
     // uvec2 offset = uvec2(vec2(0.754877669, 0.569840296) * (osg_FrameNumber) * uvec2(128));
     // uvec2 offsetId = uvec2(gl_FragCoord.xy) + offset;
@@ -297,7 +301,7 @@ vec4 rayMarchCloud(vec3 worldPos, vec3 worldDir)
             vec3 cloudTopPos = samplePos + distOfSampleToCloudTop * uSunDirection;
             vec3 opticalDepth;
             vec3 transOfSampleToCloudTop = rayMarchTransmittance(samplePos, uSunDirection, distOfSampleToCloudTop, opticalDepth);
-            transOfSampleToCloudTop = max(transOfSampleToCloudTop, exp(-opticalDepth * 0.25) * 0.7);
+            transOfSampleToCloudTop = transOfSampleToCloudTop;//max(transOfSampleToCloudTop, exp(-opticalDepth * 0.25) * 0.7);
             vec3 transOfCloudTopToSun;
             {
                 const vec3 upVector = cloudTopPos / cloudTopRadius;
@@ -312,7 +316,9 @@ vec4 rayMarchCloud(vec3 worldPos, vec3 worldDir)
             float sunZenithCos = dot(uSunDirection, upVector);
             vec3 multiScattering = textureLod(uMultiScatteringLutTexture, vec2(sunZenithCos * 0.5 + 0.5, (sampleHeight - uGroundRadius) / (uAtmosphereRadius - uGroundRadius)), 0.0).rgb;
 
-            vec3 luminance = uSunIntensity * (sampleSigmaS * phase * transToSun + multiScattering * sampleSigmaS);
+            vec3 powder_sugar_effect = 1.0 - exp(-opticalDepth * 2.0);
+
+            vec3 luminance = uSunIntensity * (sampleSigmaS * phase * transToSun * powder_sugar_effect * 2.0 + multiScattering * sampleSigmaS);
             //vec3 luminance = uSunIntensity * sampleSigmaS * phase * transToSun + multiScattering * sampleSigmaS;
             vec3 sampleTransmittance = exp(-sampleSigmaE * stepSize);
             vec3 Sint = (luminance - luminance * sampleTransmittance) / sampleSigmaE;
