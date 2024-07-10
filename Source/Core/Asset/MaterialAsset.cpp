@@ -96,25 +96,25 @@ namespace xxx
         {
             switch (parameter.second.index())
             {
-            case static_cast<size_t>(ParameterTypeIndex::Bool):
+            case static_cast<size_t>(ParameterIndex::Bool):
                 parametersJson[parameter.first] = std::get<bool>(parameter.second);
                 break;
-            case static_cast<size_t>(ParameterTypeIndex::Int):
+            case static_cast<size_t>(ParameterIndex::Int):
                 parametersJson[parameter.first] = std::get<int>(parameter.second);
                 break;
-            case static_cast<size_t>(ParameterTypeIndex::Float):
+            case static_cast<size_t>(ParameterIndex::Float):
                 parametersJson[parameter.first] = std::get<float>(parameter.second);
                 break;
-            case static_cast<size_t>(ParameterTypeIndex::Float2):
+            case static_cast<size_t>(ParameterIndex::Float2):
                 parametersJson[parameter.first] = osgVec2ToJson(std::get<osg::Vec2>(parameter.second));
                 break;
-            case static_cast<size_t>(ParameterTypeIndex::Float3):
+            case static_cast<size_t>(ParameterIndex::Float3):
                 parametersJson[parameter.first] = osgVec3ToJson(std::get<osg::Vec3>(parameter.second));
                 break;
-            case static_cast<size_t>(ParameterTypeIndex::Float4):
+            case static_cast<size_t>(ParameterIndex::Float4):
                 parametersJson[parameter.first] = osgVec4ToJson(std::get<osg::Vec4>(parameter.second));
                 break;
-            case static_cast<size_t>(ParameterTypeIndex::Texture):
+            case static_cast<size_t>(ParameterIndex::Texture):
                 parametersJson[parameter.first] = "#" + std::to_string(getReferenceIndex(std::get<TextureAssetAndUnit>(parameter.second).first->getPath(), reference));
                 break;
             default:
@@ -245,7 +245,7 @@ namespace xxx
     {
         std::unordered_set<int> unavailableUnit;
         for (const auto& parameter : _parameters)
-            if (parameter.second.index() == size_t(ParameterTypeIndex::Texture))
+            if (parameter.second.index() == size_t(ParameterIndex::Texture))
                 unavailableUnit.insert(std::get<TextureAssetAndUnit>(parameter.second).second);
 
         int availableUnit = 0;
@@ -260,25 +260,25 @@ namespace xxx
         {
             switch (parameter.second.index())
             {
-            case size_t(ParameterTypeIndex::Bool):
+            case size_t(ParameterIndex::Bool):
                 _stateSet->addUniform(new osg::Uniform(("u" + parameter.first).c_str(), std::get<bool>(parameter.second)));
                 break;
-            case size_t(ParameterTypeIndex::Int):
+            case size_t(ParameterIndex::Int):
                 _stateSet->addUniform(new osg::Uniform(("u" + parameter.first).c_str(), std::get<int>(parameter.second)));
                 break;
-            case size_t(ParameterTypeIndex::Float):
+            case size_t(ParameterIndex::Float):
                 _stateSet->addUniform(new osg::Uniform(("u" + parameter.first).c_str(), std::get<float>(parameter.second)));
                 break;
-            case size_t(ParameterTypeIndex::Float2):
+            case size_t(ParameterIndex::Float2):
                 _stateSet->addUniform(new osg::Uniform(("u" + parameter.first).c_str(), std::get<osg::Vec2>(parameter.second)));
                 break;
-            case size_t(ParameterTypeIndex::Float3):
+            case size_t(ParameterIndex::Float3):
                 _stateSet->addUniform(new osg::Uniform(("u" + parameter.first).c_str(), std::get<osg::Vec3>(parameter.second)));
                 break;
-            case size_t(ParameterTypeIndex::Float4):
+            case size_t(ParameterIndex::Float4):
                 _stateSet->addUniform(new osg::Uniform(("u" + parameter.first).c_str(), std::get<osg::Vec4>(parameter.second)));
                 break;
-            case size_t(ParameterTypeIndex::Texture):
+            case size_t(ParameterIndex::Texture):
             {
                 TextureAssetAndUnit& textureAssetAndUnit = std::get<TextureAssetAndUnit>(parameter.second);
                 _stateSet->addUniform(new osg::Uniform(("u" + parameter.first).c_str(), textureAssetAndUnit.second));
@@ -290,25 +290,25 @@ namespace xxx
         }
     }
 
-    std::string MaterialTemplateAsset::getParameterTypeString(const ParameterType& parameterType)
+    std::string MaterialTemplateAsset::getParameterTypeString(const Parameter& parameter)
     {
-        switch (parameterType.index())
+        switch (parameter.index())
         {
-        case size_t(ParameterTypeIndex::Bool):
+        case size_t(ParameterIndex::Bool):
             return "bool";
-        case size_t(ParameterTypeIndex::Int):
+        case size_t(ParameterIndex::Int):
             return "int";
-        case size_t(ParameterTypeIndex::Float):
+        case size_t(ParameterIndex::Float):
             return "float";
-        case size_t(ParameterTypeIndex::Float2):
+        case size_t(ParameterIndex::Float2):
             return "vec2";
-        case size_t(ParameterTypeIndex::Float3):
+        case size_t(ParameterIndex::Float3):
             return "vec3";
-        case size_t(ParameterTypeIndex::Float4):
+        case size_t(ParameterIndex::Float4):
             return "vec4";
-        case size_t(ParameterTypeIndex::Texture):
+        case size_t(ParameterIndex::Texture):
         {
-            switch (std::get<TextureAssetAndUnit>(parameterType).first->_texture->getTextureTarget())
+            switch (std::get<TextureAssetAndUnit>(parameter).first->_texture->getTextureTarget())
             {
             case GL_TEXTURE_2D:
                 return "sampler2D";
@@ -337,25 +337,25 @@ namespace xxx
         {
             switch (parameter.second.index())
             {
-            case static_cast<size_t>(ParameterTypeIndex::Bool):
+            case static_cast<size_t>(ParameterIndex::Bool):
                 parametersJson[parameter.first] = std::get<bool>(parameter.second);
                 break;
-            case static_cast<size_t>(ParameterTypeIndex::Int):
+            case static_cast<size_t>(ParameterIndex::Int):
                 parametersJson[parameter.first] = std::get<int>(parameter.second);
                 break;
-            case static_cast<size_t>(ParameterTypeIndex::Float):
+            case static_cast<size_t>(ParameterIndex::Float):
                 parametersJson[parameter.first] = std::get<float>(parameter.second);
                 break;
-            case static_cast<size_t>(ParameterTypeIndex::Float2):
+            case static_cast<size_t>(ParameterIndex::Float2):
                 parametersJson[parameter.first] = osgVec2ToJson(std::get<osg::Vec2>(parameter.second));
                 break;
-            case static_cast<size_t>(ParameterTypeIndex::Float3):
+            case static_cast<size_t>(ParameterIndex::Float3):
                 parametersJson[parameter.first] = osgVec3ToJson(std::get<osg::Vec3>(parameter.second));
                 break;
-            case static_cast<size_t>(ParameterTypeIndex::Float4):
+            case static_cast<size_t>(ParameterIndex::Float4):
                 parametersJson[parameter.first] = osgVec4ToJson(std::get<osg::Vec4>(parameter.second));
                 break;
-            case static_cast<size_t>(ParameterTypeIndex::Texture):
+            case static_cast<size_t>(ParameterIndex::Texture):
                 parametersJson[parameter.first] = "#" + std::to_string(getReferenceIndex(std::get<TextureAssetAndUnit>(parameter.second).first->getPath(), reference));
                 break;
             default:

@@ -97,8 +97,8 @@ namespace xxx
         bool _doubleSided;
         std::string _source;
         using TextureAssetAndUnit = std::pair<osg::ref_ptr<TextureAsset>, int>;
-        using ParameterType = std::variant<bool, int, float, osg::Vec2, osg::Vec3, osg::Vec4, TextureAssetAndUnit>;
-        enum class ParameterTypeIndex
+        using Parameter = std::variant<bool, int, float, osg::Vec2, osg::Vec3, osg::Vec4, TextureAssetAndUnit>;
+        enum class ParameterIndex
         {
             Bool,
             Int,
@@ -108,7 +108,7 @@ namespace xxx
             Float4,
             Texture,
         };
-        std::map<std::string, ParameterType> _parameters;
+        std::map<std::string, Parameter> _parameters;
 
         static constexpr unsigned int _sMaxTextureCount = 16;
 
@@ -116,7 +116,7 @@ namespace xxx
 
         void applyParameters();
 
-        static std::string getParameterTypeString(const ParameterType& parameterType);
+        static std::string getParameterTypeString(const Parameter& parameterType);
 
         template <typename T>
         bool appendParameter(const std::string& name, T value)
@@ -150,24 +150,25 @@ namespace xxx
                     TextureAssetAndUnit& textureAssetAndUnit = std::get<TextureAssetAndUnit>(findResult->second);
                     textureAssetAndUnit.first = value;
                     int unit = textureAssetAndUnit.second;
-                    _stateSet->setTextureAttribute(unit, value->_texture, osg::StateAttribute::ON);
+                    //_stateSet->setTextureAttribute(unit, value->_texture, osg::StateAttribute::ON);
+                    _stateSetDirty = true;
                 }
                 else
                 {
                     bool typeIsSame = false;
-                    ParameterTypeIndex currentTypeIndex = static_cast<ParameterTypeIndex>(findResult->second.index());
+                    ParameterIndex currentTypeIndex = static_cast<ParameterIndex>(findResult->second.index());
                     if constexpr (std::is_same_v<T, bool>)
-                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Bool;
+                        typeIsSame = currentTypeIndex == ParameterIndex::Bool;
                     else if constexpr (std::is_same_v<T, int>)
-                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Int;
+                        typeIsSame = currentTypeIndex == ParameterIndex::Int;
                     else if constexpr (std::is_same_v<T, float>)
-                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Float;
+                        typeIsSame = currentTypeIndex == ParameterIndex::Float;
                     else if constexpr (std::is_same_v<T, osg::Vec2>)
-                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Float2;
+                        typeIsSame = currentTypeIndex == ParameterIndex::Float2;
                     else if constexpr (std::is_same_v<T, osg::Vec3>)
-                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Float3;
+                        typeIsSame = currentTypeIndex == ParameterIndex::Float3;
                     else if constexpr (std::is_same_v<T, osg::Vec4>)
-                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Float4;
+                        typeIsSame = currentTypeIndex == ParameterIndex::Float4;
 
                     if (!typeIsSame)
                     {
@@ -175,8 +176,9 @@ namespace xxx
                         return;
                     }
 
-                    _parameters[name] = value;
-                    _stateSet->getUniform("u" + name)->set(value);
+                    findResult->second = value;
+                    //_stateSet->getUniform("u" + name)->set(value);
+                    _stateSetDirty = true;
                 }
             }
         }
@@ -211,12 +213,13 @@ namespace xxx
         void setParameter(const std::string& name, TextureAsset* value) { setParameter<TextureAsset*>(name, value); }
 
     private:
+        using TextureAssetAndUnit = MaterialTemplateAsset::TextureAssetAndUnit;
+        using Parameter = MaterialTemplateAsset::Parameter;
+        using ParameterIndex = MaterialTemplateAsset::ParameterIndex;
+
         osg::ref_ptr<MaterialTemplateAsset> _materialTemplate;
         osg::ref_ptr<osg::StateSet> _stateSet;
-        using TextureAssetAndUnit = MaterialTemplateAsset::TextureAssetAndUnit;
-        using ParameterType = MaterialTemplateAsset::ParameterType;
-        using ParameterTypeIndex = MaterialTemplateAsset::ParameterTypeIndex;
-        std::map<std::string, ParameterType> _parameters;
+        std::map<std::string, Parameter> _parameters;
 
         template <typename T>
         void setParameter(const std::string& name, T value)
@@ -234,19 +237,19 @@ namespace xxx
                 else
                 {
                     bool typeIsSame = false;
-                    ParameterTypeIndex currentTypeIndex = static_cast<ParameterTypeIndex>(findResult->second.index());
+                    ParameterIndex currentTypeIndex = static_cast<ParameterIndex>(findResult->second.index());
                     if constexpr (std::is_same_v<T, bool>)
-                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Bool;
+                        typeIsSame = currentTypeIndex == ParameterIndex::Bool;
                     else if constexpr (std::is_same_v<T, int>)
-                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Int;
+                        typeIsSame = currentTypeIndex == ParameterIndex::Int;
                     else if constexpr (std::is_same_v<T, float>)
-                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Float;
+                        typeIsSame = currentTypeIndex == ParameterIndex::Float;
                     else if constexpr (std::is_same_v<T, osg::Vec2>)
-                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Float2;
+                        typeIsSame = currentTypeIndex == ParameterIndex::Float2;
                     else if constexpr (std::is_same_v<T, osg::Vec3>)
-                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Float3;
+                        typeIsSame = currentTypeIndex == ParameterIndex::Float3;
                     else if constexpr (std::is_same_v<T, osg::Vec4>)
-                        typeIsSame = currentTypeIndex == ParameterTypeIndex::Float4;
+                        typeIsSame = currentTypeIndex == ParameterIndex::Float4;
 
                     if (!typeIsSame)
                     {

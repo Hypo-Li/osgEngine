@@ -20,7 +20,7 @@ osg::ref_ptr<osg::UniformBufferBinding> gViewDataUBB;
 
 struct AtmosphereParameters
 {
-    float solarAltitude = 5.0f;
+    float solarAltitude = 30.0f;
     float solarAzimuth = 0.0f;
     osg::Vec3 sunColor = osg::Vec3(1.0, 1.0, 1.0);
     float sunIntensity = 6.0f;
@@ -205,22 +205,6 @@ int main()
     detailNoiseDispatch->setCullCallback(new DrawTimesCullCallback(1));
     rootGroup->addChild(detailNoiseDispatch);
 
-    /*osg::ref_ptr<osg::Texture2D> noise3Texture = new osg::Texture2D;
-    noise3Texture->setTextureSize(128, 128);
-    noise3Texture->setInternalFormat(GL_RGBA8);
-    noise3Texture->setSourceFormat(GL_RGBA);
-    noise3Texture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR);
-    noise3Texture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::LINEAR);
-    noise3Texture->setWrap(osg::Texture::WRAP_S, osg::Texture::REPEAT);
-    noise3Texture->setWrap(osg::Texture::WRAP_T, osg::Texture::REPEAT);
-    osg::ref_ptr<osg::BindImageTexture> noise3Image = new osg::BindImageTexture(0, noise3Texture, osg::BindImageTexture::WRITE_ONLY, GL_RGBA8);
-    osg::ref_ptr<osg::Program> noise3Program = new osg::Program;
-    noise3Program->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "VolumetricClouds/Noise3.comp.glsl"));
-    osg::ref_ptr<osg::DispatchCompute> noise3Dispatch = new osg::DispatchCompute();
-    noise3Dispatch->getOrCreateStateSet()->setAttribute(noise3Program, osg::StateAttribute::ON);
-    noise3Dispatch->getOrCreateStateSet()->setAttribute(noise3Image, osg::StateAttribute::ON);
-    rootGroup->addChild(noise3Dispatch);*/
-
     osg::ref_ptr<osg::Texture2D> transmittanceLutTexture = new osg::Texture2D;
     transmittanceLutTexture->setTextureSize(256, 64);
     transmittanceLutTexture->setInternalFormat(GL_R11F_G11F_B10F);
@@ -342,7 +326,7 @@ int main()
 
     osg::ref_ptr<osg::Program> volumetricCloudProgram = new osg::Program;
     volumetricCloudProgram->addShader(screenQuadVertexShader);
-    volumetricCloudProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "VolumetricCloud/Draw.frag.glsl"));
+    volumetricCloudProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "VolumetricCloud/RayMarching2.frag.glsl"));
     osg::ref_ptr<xxx::Pipeline::Pass> volumetricCloudPass = pipeline->addWorkPass("VolumetricCloud", volumetricCloudProgram);
     volumetricCloudPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA32F);
     volumetricCloudPass->applyTexture(cloudMapTexture, "uCloudMapTexture", 0);

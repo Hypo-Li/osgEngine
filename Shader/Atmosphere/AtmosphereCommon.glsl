@@ -337,7 +337,12 @@ void rayMarchAtmosphere(
         vec3 multiScattering = vec3(0.0);
 #endif
 
-        vec3 S = earthShadow * transmittanceToSun * phaseTimesScattering + multiScattering * scattering;
+#ifdef ILLUMINANCE_IS_ONE
+        vec3 globalL = vec3(1.0);
+#else
+        vec3 globalL = uSunIntensity;
+#endif
+        vec3 S = globalL * earthShadow * transmittanceToSun * phaseTimesScattering + multiScattering * scattering;
         vec3 Sint = (S - S * sampleTransmittance) / extinction;
         lum += trans * Sint;
         fms += trans * scattering * 1.0 * dt;

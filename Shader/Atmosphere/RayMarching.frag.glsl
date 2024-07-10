@@ -67,7 +67,7 @@ void main()
     
             vec2 skyViewUV;
             skyViewLutParametersToUV(intersectGround, viewZenithCos, lightViewCos, viewHeight, skyViewUV);
-            outLuminance += texture(uSkyViewLutTexture, skyViewUV).rgb * uSunIntensity;
+            outLuminance += texture(uSkyViewLutTexture, skyViewUV).rgb;
             fragData = vec4(outLuminance, 1.0);
             return;
         }
@@ -95,12 +95,12 @@ void main()
         }
         float w = sqrt(slice / SLICE_COUNT);
         vec4 AP = weight * texture(uAerialPerspectiveLutTexture, vec3(uv, w));
-        fragData = vec4(AP.rgb * uSunIntensity, 1.0 - AP.a);
+        fragData = vec4(AP.rgb, 1.0 - AP.a);
     }
     else
     {
         vec3 lum, fms, trans;
         rayMarchAtmosphere(interleavedGradientNoise(gl_FragCoord.xy, osg_FrameNumber % 8), worldPos, worldDir, uSunDirection, 0.0, 9000000, sceneDepth, tDepth, lum, fms, trans);
-        fragData = vec4(lum * uSunIntensity, dot(trans, vec3(0.3333333)));
+        fragData = vec4(lum, dot(trans, vec3(0.3333333)));
     }
 }

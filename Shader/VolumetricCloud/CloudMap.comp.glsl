@@ -17,7 +17,8 @@ void main()
         perlinWorley = remap(pfbm, 0.0, 1.0, dot(vec3(worley0, worley1, worley2), vec3(0.625, 0.25, 0.125)), 1.0);
     }
 
-    float coverage = remap(perlinWorley, 0.0, 1.0, 0.5, 1.0);
+    float coverage = remap(perlinWorley, 0.0, 1.0, 0.2, 1.0);
+    float cloudType = clamp(remap(pfbm, 0.0, 1.0, 0.2, 1.0), 0.0, 1.0);
 
-    imageStore(uCloudMapImage, ivec2(gl_GlobalInvocationID.xy), vec4(coverage, perlinWorley, 0.0, 0.0));
+    imageStore(uCloudMapImage, ivec2(gl_GlobalInvocationID.xy), vec4(coverage, cloudType, 0.0, 0.0));
 }
