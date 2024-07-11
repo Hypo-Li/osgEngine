@@ -10,6 +10,8 @@ uniform sampler2D uTransmittanceLutTexture;
 uniform sampler2D uMultiScatteringLutTexture;
 uniform sampler2D uSkyViewLutTexture;
 uniform sampler3D uAerialPerspectiveLutTexture;
+uniform sampler2D uBlueNoiseTexture;
+uniform sampler2D uDistantSkyLightLutTexture;
 uniform float osg_FrameTime;
 uniform uint osg_FrameNumber;
 
@@ -51,10 +53,14 @@ const float cloudPhaseForward = 0.5;
 const float cloudPhaseBackward = -0.5;
 const float cloudPhaseMixFactor = 0.2;
 const float tracingStartMaxDistance = 350.0; // km
-const float tracingMaxDistance = 40.0;
+const float tracingMaxDistance = 50.0;
 const uint sampleCountMin = 2;
 const uint sampleCountMax = 128;
 const float invDistanceToSampleCountMax = 0.06667;
+const float shadowTracingMaxDistanceKm = 15.0;
+const uint shadowSampleCountMax = 12;
+
+vec3 distantSkyLight = vec3(0.0);
 
 float saturate(float x) { return clamp(x, 0.0, 1.0); }
 vec3 saturate(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }
@@ -90,6 +96,13 @@ float dualLobPhase(float g0, float g1, float w, float cosTheta)
 	return mix(hgPhase(g0, cosTheta), hgPhase(g1, cosTheta), w);
 }
 
+float getBlueNoise(uvec2 screenCoord, uint frameIndex)
+{
+    uvec3 wrappedCoord = uvec3(screenCoord, frameIndex) & uvec3(127, 127, 63);
+    uvec3 textureCoord = uvec3(wrappedCoord.x, wrappedCoord.z * 128 + wrappedCoord.y, 0);
+    return texelFetch(uBlueNoiseTexture, ivec2(textureCoord.xy), 0).r;
+}
+
 // float getDensityHeightGradient(in float normalizedHeight, in float cloudType)
 // {
 //     // 根据2017年的分享，两个Remap相乘重建云属
@@ -122,6 +135,7 @@ vec3 sampleWeather(vec3 worldPos)
     return textureLod(uCloudMapTexture, worldPos.xy * 0.006, 0.0).rgb;
 }
 
+const float densityScale = 1.0;
 float sampleCloudDensity(vec3 worldPos)
 {
     const float basicNoiseScale = 0.007;
@@ -131,7 +145,7 @@ float sampleCloudDensity(vec3 worldPos)
     float normalizedHeight = saturate((length(worldPos) - cloudBottomRadius) / cloudThickness);
 
     vec3 wind_direction = windDirection;
-    float cloud_speed = 1.0; // PPT中给的是10
+    float cloud_speed = 0.2; // PPT中给的是10
     // cloud_top offset ，用于偏移高处受风力影响的程度
     float cloud_top_offset = 10.0;
 
@@ -160,13 +174,13 @@ float sampleCloudDensity(vec3 worldPos)
     float high_freq_noise_modiffer = mix(high_freq_FBM, 1.0 - high_freq_FBM, clamp(normalizedHeight * 10.0, 0.0, 1.0));
     float final_cloud = remap(base_cloud_with_coverage, high_freq_noise_modiffer, 1.0, 0.0, 1.0);
     
-    return final_cloud;
+    return final_cloud * densityScale;
 }
 
 #define TRANS_STEPS 8
 
 // Scattering and absorption coefficients
-const vec3 sigmaS = vec3(2.0);
+const vec3 sigmaS = vec3(1.0);
 const vec3 sigmaA = vec3(0.0);
 // Extinction coefficient.
 const vec3 sigmaE = max(sigmaS + sigmaA, vec3(1e-6));
@@ -187,6 +201,39 @@ vec3 rayMarchTransmittance(vec3 ro, vec3 rd, float dist, out vec3 opticalDepth)
     return exp(-opticalDepth);
 }
 
+float PseudoRandom(vec2 xy)
+{
+	vec2 pos = fract(xy / 128.0) * 128.0 + vec2(-64.340622, -72.465622);
+	return fract(dot(pos.xyx * pos.xyy, vec3(20.390625, 60.703125, 2.4281209)));
+}
+
+// vec3 rayMarchShadow(vec3 ro, vec3 rd, float dist, out vec3 opticalDepth)
+// {
+//     float shadowLengthTest = shadowTracingMaxDistanceKm;
+//     float shadowStepCount = float(shadowSampleCountMax);
+//     float invShadowStepCount = 1.0 / shadowStepCount;
+//     float shadowJitteringSeed = float(osg_FrameNumber%8) + PseudoRandom(gl_FragCoord.xy);
+//     float shadowJitterNorm = 0.5;
+
+//     float shadowDtMeter = shadowLengthTest * 1000.0;
+//     float previousNormT = 0.0;
+//     for (float shadowT = invShadowStepCount; shadowT <= 1.00001; shadowT += invShadowStepCount)
+//     {
+//         float currentNormT = shadowT * shadowT;
+//         float detalNormT = currentNormT - previousNormT;
+//         float extinctionFactor = detalNormT;
+//         float shadowSampleDistance = shadowLengthTest * (previousNormT + detalNormT * shadowJitterNorm);
+//         vec3 shadowSamplePos = ro + rd * shadowSampleDistance;
+//         previousNormT = currentNormT;
+
+//         float density = sampleCloudDensity(shadowSamplePos);
+//         if (density <= 0.0)
+//             continue;
+//         opticalDepth += density * sigmaE * extinctionFactor;
+//     }
+//     return exp(-opticalDepth * shadowDtMeter);
+// }
+
 void transmittanceLutParametersToUV(in float viewHeight, in float viewZenithCos, out vec2 uv)
 {
     float H = sqrt(max(0.0f, uAtmosphereRadius * uAtmosphereRadius - uGroundRadius * uGroundRadius));
@@ -203,10 +250,7 @@ void transmittanceLutParametersToUV(in float viewHeight, in float viewZenithCos,
 #define SLICE_COUNT 16.0
 #define KM_PER_SLICE 4.0
 
-float aerialPerspectiveDepthToSlice(float depth)
-{
-    return depth * (1.0 / KM_PER_SLICE);
-}
+float aerialPerspectiveDepthToSlice(float depth) { return depth * (1.0 / KM_PER_SLICE); }
 
 vec4 rayMarchCloud(vec3 worldPos, vec3 worldDir)
 {
@@ -268,7 +312,7 @@ vec4 rayMarchCloud(vec3 worldPos, vec3 worldDir)
     uint stepCount = max(sampleCountMin, uint(sampleCountMax * saturate((tMax - tMin) * invDistanceToSampleCountMax)));
 
     const float stepSize = (tMax - tMin) / stepCount;
-    float sampleT = tMin + stepSize * 0.5;
+    float sampleT = tMin + stepSize * getBlueNoise(ivec2(gl_FragCoord.xy), osg_FrameNumber % 8);
     vec3 totalLuminance = vec3(0.0);
     vec3 totalTransmitance = vec3(1.0);
 
@@ -278,12 +322,6 @@ vec4 rayMarchCloud(vec3 worldPos, vec3 worldDir)
     //const float silver_intensity = 1.0;
     //const float silver_spread = 0.1;
     //float phase = max(hgPhase(0.2, cosTheta), silver_intensity * hgPhase(0.99 - silver_spread, cosTheta));
-
-    // uvec2 offset = uvec2(vec2(0.754877669, 0.569840296) * (osg_FrameNumber) * uvec2(128));
-    // uvec2 offsetId = uvec2(gl_FragCoord.xy) + offset;
-    // offsetId.x = offsetId.x % 128;
-    // offsetId.y = offsetId.y % 128;
-    // float blueNoise2 = samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d(offsetId.x, offsetId.y, 0, 0u);
 
     for (uint i = 0; i < stepCount; ++i)
     {
@@ -298,29 +336,38 @@ vec4 rayMarchCloud(vec3 worldPos, vec3 worldDir)
             vec3 sampleSigmaE = max(sigmaE * density, vec3(1e-6));
 
             float distOfSampleToCloudTop = raySphereIntersectInside(samplePos, uSunDirection, vec3(0.0), cloudTopRadius);
-            vec3 cloudTopPos = samplePos + distOfSampleToCloudTop * uSunDirection;
             vec3 opticalDepth;
             vec3 transOfSampleToCloudTop = rayMarchTransmittance(samplePos, uSunDirection, distOfSampleToCloudTop, opticalDepth);
-            transOfSampleToCloudTop = transOfSampleToCloudTop;//max(transOfSampleToCloudTop, exp(-opticalDepth * 0.25) * 0.7);
+            transOfSampleToCloudTop = transOfSampleToCloudTop;
             vec3 transOfCloudTopToSun;
             {
-                const vec3 upVector = cloudTopPos / cloudTopRadius;
+                const vec3 upVector = samplePos / sampleHeight;
                 float viewZenithCos = dot(uSunDirection, upVector);
                 vec2 sampleUV;
-                transmittanceLutParametersToUV(cloudTopRadius, viewZenithCos, sampleUV);
+                transmittanceLutParametersToUV(sampleHeight, viewZenithCos, sampleUV);
                 transOfCloudTopToSun = texture(uTransmittanceLutTexture, sampleUV).rgb;
             }
             vec3 transToSun = transOfSampleToCloudTop * transOfCloudTopToSun;
 
-            vec3 upVector = samplePos * (1.0 / sampleHeight);
-            float sunZenithCos = dot(uSunDirection, upVector);
-            vec3 multiScattering = textureLod(uMultiScatteringLutTexture, vec2(sunZenithCos * 0.5 + 0.5, (sampleHeight - uGroundRadius) / (uAtmosphereRadius - uGroundRadius)), 0.0).rgb;
+            //vec3 upVector = samplePos * (1.0 / sampleHeight);
+            //float sunZenithCos = dot(uSunDirection, upVector);
+            //vec3 multiScattering = textureLod(uMultiScatteringLutTexture, vec2(sunZenithCos * 0.5 + 0.5, (sampleHeight - uGroundRadius) / (uAtmosphereRadius - uGroundRadius)), 0.0).rgb;
 
-            vec3 powder_sugar_effect = 1.0 - exp(-opticalDepth * 2.0);
+            const float cloudPowderPow = 0.5;
+            const float cloudPowderScale = 20.0;
+            float depthProbability = 0.05 + pow(clamp(density * 8.0 * cloudPowderPow, 0.0, cloudPowderScale), remap(normalizedHeight, 0.3, 0.85, 0.5, 2.0));
+            float verticalProbability = pow(remap(normalizedHeight, 0.07, 0.22, 0.1, 1.0), 0.8);
+            float powderEffect;
+            {
+                float r = -abs(cosTheta) * 0.5 + 0.5;
+                r = r * r;
+                verticalProbability = verticalProbability * (1.0 - r) + r;
+                powderEffect = depthProbability * verticalProbability;
+            }
 
-            vec3 luminance = uSunIntensity * (sampleSigmaS * phase * transToSun * powder_sugar_effect * 2.0 + multiScattering * sampleSigmaS);
-            //vec3 luminance = uSunIntensity * sampleSigmaS * phase * transToSun + multiScattering * sampleSigmaS;
+            vec3 luminance = (uSunIntensity * phase * transToSun + distantSkyLight * saturate(0.5 + normalizedHeight)) * sampleSigmaS;// * powderEffect;
             vec3 sampleTransmittance = exp(-sampleSigmaE * stepSize);
+            sampleTransmittance = max(sampleTransmittance, exp(-sampleSigmaE * stepSize * 0.25) * 0.7);
             vec3 Sint = (luminance - luminance * sampleTransmittance) / sampleSigmaE;
             totalLuminance += totalTransmitance * Sint;
             totalTransmitance *= sampleTransmittance;
@@ -356,5 +403,6 @@ void main()
     vec3 worldDir = normalize(mat3(uInverseViewMatrix) * viewSpace.xyz);
     vec3 worldPos = getWorldPos(uInverseViewMatrix[3].xyz);
     float viewHeight = length(worldPos);
+    distantSkyLight = texelFetch(uDistantSkyLightLutTexture, ivec2(0, 0), 0).rgb;
     fragData = vec4(rayMarchCloud(worldPos, worldDir));
 }

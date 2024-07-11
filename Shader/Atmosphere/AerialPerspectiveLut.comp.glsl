@@ -49,14 +49,14 @@ void main()
         // move the viewpoint around the atmosphere and avoid inefficient stepping
         if (!moveToTopAtmosphere(worldPos, worldDir))
         {
-            imageStore(uAerialPerspectiveLutImage, ivec3(gl_GlobalInvocationID.xyz), vec4(0.0, 0.0, 0.0, 1.0));
+            imageStore(uAerialPerspectiveLutImage, ivec3(gl_GlobalInvocationID.xyz), vec4(0.0, 0.0, 0.0, 0.0));
             return;
         }
         float lengthToAtmosphere = length(prevWorldPos - worldPos);
         // determines whether the maximum length of the step is less than the length of the move
         if (tMaxMax < lengthToAtmosphere)
         {
-            imageStore(uAerialPerspectiveLutImage, ivec3(gl_GlobalInvocationID.xyz), vec4(0.0, 0.0, 0.0, 1.0));
+            imageStore(uAerialPerspectiveLutImage, ivec3(gl_GlobalInvocationID.xyz), vec4(0.0, 0.0, 0.0, 0.0));
             return;
         }
         // the maximum length of the corrected step is the length of the step actually taken in the atmosphere

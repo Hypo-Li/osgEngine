@@ -4,6 +4,11 @@
 
 #ifdef MULTISCATTERING_LUT
 #define GROUND_ALBEDO_ENABLE
+#define ILLUMINANCE_IS_ONE
+#endif
+
+#ifdef DISTANT_SKYLIGHT_LUT
+#define MULTISCATTERING_APPROX_SAMPLING_ENABLED
 #endif
 
 #ifdef SKY_VIEW_LUT
@@ -342,7 +347,7 @@ void rayMarchAtmosphere(
 #else
         vec3 globalL = uSunIntensity;
 #endif
-        vec3 S = globalL * earthShadow * transmittanceToSun * phaseTimesScattering + multiScattering * scattering;
+        vec3 S = globalL * (earthShadow * transmittanceToSun * phaseTimesScattering + multiScattering * scattering);
         vec3 Sint = (S - S * sampleTransmittance) / extinction;
         lum += trans * Sint;
         fms += trans * scattering * 1.0 * dt;
@@ -361,7 +366,12 @@ void rayMarchAtmosphere(
         transmittanceLutParametersToUV(viewHeight, sunZenithCos, uv);
         vec3 transmittanceToSun = textureLod(uTransmittanceLutTexture, uv, 0.0).rgb;
         float ndl = max(dot(upVector, sunDir), 0.0);
-        lum += transmittanceToSun * trans * ndl * uGroundAlbedo / PI;
+#ifdef ILLUMINANCE_IS_ONE
+        vec3 globalL = vec3(1.0);
+#else
+        vec3 globalL = uSunIntensity;
+#endif
+        lum += globalL * transmittanceToSun * trans * ndl * uGroundAlbedo / PI;
     }
 #endif
 }

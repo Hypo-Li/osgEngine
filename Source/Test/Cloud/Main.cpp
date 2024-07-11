@@ -1,5 +1,6 @@
 #include <Core/Render/Pipeline.h>
 #include "ControllerManipulator.h"
+#include "ImGuiHandler.h"
 #include <osgViewer/Viewer>
 #include <osgDB/ReadFile>
 #include <osgGA/TrackballManipulator>
@@ -80,6 +81,29 @@ void calcAtmosphereShaderParameters(const AtmosphereParameters& param, Atmospher
     shaderParam.sunIntensity = param.sunColor * param.sunIntensity;
 }
 
+namespace xxx
+{
+    void ImGuiHandler::draw()
+    {
+        bool atmosphereNeedUpdate = false;
+        ImGui::Begin("Test");
+        if (ImGui::DragFloat("Solar Altitude", &gAtmosphereParameters.solarAltitude, 1.0f, 0.0f, 90.0f))
+            atmosphereNeedUpdate = true;
+        if (ImGui::DragFloat("Solar Azimuth", &gAtmosphereParameters.solarAzimuth, 1.0f, 0.0f, 360.0f))
+            atmosphereNeedUpdate = true;
+
+        if (atmosphereNeedUpdate)
+        {
+            calcAtmosphereShaderParameters(gAtmosphereParameters, gAtmosphereShaderParameters);
+            osg::FloatArray* buffer = static_cast<osg::FloatArray*>(gAtmosphereShaderParametersUBB->getBufferData());
+            buffer->assign((float*)&gAtmosphereShaderParameters, (float*)(&gAtmosphereShaderParameters + 1));
+            buffer->dirty();
+        }
+
+        ImGui::End();
+    }
+}
+
 class InputPassCameraPreDrawCallback : public osg::Camera::DrawCallback
 {
 public:
@@ -144,6 +168,7 @@ int main()
     osg::ref_ptr<osgViewer::Viewer> viewer = new osgViewer::Viewer;
     osg::ref_ptr<osg::Group> rootGroup = new osg::Group;
     viewer->setSceneData(rootGroup);
+    viewer->setRealizeOperation(new xxx::ImGuiInitOperation);
     osg::ref_ptr<osg::Camera> camera = viewer->getCamera();
     camera->setGraphicsContext(gc);
     camera->setViewport(0, 0, width, height);
@@ -245,6 +270,27 @@ int main()
     multiScatteringLutDispatch->getOrCreateStateSet()->setTextureAttribute(0, transmittanceLutTexture, osg::StateAttribute::ON);
     rootGroup->addChild(multiScatteringLutDispatch);
 
+    osg::ref_ptr<osg::Texture2D> distantSkyLightLutTexture = new osg::Texture2D;
+    distantSkyLightLutTexture->setTextureSize(1, 1);
+    distantSkyLightLutTexture->setInternalFormat(GL_R11F_G11F_B10F);
+    distantSkyLightLutTexture->setSourceFormat(GL_RGB);
+    distantSkyLightLutTexture->setSourceType(GL_HALF_FLOAT);
+    distantSkyLightLutTexture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::NEAREST);
+    distantSkyLightLutTexture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::NEAREST);
+    osg::ref_ptr<osg::BindImageTexture> distantSkyLightLutImage = new osg::BindImageTexture(0, distantSkyLightLutTexture, osg::BindImageTexture::WRITE_ONLY, GL_R11F_G11F_B10F);
+    osg::ref_ptr<osg::Program> distantSkyLightLutProgram = new osg::Program;
+    distantSkyLightLutProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "Atmosphere/DistantSkyLightLut.comp.glsl"));
+    osg::ref_ptr<osg::DispatchCompute> distantSkyLightLutDispatch = new osg::DispatchCompute(1, 1, 1);
+    distantSkyLightLutDispatch->setCullingActive(false);
+    distantSkyLightLutDispatch->getOrCreateStateSet()->setAttribute(distantSkyLightLutProgram, osg::StateAttribute::ON);
+    distantSkyLightLutDispatch->getOrCreateStateSet()->setAttribute(distantSkyLightLutImage, osg::StateAttribute::ON);
+    distantSkyLightLutDispatch->getOrCreateStateSet()->setAttribute(gAtmosphereShaderParametersUBB, osg::StateAttribute::ON);
+    distantSkyLightLutDispatch->getOrCreateStateSet()->addUniform(new osg::Uniform("uTransmittanceLutTexture", 0));
+    distantSkyLightLutDispatch->getOrCreateStateSet()->setTextureAttribute(0, transmittanceLutTexture, osg::StateAttribute::ON);
+    distantSkyLightLutDispatch->getOrCreateStateSet()->addUniform(new osg::Uniform("uMultiScatteringLutTexture", 1));
+    distantSkyLightLutDispatch->getOrCreateStateSet()->setTextureAttribute(1, multiScatteringLutTexture, osg::StateAttribute::ON);
+    rootGroup->addChild(distantSkyLightLutDispatch);
+
     osg::ref_ptr<osg::Texture2D> skyViewLutTexture = new osg::Texture2D;
     skyViewLutTexture->setTextureSize(192, 108);
     skyViewLutTexture->setInternalFormat(GL_R11F_G11F_B10F);
@@ -324,6 +370,12 @@ int main()
     atmospherePass->setMode(GL_BLEND);
     atmospherePass->setAttribute(new osg::BlendFunc(GL_ONE, GL_SRC_ALPHA));
 
+    osg::ref_ptr<osg::Image> blueNoiseImage = osgDB::readImageFile(TEMP_DIR "BlueNoise.png");
+    osg::ref_ptr<osg::Texture2D> blueNoiseTexture = new osg::Texture2D(blueNoiseImage);
+    blueNoiseTexture->setInternalFormat(GL_R8);
+    blueNoiseTexture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::NEAREST);
+    blueNoiseTexture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::NEAREST);
+
     osg::ref_ptr<osg::Program> volumetricCloudProgram = new osg::Program;
     volumetricCloudProgram->addShader(screenQuadVertexShader);
     volumetricCloudProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "VolumetricCloud/RayMarching2.frag.glsl"));
@@ -336,6 +388,8 @@ int main()
     volumetricCloudPass->applyTexture(multiScatteringLutTexture, "uMultiScatteringLutTexture", 4);
     volumetricCloudPass->applyTexture(skyViewLutTexture, "uSkyViewLutTexture", 5);
     volumetricCloudPass->applyTexture(aerialPerspectiveLutTexture, "uAerialPerspectiveLutTexture", 6);
+    volumetricCloudPass->applyTexture(blueNoiseTexture, "uBlueNoiseTexture", 7);
+    volumetricCloudPass->applyTexture(distantSkyLightLutTexture, "uDistantSkyLightLutTexture", 8);
     volumetricCloudPass->setAttribute(gViewDataUBB);
     volumetricCloudPass->setAttribute(gAtmosphereShaderParametersUBB);
 
@@ -347,6 +401,7 @@ int main()
     finalPass->applyTexture(volumetricCloudPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uCloudColorTexture", 1);
 
     viewer->setCameraManipulator(new ControllerManipulator(20.0));
+    viewer->addEventHandler(new xxx::ImGuiHandler(viewer, finalPass->getCamera()));
 
     viewer->realize();
     while (!viewer->done())
