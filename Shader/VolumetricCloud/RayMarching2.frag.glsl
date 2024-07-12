@@ -60,6 +60,10 @@ const float invDistanceToSampleCountMax = 0.06667;
 const float shadowTracingMaxDistanceKm = 15.0;
 const uint shadowSampleCountMax = 12;
 
+uniform float uCloudType;
+uniform float uCloudCoverage;
+uniform float uWindSpeed;
+
 vec3 distantSkyLight = vec3(0.0);
 
 float saturate(float x) { return clamp(x, 0.0, 1.0); }
@@ -152,14 +156,14 @@ float sampleCloudDensity(vec3 worldPos)
     // 为采样位置增加高度梯度，风向影响;
     worldPos += normalizedHeight * wind_direction * cloud_top_offset;
     // 增加一些沿着风向的时间偏移
-    worldPos += (wind_direction + vec3(0.0, 0.1, 0.0)  ) * osg_FrameTime * cloud_speed;
+    worldPos += (wind_direction + vec3(0.0, 0.1, 0.0)  ) * osg_FrameTime * uWindSpeed;
 
     vec3 basicUVW = worldPos * basicNoiseScale;
     vec4 low_frequency_noises = textureLod(uBasicNoiseTexture, basicUVW, 0.0);
     float low_freq_FBM = dot(low_frequency_noises.gba, vec3(0.625, 0.25, 0.125));
     float base_cloud = remap(low_frequency_noises.r, -(1.0 - low_freq_FBM), 1.0, 0.0, 1.0);
 
-    float density_height_gradiant = getDensityHeightGradient(normalizedHeight, weatherData.g);
+    float density_height_gradiant = getDensityHeightGradient(normalizedHeight, remap(weatherData.g, 0.0, 1.0, 0.0, uCloudType));
 
     base_cloud *= density_height_gradiant;
 

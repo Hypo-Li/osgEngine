@@ -81,16 +81,34 @@ void calcAtmosphereShaderParameters(const AtmosphereParameters& param, Atmospher
     shaderParam.sunIntensity = param.sunColor * param.sunIntensity;
 }
 
+float cloudType = 1.0;
+osg::ref_ptr<osg::Uniform> cloudTypeUniform;
+float cloudSpeed = 0.2;
+osg::ref_ptr<osg::Uniform> cloudSpeedUnifrom;
+
 namespace xxx
 {
     void ImGuiHandler::draw()
     {
         bool atmosphereNeedUpdate = false;
         ImGui::Begin("Test");
-        if (ImGui::DragFloat("Solar Altitude", &gAtmosphereParameters.solarAltitude, 1.0f, 0.0f, 90.0f))
+        if (ImGui::SliderFloat("Solar Altitude", &gAtmosphereParameters.solarAltitude, -90.0f, 90.0f))
             atmosphereNeedUpdate = true;
-        if (ImGui::DragFloat("Solar Azimuth", &gAtmosphereParameters.solarAzimuth, 1.0f, 0.0f, 360.0f))
+        if (ImGui::SliderFloat("Solar Azimuth", &gAtmosphereParameters.solarAzimuth, 0.0f, 360.0f))
             atmosphereNeedUpdate = true;
+        if (ImGui::ColorEdit3("Sun Color", &gAtmosphereParameters.sunColor.x()))
+            atmosphereNeedUpdate = true;
+        if (ImGui::SliderFloat("Sun Intensity", &gAtmosphereParameters.sunIntensity, 0.0f, 20.0f))
+            atmosphereNeedUpdate = true;
+        if (ImGui::SliderFloat("Mie Scattering Base", &gAtmosphereParameters.mieScatteringBase, 0.0f, 5.0f))
+            atmosphereNeedUpdate = true;
+        if (ImGui::SliderFloat("Mie Absorption Base", &gAtmosphereParameters.mieAbsorptionBase, 0.0f, 5.0f))
+            atmosphereNeedUpdate = true;
+
+        if (ImGui::SliderFloat("Cloud Type", &cloudType, 0.0f, 1.0f))
+            cloudTypeUniform->set(cloudType);
+        if (ImGui::SliderFloat("Wind Type", &cloudSpeed, 0.0f, 5.0f))
+            cloudSpeedUnifrom->set(cloudSpeed);
 
         if (atmosphereNeedUpdate)
         {
@@ -169,6 +187,7 @@ int main()
     osg::ref_ptr<osg::Group> rootGroup = new osg::Group;
     viewer->setSceneData(rootGroup);
     viewer->setRealizeOperation(new xxx::ImGuiInitOperation);
+    viewer->setThreadingModel(osgViewer::ViewerBase::SingleThreaded);
     osg::ref_ptr<osg::Camera> camera = viewer->getCamera();
     camera->setGraphicsContext(gc);
     camera->setViewport(0, 0, width, height);
@@ -392,6 +411,12 @@ int main()
     volumetricCloudPass->applyTexture(distantSkyLightLutTexture, "uDistantSkyLightLutTexture", 8);
     volumetricCloudPass->setAttribute(gViewDataUBB);
     volumetricCloudPass->setAttribute(gAtmosphereShaderParametersUBB);
+
+    cloudTypeUniform = new osg::Uniform("uCloudType", cloudType);
+    volumetricCloudPass->applyUniform(cloudTypeUniform);
+
+    cloudSpeedUnifrom = new osg::Uniform("uWindSpeed", cloudSpeed);
+    volumetricCloudPass->applyUniform(cloudSpeedUnifrom);
 
     osg::ref_ptr<osg::Program> colorGradingProgram = new osg::Program;
     colorGradingProgram->addShader(screenQuadVertexShader);
