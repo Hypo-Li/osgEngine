@@ -43,7 +43,7 @@ namespace xxx
             asset = new MaterialTemplateAsset;
             break;
         case Asset::Type::MaterialInstance:
-            asset = new MaterialInstanceAsset;
+            //asset = new MaterialInstanceAsset;
             break;
         case Asset::Type::StaticMesh:
             asset = new StaticMeshAsset;

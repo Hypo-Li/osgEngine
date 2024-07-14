@@ -9,7 +9,6 @@ uniform sampler3D uDetailNoiseTexture;
 uniform sampler2D uCloudMapTexture;
 uniform sampler2D uTransmittanceLutTexture;
 uniform sampler2D uDistantSkyLightLutTexture;
-uniform sampler2D uSkyViewLutTexture;
 uniform sampler3D uAerialPerspectiveLutTexture;
 uniform sampler2D uBlueNoiseTexture;
 uniform float osg_FrameTime;
@@ -120,13 +119,28 @@ float interleavedGradientNoise(vec2 uv, float frameId)
 
 #define MS_COUNT 2
 
-const vec3 uAlbedo = vec3(1.0);
-const vec3 uExtinction = vec3(1.0);
+layout (std140, binding = 2) uniform VolumetricCloudParameters
+{
+    vec3 uAlbedo;
+    float uCloudLayerBottomRadiusKm;
+    vec3 uExtinction;
+    float uCloudLayerThicknessKm;
+    float uWindSpeed;
+    float uPhaseG0;
+    float uPhaseG1;
+    float uPhaseBlend;
+    float uMsScattFactor;
+    float uMsExtinFactor;
+    float uMsPhaseFactor;
+};
+
+//const vec3 uAlbedo = vec3(1.0);
+//const vec3 uExtinction = vec3(0.005);
 const vec3 uWindDirection = vec3(0.8728715181, 0.2182178795, 0.4364357591);
-const float uWindSpeed = 0.01;
-const float uCloudLayerBottomRadiusKm = 6365.0;
-const float uCloudLayerThicknessKm = 10.0;
-const float uCloudLayerTopRadiusKm = uCloudLayerBottomRadiusKm + uCloudLayerThicknessKm;
+//const float uWindSpeed = 2.0;
+//const float uCloudLayerBottomRadiusKm = 6365.0;
+//const float uCloudLayerThicknessKm = 10.0;
+float uCloudLayerTopRadiusKm = uCloudLayerBottomRadiusKm + uCloudLayerThicknessKm;
 const float uTracingStartMaxDistanceKm = 350.0;
 const float uTracingMaxDistanceKm = 50.0;
 const vec3 uStopTracingTransmittanceThreshold = vec3(0.005);
@@ -135,12 +149,12 @@ const uint uCloudSampleCountMax = 96;
 const float uInvDistanceToSampleCountMax = 1.0 / 15.0; // 15 sample per km
 const float uCloudShadowTracingMaxDistanceKm = 15.0;
 const uint uCloudShadowSampleCountMax = 12;
-const float uMsScattFactor = 0.2;
-const float uMsExtinFactor = 0.2;
-const float uMsPhaseFactor = 0.2;
-const float uPhaseG0 = 0.5;
-const float uPhaseG1 = -0.5;
-const float uPhaseBlend = 0.2;
+//const float uMsScattFactor = 0.2;
+//const float uMsExtinFactor = 0.2;
+//const float uMsPhaseFactor = 0.2;
+//const float uPhaseG0 = 0.5;
+//const float uPhaseG1 = -0.5;
+//const float uPhaseBlend = 0.2;
 
 vec3 gDistantSkyLight = vec3(0.0);
 
@@ -187,6 +201,19 @@ ParticipatingMediaContext setupParticipatingMediaContext(vec3 baseAlbedo, vec3 b
         pmc.transmittanceToLight0[ms] = initialTransmittanceToLight0;
     }
     return pmc;
+}
+
+void transmittanceLutParametersToUV(in float viewHeight, in float viewZenithCos, out vec2 uv)
+{
+    float H = sqrt(max(0.0f, uAtmosphereRadius * uAtmosphereRadius - uGroundRadius * uGroundRadius));
+    float rho = sqrt(max(0.0f, viewHeight * viewHeight - uGroundRadius * uGroundRadius));
+    float discriminant = viewHeight * viewHeight * (viewZenithCos * viewZenithCos - 1.0) + uAtmosphereRadius * uAtmosphereRadius;
+    float d = max(0.0, (-viewHeight * viewZenithCos + sqrt(discriminant))); // Distance to atmosphere boundary
+    float dMin = uAtmosphereRadius - viewHeight;
+    float dMax = rho + H;
+    float u = (d - dMin) / (dMax - dMin);
+    float v = rho / H;
+    uv = vec2(u, v); 
 }
 
 #define SLICE_COUNT 16.0
@@ -313,7 +340,12 @@ vec4 rayMarchCloud(vec3 worldPos, vec3 worldDir, float tDepth)
         float sampleHeight = length(samplePos);
         float normalizedHeight = saturate((sampleHeight - uCloudLayerBottomRadiusKm) / uCloudLayerThicknessKm);
         float density = sampleCloudDensity(samplePos, normalizedHeight);
-        vec3 transmittanceToLight0 = vec3(1.0);
+
+        const vec3 upVector = samplePos / sampleHeight;
+        float viewZenithCos = dot(uSunDirection, upVector);
+        vec2 sampleUV;
+        transmittanceLutParametersToUV(sampleHeight, viewZenithCos, sampleUV);
+        vec3 transmittanceToLight0 = texture(uTransmittanceLutTexture, sampleUV).rgb;
         ParticipatingMediaContext pmc = setupParticipatingMediaContext(uAlbedo, density * uExtinction, uMsScattFactor, uMsExtinFactor, transmittanceToLight0);
         
         vec3 distantLightLuminance = gDistantSkyLight * saturate(0.5 + normalizedHeight);
@@ -405,5 +437,19 @@ vec4 rayMarchCloud(vec3 worldPos, vec3 worldDir, float tDepth)
     float w = sqrt(slice / SLICE_COUNT);
     vec4 AP = weight * textureLod(uAerialPerspectiveLutTexture, vec3(uv, w), 0.0);
     AP.a = 1.0 - AP.a;
-    outColor = vec4(AP.rgb * (1.0 - result.a) + AP.a * result.rgb, result.a);
+    outColor = vec4(AP.rgb * (1.0 - outColor.a) + AP.a * outColor.rgb, outColor.a);
+    return outColor;
+}
+
+void main()
+{
+    float depth = texelFetch(uDepthTexture, ivec2(gl_FragCoord.xy), 0).r;
+    vec4 clipSpace = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+    vec4 viewSpace = uInverseProjectionMatrix * clipSpace;
+    viewSpace *= 1.0 / viewSpace.w;
+    vec3 worldDir = normalize(mat3(uInverseViewMatrix) * viewSpace.xyz);
+    vec3 worldPos = getWorldPos(uInverseViewMatrix[3].xyz);
+    float viewHeight = length(worldPos);
+    gDistantSkyLight = texelFetch(uDistantSkyLightLutTexture, ivec2(0, 0), 0).rgb;
+    fragData = vec4(rayMarchCloud(worldPos, worldDir, -viewSpace.z));
 }

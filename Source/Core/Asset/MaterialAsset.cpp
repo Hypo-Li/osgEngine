@@ -283,6 +283,7 @@ namespace xxx
                 TextureAssetAndUnit& textureAssetAndUnit = std::get<TextureAssetAndUnit>(parameter.second);
                 _stateSet->addUniform(new osg::Uniform(("u" + parameter.first).c_str(), textureAssetAndUnit.second));
                 _stateSet->setTextureAttribute(textureAssetAndUnit.second, textureAssetAndUnit.first->_texture, osg::StateAttribute::ON);
+                break;
             }
             default:
                 break;
@@ -327,126 +328,150 @@ namespace xxx
         }
     }
 
-    MaterialInstanceAsset::MaterialInstanceAsset() : MaterialAsset(Type::MaterialInstance) {}
-
-    void MaterialInstanceAsset::serialize(Json& json, std::vector<char>& binary, std::vector<std::string>& reference) const
-    {
-        json["MaterialTemplate"] = "#" + std::to_string(getReferenceIndex(_materialTemplate->getPath(), reference));;
-        Json parametersJson;
-        for (const auto& parameter : _parameters)
-        {
-            switch (parameter.second.index())
-            {
-            case static_cast<size_t>(ParameterIndex::Bool):
-                parametersJson[parameter.first] = std::get<bool>(parameter.second);
-                break;
-            case static_cast<size_t>(ParameterIndex::Int):
-                parametersJson[parameter.first] = std::get<int>(parameter.second);
-                break;
-            case static_cast<size_t>(ParameterIndex::Float):
-                parametersJson[parameter.first] = std::get<float>(parameter.second);
-                break;
-            case static_cast<size_t>(ParameterIndex::Float2):
-                parametersJson[parameter.first] = osgVec2ToJson(std::get<osg::Vec2>(parameter.second));
-                break;
-            case static_cast<size_t>(ParameterIndex::Float3):
-                parametersJson[parameter.first] = osgVec3ToJson(std::get<osg::Vec3>(parameter.second));
-                break;
-            case static_cast<size_t>(ParameterIndex::Float4):
-                parametersJson[parameter.first] = osgVec4ToJson(std::get<osg::Vec4>(parameter.second));
-                break;
-            case static_cast<size_t>(ParameterIndex::Texture):
-                parametersJson[parameter.first] = "#" + std::to_string(getReferenceIndex(std::get<TextureAssetAndUnit>(parameter.second).first->getPath(), reference));
-                break;
-            default:
-                break;
-            }
-        }
-        json["Parameters"] = parametersJson;
-    }
-
-    void MaterialInstanceAsset::deserialize(const Json& json, const std::vector<char>& binary, const std::vector<std::string>& reference)
-    {
-        int index = std::stoi(json["MaterialTemplate"].get<std::string>().substr(1));
-        setMaterialTemplate(AssetManager::loadAsset<MaterialTemplateAsset>(reference[index]));
-
-        const Json& parametersJson = json["Parameters"];
-        for (Json::const_iterator it = parametersJson.begin(); it != parametersJson.end(); it++)
-        {
-            if (it.value().is_boolean())
-                setParameter(it.key(), it.value().get<bool>());
-            else if (it.value().is_number_integer())
-                setParameter(it.key(), it.value().get<int>());
-            else if (it.value().is_number_float())
-                setParameter(it.key(), it.value().get<float>());
-            else if (it.value().is_array() && it.value().size() == 2)
-                setParameter(it.key(), jsonToOsgVec2(it.value()));
-            else if (it.value().is_array() && it.value().size() == 3)
-                setParameter(it.key(), jsonToOsgVec3(it.value()));
-            else if (it.value().is_array() && it.value().size() == 4)
-                setParameter(it.key(), jsonToOsgVec4(it.value()));
-            else if (it.value().is_string())
-            {
-                const std::string& path = it.value();
-                int index = std::stoi(path.substr(1));
-                TextureAsset* texture = AssetManager::loadAsset<TextureAsset>(reference[index]);
-                setParameter(it.key(), texture);
-            }
-        }
-    }
-
-    void MaterialInstanceAsset::setMaterialTemplate(MaterialTemplateAsset* materialTemplate)
-    {
-        if (materialTemplate == _materialTemplate)
-            return;
-        _materialTemplate = materialTemplate;
-        _stateSet = new osg::StateSet(*_materialTemplate->getStateSet());
-        osg::StateSet::UniformList& uniformList = _stateSet->getUniformList();
-        // 替换新的uniform对象, 以免影响材质模板
-        for (auto& uniform : uniformList)
-        {
-            osg::ref_ptr<osg::Uniform> newUniform = new osg::Uniform(*uniform.second.first.get());
-            uniform.second.first = newUniform;
-        }
-        _parameters.clear();
-    }
-
-    void MaterialInstanceAsset::syncMaterialTemplate()
-    {
-        osg::ref_ptr<osg::StateSet> newStateSet = new osg::StateSet(*_materialTemplate->getStateSet());
-        osg::StateSet::UniformList& newUniformList = newStateSet->getUniformList();
-
-        // 替换新的uniform对象, 以免与影响材质模板
-        for (auto& uniform : newUniformList)
-        {
-            osg::ref_ptr<osg::Uniform> newUniform = new osg::Uniform(*uniform.second.first.get());
-            uniform.second.first = newUniform;
-        }
-
-        // 设置已经重载且有效的参数的uniform
-        auto itr = _parameters.begin();
-        while (itr != _parameters.end())
-        {
-            auto findResult = _materialTemplate->_parameters.find(itr->first);
-            if (findResult == _materialTemplate->_parameters.end())
-            {
-                // case 1: 重载参数在新材质模板中不存在
-                _parameters.erase(itr++);
-            }
-            else if (itr->second.index() != findResult->second.index())
-            {
-                // case 2: 重载参数在新材质中存在, 但类型不同
-                _parameters.erase(itr++);
-            }
-            else
-            {
-                // case 3: 重载参数在新材质中存在, 且类型相同
-                std::string uniformName = "u" + itr->first;
-                newUniformList.at(uniformName).first = _stateSet->getUniform(uniformName);
-                itr++;
-            }
-        }
-
-        _stateSet = newStateSet;
-    }
+//    MaterialInstanceAsset::MaterialInstanceAsset() : MaterialAsset(Type::MaterialInstance) {}
+//
+//    void MaterialInstanceAsset::serialize(Json& json, std::vector<char>& binary, std::vector<std::string>& reference) const
+//    {
+//        json["MaterialTemplate"] = "#" + std::to_string(getReferenceIndex(_materialTemplate->getPath(), reference));;
+//        Json parametersJson;
+//        for (const auto& parameter : _parameters)
+//        {
+//            Json parameterJson;
+//            parameterJson["Enable"] = parameter.second.enable;
+//
+//            switch (parameter.second.defaultValue.index())
+//            {
+//            case static_cast<size_t>(ParameterIndex::Bool):
+//                parameterJson["Default"] = std::get<bool>(parameter.second.defaultValue);
+//                parameterJson["Override"] = std::get<bool>(parameter.second.overrideValue);
+//                break;
+//            case static_cast<size_t>(ParameterIndex::Int):
+//                parameterJson["Default"] = std::get<int>(parameter.second.defaultValue);
+//                parameterJson["Override"] = std::get<int>(parameter.second.overrideValue);
+//                break;
+//            case static_cast<size_t>(ParameterIndex::Float):
+//                parameterJson["Default"] = std::get<float>(parameter.second.defaultValue);
+//                parameterJson["Override"] = std::get<float>(parameter.second.overrideValue);
+//                break;
+//            case static_cast<size_t>(ParameterIndex::Float2):
+//                parameterJson["Default"] = osgVec2ToJson(std::get<osg::Vec2>(parameter.second.defaultValue));
+//                parameterJson["Override"] = osgVec2ToJson(std::get<osg::Vec2>(parameter.second.overrideValue));
+//                break;
+//            case static_cast<size_t>(ParameterIndex::Float3):
+//                parameterJson["Default"] = osgVec3ToJson(std::get<osg::Vec3>(parameter.second.defaultValue));
+//                parameterJson["Override"] = osgVec3ToJson(std::get<osg::Vec3>(parameter.second.overrideValue));
+//                break;
+//            case static_cast<size_t>(ParameterIndex::Float4):
+//                parameterJson["Default"] = osgVec4ToJson(std::get<osg::Vec4>(parameter.second.defaultValue));
+//                parameterJson["Override"] = osgVec4ToJson(std::get<osg::Vec4>(parameter.second.overrideValue));
+//                break;
+//            case static_cast<size_t>(ParameterIndex::Texture):
+//                parameterJson["Default"] = "#" + std::to_string(getReferenceIndex(std::get<TextureAssetAndUnit>(parameter.second.defaultValue).first->getPath(), reference));
+//                parameterJson["Override"] = "#" + std::to_string(getReferenceIndex(std::get<TextureAssetAndUnit>(parameter.second.overrideValue).first->getPath(), reference));
+//                break;
+//            default:
+//                break;
+//            }
+//
+//            parametersJson[parameter.first] = parameterJson;
+//        }
+//        json["Parameters"] = parametersJson;
+//    }
+//
+//    void MaterialInstanceAsset::deserialize(const Json& json, const std::vector<char>& binary, const std::vector<std::string>& reference)
+//    {
+//        int index = std::stoi(json["MaterialTemplate"].get<std::string>().substr(1));
+//        setMaterialTemplate(AssetManager::loadAsset<MaterialTemplateAsset>(reference[index]));
+//
+//        const Json& parametersJson = json["Parameters"];
+//        for (Json::const_iterator it = parametersJson.begin(); it != parametersJson.end(); it++)
+//        {
+//            const Json& parameterJson = it.value();
+//            InstanceParameter parameter;
+//            parameter.enable = parameterJson["Enable"];
+//            const Json& defaultValueJson = parameterJson["Default"];
+//            const Json& overrideValueJson = parameterJson["Override"];
+//
+//            if (defaultValueJson.is_boolean())
+//            {
+//                parameter.defaultValue = defaultValueJson.get<bool>();
+//                parameter.overrideValue = overrideValueJson.get<bool>();
+//            }
+//            else if (defaultValueJson.is_number_integer())
+//            {
+//                parameter.defaultValue = defaultValueJson.get<int>();
+//                parameter.overrideValue = overrideValueJson.get<int>();
+//            }
+//            else if (defaultValueJson.is_number_float())
+//            {
+//                parameter.defaultValue = defaultValueJson.get<float>();
+//                parameter.overrideValue = overrideValueJson.get<float>();
+//            }
+//            else if (defaultValueJson.is_array() && defaultValueJson.size() == 2)
+//            {
+//                parameter.defaultValue = jsonToOsgVec2(defaultValueJson);
+//                parameter.overrideValue = jsonToOsgVec2(overrideValueJson);
+//            }
+//            else if (defaultValueJson.is_array() && defaultValueJson.size() == 3)
+//            {
+//                parameter.defaultValue = jsonToOsgVec3(defaultValueJson);
+//                parameter.overrideValue = jsonToOsgVec3(overrideValueJson);
+//            }
+//            else if (defaultValueJson.is_array() && defaultValueJson.size() == 4)
+//            {
+//                parameter.defaultValue = jsonToOsgVec4(defaultValueJson);
+//                parameter.overrideValue = jsonToOsgVec4(overrideValueJson);
+//            }
+//            else if (defaultValueJson.is_string())
+//            {
+//                TextureAssetAndUnit defaultTextureAssetAndUnit;
+//                int defaultTextureIndex = std::stoi(defaultValueJson.get<std::string>().substr(1));
+//                defaultTextureAssetAndUnit.first = AssetManager::loadAsset<TextureAsset>(reference[defaultTextureIndex]);
+//
+//                TextureAssetAndUnit overrideTextureAssetAndUnit;
+//                int overrideTextureIndex = std::stoi(overrideValueJson.get<std::string>().substr(1));
+//                overrideTextureAssetAndUnit.first = AssetManager::loadAsset<TextureAsset>(reference[overrideTextureIndex]);
+//            }
+//        }
+//    }
+//
+//    void MaterialInstanceAsset::setMaterialTemplate(MaterialTemplateAsset* materialTemplate)
+//    {
+//        if (materialTemplate == _materialTemplate)
+//            return;
+//        _materialTemplate = materialTemplate;
+//        _stateSet = new osg::StateSet(*_materialTemplate->getStateSet(), osg::CopyOp::DEEP_COPY_UNIFORMS);
+//        _parameters.clear();
+//    }
+//
+//    void MaterialInstanceAsset::syncMaterialTemplate()
+//    {
+//        osg::ref_ptr<osg::StateSet> newStateSet = new osg::StateSet(*_materialTemplate->getStateSet(), osg::CopyOp::DEEP_COPY_UNIFORMS);
+//
+//        // 设置已经重载且有效的参数的uniform
+//        auto itr = _parameters.begin();
+//        while (itr != _parameters.end())
+//        {
+//            auto findResult = _materialTemplate->_parameters.find(itr->first);
+//            if (findResult == _materialTemplate->_parameters.end())
+//            {
+//                // case 1: 重载参数在新材质模板中不存在
+//                _parameters.erase(itr++);
+//            }
+//            else if (itr->second.index() != findResult->second.index())
+//            {
+//                // case 2: 重载参数在新材质中存在, 但类型不同
+//                _parameters.erase(itr++);
+//            }
+//            else
+//            {
+//                // case 3: 重载参数在新材质中存在, 且类型相同
+//                std::string uniformName = "u" + itr->first;
+//                newStateSet->getUniformList().at(uniformName).first = _stateSet->getUniform(uniformName);
+//                itr++;
+//            }
+//        }
+//
+//        _stateSet = newStateSet;
+//    }
 }

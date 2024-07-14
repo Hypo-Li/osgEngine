@@ -184,83 +184,99 @@ namespace xxx
         }
     };
 
-    class MaterialInstanceAsset : public MaterialAsset
-    {
-    public:
-        MaterialInstanceAsset();
-        virtual ~MaterialInstanceAsset() = default;
+    //class MaterialInstanceAsset : public MaterialAsset
+    //{
+    //public:
+    //    MaterialInstanceAsset();
+    //    virtual ~MaterialInstanceAsset() = default;
 
-        virtual void serialize(Json& json, std::vector<char>& binary, std::vector<std::string>& reference) const override;
+    //    virtual void serialize(Json& json, std::vector<char>& binary, std::vector<std::string>& reference) const override;
 
-        virtual void deserialize(const Json& json, const std::vector<char>& binary, const std::vector<std::string>& reference) override;
+    //    virtual void deserialize(const Json& json, const std::vector<char>& binary, const std::vector<std::string>& reference) override;
 
-        void setMaterialTemplate(MaterialTemplateAsset* materialTemplate);
+    //    void setMaterialTemplate(MaterialTemplateAsset* materialTemplate);
 
-        void syncMaterialTemplate();
+    //    void syncMaterialTemplate();
 
-        MaterialTemplateAsset* getMaterialTemplate() { return _materialTemplate; }
+    //    MaterialTemplateAsset* getMaterialTemplate() { return _materialTemplate; }
 
-        virtual osg::StateSet* getStateSet() const override { return _stateSet; }
+    //    virtual osg::StateSet* getStateSet() const override { return _stateSet; }
 
-        virtual osg::Shader* getShader() const override { return _materialTemplate->getShader(); }
+    //    virtual osg::Shader* getShader() const override { return _materialTemplate->getShader(); }
 
-        void setParameter(const std::string& name, bool value) { setParameter<bool>(name, value); }
-        void setParameter(const std::string& name, int value) { setParameter<int>(name, value); }
-        void setParameter(const std::string& name, float value) { setParameter<float>(name, value); }
-        void setParameter(const std::string& name, osg::Vec2 value) { setParameter<osg::Vec2>(name, value); }
-        void setParameter(const std::string& name, osg::Vec3 value) { setParameter<osg::Vec3>(name, value); }
-        void setParameter(const std::string& name, osg::Vec4 value) { setParameter<osg::Vec4>(name, value); }
-        void setParameter(const std::string& name, TextureAsset* value) { setParameter<TextureAsset*>(name, value); }
+    //    void setParameter(const std::string& name, bool value) { setParameter<bool>(name, value); }
+    //    void setParameter(const std::string& name, int value) { setParameter<int>(name, value); }
+    //    void setParameter(const std::string& name, float value) { setParameter<float>(name, value); }
+    //    void setParameter(const std::string& name, osg::Vec2 value) { setParameter<osg::Vec2>(name, value); }
+    //    void setParameter(const std::string& name, osg::Vec3 value) { setParameter<osg::Vec3>(name, value); }
+    //    void setParameter(const std::string& name, osg::Vec4 value) { setParameter<osg::Vec4>(name, value); }
+    //    void setParameter(const std::string& name, TextureAsset* value) { setParameter<TextureAsset*>(name, value); }
 
-    private:
-        using TextureAssetAndUnit = MaterialTemplateAsset::TextureAssetAndUnit;
-        using Parameter = MaterialTemplateAsset::Parameter;
-        using ParameterIndex = MaterialTemplateAsset::ParameterIndex;
+    //private:
+    //    using TextureAssetAndUnit = MaterialTemplateAsset::TextureAssetAndUnit;
+    //    using Parameter = MaterialTemplateAsset::Parameter;
+    //    using ParameterIndex = MaterialTemplateAsset::ParameterIndex;
 
-        osg::ref_ptr<MaterialTemplateAsset> _materialTemplate;
-        osg::ref_ptr<osg::StateSet> _stateSet;
-        std::map<std::string, Parameter> _parameters;
+    //    osg::ref_ptr<MaterialTemplateAsset> _materialTemplate;
+    //    osg::ref_ptr<osg::StateSet> _stateSet;
+    //    struct InstanceParameter
+    //    {
+    //        bool enable;
+    //        Parameter defaultValue;
+    //        Parameter overrideValue;
+    //    };
+    //    std::map<std::string, InstanceParameter> _parameters;
 
-        template <typename T>
-        void setParameter(const std::string& name, T value)
-        {
-            auto& findResult = _materialTemplate->_parameters.find(name);
-            if (findResult != _materialTemplate->_parameters.end())
-            {
-                if constexpr (std::is_same_v<T, TextureAsset*>)
-                {
-                    TextureAssetAndUnit& textureAssetAndUnit = std::get<TextureAssetAndUnit>(findResult->second);
-                    int unit = textureAssetAndUnit.second;
-                    _parameters[name] = std::make_pair(value, unit);
-                    _stateSet->setTextureAttribute(unit, value->_texture, osg::StateAttribute::ON);
-                }
-                else
-                {
-                    bool typeIsSame = false;
-                    ParameterIndex currentTypeIndex = static_cast<ParameterIndex>(findResult->second.index());
-                    if constexpr (std::is_same_v<T, bool>)
-                        typeIsSame = currentTypeIndex == ParameterIndex::Bool;
-                    else if constexpr (std::is_same_v<T, int>)
-                        typeIsSame = currentTypeIndex == ParameterIndex::Int;
-                    else if constexpr (std::is_same_v<T, float>)
-                        typeIsSame = currentTypeIndex == ParameterIndex::Float;
-                    else if constexpr (std::is_same_v<T, osg::Vec2>)
-                        typeIsSame = currentTypeIndex == ParameterIndex::Float2;
-                    else if constexpr (std::is_same_v<T, osg::Vec3>)
-                        typeIsSame = currentTypeIndex == ParameterIndex::Float3;
-                    else if constexpr (std::is_same_v<T, osg::Vec4>)
-                        typeIsSame = currentTypeIndex == ParameterIndex::Float4;
+    //    template <typename T>
+    //    void setParameter(const std::string& name, T value)
+    //    {
+    //        std::string uniformName = "u" + name;
+    //        osg::Uniform* uniform = _stateSet->getUniform(uniformName);
+    //        if (uniform)
+    //        {
+    //            if constexpr (std::is_same_v<T, TextureAsset*>)
+    //            {
 
-                    if (!typeIsSame)
-                    {
-                        // Warning: wrong parameter type
-                        return;
-                    }
+    //            }
+    //        }
 
-                    _parameters[name] = value;
-                    _stateSet->getUniform("u" + name)->set(value);
-                }
-            }
-        }
-    };
+    //        auto& findResult = _materialTemplate->_parameters.find(name);
+    //        if (findResult != _materialTemplate->_parameters.end())
+    //        {
+    //            if constexpr (std::is_same_v<T, TextureAsset*>)
+    //            {
+    //                TextureAssetAndUnit& textureAssetAndUnit = std::get<TextureAssetAndUnit>(findResult->second);
+    //                int unit = textureAssetAndUnit.second;
+    //                _parameters[name] = std::make_pair(value, unit);
+    //                _stateSet->setTextureAttribute(unit, value->_texture, osg::StateAttribute::ON);
+    //            }
+    //            else
+    //            {
+    //                bool typeIsSame = false;
+    //                ParameterIndex currentTypeIndex = static_cast<ParameterIndex>(findResult->second.index());
+    //                if constexpr (std::is_same_v<T, bool>)
+    //                    typeIsSame = currentTypeIndex == ParameterIndex::Bool;
+    //                else if constexpr (std::is_same_v<T, int>)
+    //                    typeIsSame = currentTypeIndex == ParameterIndex::Int;
+    //                else if constexpr (std::is_same_v<T, float>)
+    //                    typeIsSame = currentTypeIndex == ParameterIndex::Float;
+    //                else if constexpr (std::is_same_v<T, osg::Vec2>)
+    //                    typeIsSame = currentTypeIndex == ParameterIndex::Float2;
+    //                else if constexpr (std::is_same_v<T, osg::Vec3>)
+    //                    typeIsSame = currentTypeIndex == ParameterIndex::Float3;
+    //                else if constexpr (std::is_same_v<T, osg::Vec4>)
+    //                    typeIsSame = currentTypeIndex == ParameterIndex::Float4;
+
+    //                if (!typeIsSame)
+    //                {
+    //                    // Warning: wrong parameter type
+    //                    return;
+    //                }
+
+    //                _parameters[name] = value;
+    //                _stateSet->getUniform("u" + name)->set(value);
+    //            }
+    //        }
+    //    }
+    //};
 }

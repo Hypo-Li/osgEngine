@@ -40,7 +40,7 @@ struct AtmosphereParameters
     float ozoneThickness = 15.0f;
 }gAtmosphereParameters;
 
-struct AtmosphereShaderParameters
+struct AtmosphereParametersBuffer
 {
     osg::Vec3 rayleighScatteringBase;
     float mieScatteringBase;
@@ -55,36 +55,77 @@ struct AtmosphereShaderParameters
     osg::Vec3 sunDirection;
     float atmosphereRadius;
     osg::Vec3 sunIntensity;
-}gAtmosphereShaderParameters;
-osg::ref_ptr<osg::UniformBufferBinding> gAtmosphereShaderParametersUBB;
+}gAtmosphereParametersBuffer;
+osg::ref_ptr<osg::UniformBufferBinding> gAtmosphereParametersUBB;
 
-void calcAtmosphereShaderParameters(const AtmosphereParameters& param, AtmosphereShaderParameters& shaderParam)
+void calcAtmosphereParametersBuffer(const AtmosphereParameters& parameter, AtmosphereParametersBuffer& buffer)
 {
-    shaderParam.rayleighScatteringBase = param.rayleighScatteringCoeff * param.rayleighScatteringScale;
-    shaderParam.mieScatteringBase = param.mieScatteringBase;
-    shaderParam.ozoneAbsorptionBase = param.ozoneAbsorptionCoeff * param.ozoneAbsorptionScale;
-    shaderParam.mieAbsorptionBase = param.mieAbsorptionBase;
-    shaderParam.rayleighDensityH = param.rayleighDensityH;
-    shaderParam.mieDensityH = param.mieDensityH;
-    shaderParam.ozoneCenterHeight = param.ozoneCenterHeight;
-    shaderParam.ozoneThickness = param.ozoneThickness;
-    shaderParam.groundAlbedo = param.groundAlbedo;
-    shaderParam.groundRadius = param.groundRadius;
-    float altitude = osg::DegreesToRadians(param.solarAltitude);
-    float azimuth = osg::DegreesToRadians(param.solarAzimuth);
-    shaderParam.sunDirection = osg::Vec3(
+    buffer.rayleighScatteringBase = parameter.rayleighScatteringCoeff * parameter.rayleighScatteringScale;
+    buffer.mieScatteringBase = parameter.mieScatteringBase;
+    buffer.ozoneAbsorptionBase = parameter.ozoneAbsorptionCoeff * parameter.ozoneAbsorptionScale;
+    buffer.mieAbsorptionBase = parameter.mieAbsorptionBase;
+    buffer.rayleighDensityH = parameter.rayleighDensityH;
+    buffer.mieDensityH = parameter.mieDensityH;
+    buffer.ozoneCenterHeight = parameter.ozoneCenterHeight;
+    buffer.ozoneThickness = parameter.ozoneThickness;
+    buffer.groundAlbedo = parameter.groundAlbedo;
+    buffer.groundRadius = parameter.groundRadius;
+    float altitude = osg::DegreesToRadians(parameter.solarAltitude);
+    float azimuth = osg::DegreesToRadians(parameter.solarAzimuth);
+    buffer.sunDirection = osg::Vec3(
         std::cos(altitude) * std::sin(azimuth),
         std::cos(altitude) * std::cos(azimuth),
         std::sin(altitude)
     );
-    shaderParam.atmosphereRadius = param.atmosphereRadius;
-    shaderParam.sunIntensity = param.sunColor * param.sunIntensity;
+    buffer.atmosphereRadius = parameter.atmosphereRadius;
+    buffer.sunIntensity = parameter.sunColor * parameter.sunIntensity;
 }
 
-float cloudType = 1.0;
-osg::ref_ptr<osg::Uniform> cloudTypeUniform;
-float cloudSpeed = 0.2;
-osg::ref_ptr<osg::Uniform> cloudSpeedUnifrom;
+struct VolumetricCloudParameters
+{
+    osg::Vec3 albedo = osg::Vec3(1, 1, 1);
+    osg::Vec3 extinction = osg::Vec3(0.005, 0.005, 0.005);
+    float windSpeed = 0.0f;
+    float cloudLayerBottomRadius = 6365.0f;
+    float cloudLayerThickness = 10.0f;
+    float phaseG0 = 0.5;
+    float phaseG1 = -0.5;
+    float phaseBlend = 0.2;
+    float msScatteringFactor = 0.2;
+    float msExtinctionFactor = 0.2;
+    float msPhaseFactor = 0.2;
+}gVolumetricCloudParameters;
+
+struct VolumetricCloudParametersBuffer
+{
+    osg::Vec3 albedo;
+    float cloudLayerBottomRadius;
+    osg::Vec3 extinction;
+    float cloudLayerThickness;
+    float windSpeed;
+    float phaseG0;
+    float phaseG1;
+    float phaseBlend;
+    float msScatteringFactor;
+    float msExtinctionFactor;
+    float msPhaseFactor;
+}gVolumetricCloudParametersBuffer;
+osg::ref_ptr<osg::UniformBufferBinding> gVolumetricCloudParametersUBB;
+
+void calcVolumetricCloudParametersBuffer(const VolumetricCloudParameters& parameter, VolumetricCloudParametersBuffer& buffer)
+{
+    buffer.albedo = parameter.albedo;
+    buffer.cloudLayerBottomRadius = parameter.cloudLayerBottomRadius;
+    buffer.extinction = parameter.extinction;
+    buffer.cloudLayerThickness = parameter.cloudLayerThickness;
+    buffer.windSpeed = parameter.windSpeed;
+    buffer.phaseG0 = parameter.phaseG0;
+    buffer.phaseG1 = parameter.phaseG1;
+    buffer.phaseBlend = parameter.phaseBlend;
+    buffer.msScatteringFactor = parameter.msScatteringFactor;
+    buffer.msExtinctionFactor = parameter.msExtinctionFactor;
+    buffer.msPhaseFactor = parameter.msPhaseFactor;
+}
 
 namespace xxx
 {
@@ -105,16 +146,42 @@ namespace xxx
         if (ImGui::SliderFloat("Mie Absorption Base", &gAtmosphereParameters.mieAbsorptionBase, 0.0f, 5.0f))
             atmosphereNeedUpdate = true;
 
-        if (ImGui::SliderFloat("Cloud Type", &cloudType, 0.0f, 1.0f))
-            cloudTypeUniform->set(cloudType);
-        if (ImGui::SliderFloat("Wind Type", &cloudSpeed, 0.0f, 5.0f))
-            cloudSpeedUnifrom->set(cloudSpeed);
+        bool volumetricCloudNeedUpdate = false;
+        if (ImGui::ColorEdit3("Albedo", &gVolumetricCloudParameters.albedo.x()))
+            volumetricCloudNeedUpdate = true;
+        if (ImGui::DragFloat3("Extinction", &gVolumetricCloudParameters.extinction.x(), 0.0005, 0.0f, 1.0f, "%.6f", ImGuiSliderFlags_Logarithmic))
+            volumetricCloudNeedUpdate = true;
+        if (ImGui::SliderFloat("Cloud Layer Bottom Radius", &gVolumetricCloudParameters.cloudLayerBottomRadius, 6360.0f, 6420.0f))
+            volumetricCloudNeedUpdate = true;
+        if (ImGui::SliderFloat("Cloud Layer Thickness", &gVolumetricCloudParameters.cloudLayerThickness, 0.0f, 60.0f))
+            volumetricCloudNeedUpdate = true;
+        if (ImGui::SliderFloat("Wind Speed", &gVolumetricCloudParameters.windSpeed, 0.0f, 10.0f))
+            volumetricCloudNeedUpdate = true;
+        if (ImGui::SliderFloat("PhaseG0", &gVolumetricCloudParameters.phaseG0, -1.0f, 1.0f))
+            volumetricCloudNeedUpdate = true;
+        if (ImGui::SliderFloat("PhaseG1", &gVolumetricCloudParameters.phaseG1, -1.0f, 1.0f))
+            volumetricCloudNeedUpdate = true;
+        if (ImGui::SliderFloat("PhaseBlend", &gVolumetricCloudParameters.phaseBlend, 0.0f, 1.0f))
+            volumetricCloudNeedUpdate = true;
+        if (ImGui::SliderFloat("MS Scattering Factor", &gVolumetricCloudParameters.msScatteringFactor, 0.0f, 1.0f))
+            volumetricCloudNeedUpdate = true;
+        if (ImGui::SliderFloat("MS Extinction Factor", &gVolumetricCloudParameters.msExtinctionFactor, 0.0f, 1.0f))
+            volumetricCloudNeedUpdate = true;
+        if (ImGui::SliderFloat("MS Phase Factor", &gVolumetricCloudParameters.msPhaseFactor, 0.0f, 1.0f))
+            volumetricCloudNeedUpdate = true;
 
         if (atmosphereNeedUpdate)
         {
-            calcAtmosphereShaderParameters(gAtmosphereParameters, gAtmosphereShaderParameters);
-            osg::FloatArray* buffer = static_cast<osg::FloatArray*>(gAtmosphereShaderParametersUBB->getBufferData());
-            buffer->assign((float*)&gAtmosphereShaderParameters, (float*)(&gAtmosphereShaderParameters + 1));
+            calcAtmosphereParametersBuffer(gAtmosphereParameters, gAtmosphereParametersBuffer);
+            osg::FloatArray* buffer = static_cast<osg::FloatArray*>(gAtmosphereParametersUBB->getBufferData());
+            buffer->assign((float*)&gAtmosphereParametersBuffer, (float*)(&gAtmosphereParametersBuffer + 1));
+            buffer->dirty();
+        }
+        if (volumetricCloudNeedUpdate)
+        {
+            calcVolumetricCloudParametersBuffer(gVolumetricCloudParameters, gVolumetricCloudParametersBuffer);
+            osg::FloatArray* buffer = static_cast<osg::FloatArray*>(gVolumetricCloudParametersUBB->getBufferData());
+            buffer->assign((float*)&gVolumetricCloudParametersBuffer, (float*)(&gVolumetricCloudParametersBuffer + 1));
             buffer->dirty();
         }
 
@@ -165,11 +232,17 @@ int main()
     viewDataBuffer->setBufferObject(viewDataUBO);
     gViewDataUBB = new osg::UniformBufferBinding(0, viewDataBuffer, 0, sizeof(ViewData));
 
-    calcAtmosphereShaderParameters(gAtmosphereParameters, gAtmosphereShaderParameters);
-    osg::ref_ptr<osg::FloatArray> atmosphereShaderParametersBuffer = new osg::FloatArray((float*)&gAtmosphereShaderParameters, (float*)(&gAtmosphereShaderParameters + 1));
-    osg::ref_ptr<osg::UniformBufferObject> atmosphereShaderParametersUBO = new osg::UniformBufferObject;
-    atmosphereShaderParametersBuffer->setBufferObject(atmosphereShaderParametersUBO);
-    gAtmosphereShaderParametersUBB = new osg::UniformBufferBinding(1, atmosphereShaderParametersBuffer, 0, sizeof(AtmosphereShaderParameters));
+    calcAtmosphereParametersBuffer(gAtmosphereParameters, gAtmosphereParametersBuffer);
+    osg::ref_ptr<osg::FloatArray> atmosphereParametersArray = new osg::FloatArray((float*)&gAtmosphereParametersBuffer, (float*)(&gAtmosphereParametersBuffer + 1));
+    osg::ref_ptr<osg::UniformBufferObject> atmosphereParametersUBO = new osg::UniformBufferObject;
+    atmosphereParametersArray->setBufferObject(atmosphereParametersUBO);
+    gAtmosphereParametersUBB = new osg::UniformBufferBinding(1, atmosphereParametersArray, 0, sizeof(AtmosphereParametersBuffer));
+
+    calcVolumetricCloudParametersBuffer(gVolumetricCloudParameters, gVolumetricCloudParametersBuffer);
+    osg::ref_ptr<osg::FloatArray> volumetricCloudParametersArray = new osg::FloatArray((float*)&gVolumetricCloudParametersBuffer, (float*)(&gVolumetricCloudParametersBuffer + 1));
+    osg::ref_ptr<osg::UniformBufferObject> volumetricCloudParametersUBO = new osg::UniformBufferObject;
+    volumetricCloudParametersArray->setBufferObject(volumetricCloudParametersUBO);
+    gVolumetricCloudParametersUBB = new osg::UniformBufferBinding(2, volumetricCloudParametersArray, 0, sizeof(VolumetricCloudParametersBuffer));
 
     const int width = 1024, height = 1024;
     osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits();
@@ -265,7 +338,7 @@ int main()
     transmittanceLutDispatch->setCullingActive(false);
     transmittanceLutDispatch->getOrCreateStateSet()->setAttribute(transmittanceLutProgram, osg::StateAttribute::ON);
     transmittanceLutDispatch->getOrCreateStateSet()->setAttribute(transmittanceLutImage, osg::StateAttribute::ON);
-    transmittanceLutDispatch->getOrCreateStateSet()->setAttribute(gAtmosphereShaderParametersUBB, osg::StateAttribute::ON);
+    transmittanceLutDispatch->getOrCreateStateSet()->setAttribute(gAtmosphereParametersUBB, osg::StateAttribute::ON);
     rootGroup->addChild(transmittanceLutDispatch);
 
     osg::ref_ptr<osg::Texture2D> multiScatteringLutTexture = new osg::Texture2D;
@@ -284,7 +357,7 @@ int main()
     multiScatteringLutDispatch->setCullingActive(false);
     multiScatteringLutDispatch->getOrCreateStateSet()->setAttribute(multiScatteringLutProgram, osg::StateAttribute::ON);
     multiScatteringLutDispatch->getOrCreateStateSet()->setAttribute(multiScatteringLutImage, osg::StateAttribute::ON);
-    multiScatteringLutDispatch->getOrCreateStateSet()->setAttribute(gAtmosphereShaderParametersUBB, osg::StateAttribute::ON);
+    multiScatteringLutDispatch->getOrCreateStateSet()->setAttribute(gAtmosphereParametersUBB, osg::StateAttribute::ON);
     multiScatteringLutDispatch->getOrCreateStateSet()->addUniform(new osg::Uniform("uTransmittanceLutTexture", 0));
     multiScatteringLutDispatch->getOrCreateStateSet()->setTextureAttribute(0, transmittanceLutTexture, osg::StateAttribute::ON);
     rootGroup->addChild(multiScatteringLutDispatch);
@@ -303,7 +376,7 @@ int main()
     distantSkyLightLutDispatch->setCullingActive(false);
     distantSkyLightLutDispatch->getOrCreateStateSet()->setAttribute(distantSkyLightLutProgram, osg::StateAttribute::ON);
     distantSkyLightLutDispatch->getOrCreateStateSet()->setAttribute(distantSkyLightLutImage, osg::StateAttribute::ON);
-    distantSkyLightLutDispatch->getOrCreateStateSet()->setAttribute(gAtmosphereShaderParametersUBB, osg::StateAttribute::ON);
+    distantSkyLightLutDispatch->getOrCreateStateSet()->setAttribute(gAtmosphereParametersUBB, osg::StateAttribute::ON);
     distantSkyLightLutDispatch->getOrCreateStateSet()->addUniform(new osg::Uniform("uTransmittanceLutTexture", 0));
     distantSkyLightLutDispatch->getOrCreateStateSet()->setTextureAttribute(0, transmittanceLutTexture, osg::StateAttribute::ON);
     distantSkyLightLutDispatch->getOrCreateStateSet()->addUniform(new osg::Uniform("uMultiScatteringLutTexture", 1));
@@ -327,7 +400,7 @@ int main()
     skyViewLutDispatch->getOrCreateStateSet()->setAttribute(skyViewLutProgram, osg::StateAttribute::ON);
     skyViewLutDispatch->getOrCreateStateSet()->setAttribute(skyViewLutImage, osg::StateAttribute::ON);
     skyViewLutDispatch->getOrCreateStateSet()->setAttribute(gViewDataUBB, osg::StateAttribute::ON);
-    skyViewLutDispatch->getOrCreateStateSet()->setAttribute(gAtmosphereShaderParametersUBB, osg::StateAttribute::ON);
+    skyViewLutDispatch->getOrCreateStateSet()->setAttribute(gAtmosphereParametersUBB, osg::StateAttribute::ON);
     skyViewLutDispatch->getOrCreateStateSet()->addUniform(new osg::Uniform("uTransmittanceLutTexture", 0));
     skyViewLutDispatch->getOrCreateStateSet()->setTextureAttribute(0, transmittanceLutTexture, osg::StateAttribute::ON);
     skyViewLutDispatch->getOrCreateStateSet()->addUniform(new osg::Uniform("uMultiScatteringLutTexture", 1));
@@ -352,7 +425,7 @@ int main()
     aerialPerspectiveLutDispatch->getOrCreateStateSet()->setAttribute(aerialPerspectiveLutProgram, osg::StateAttribute::ON);
     aerialPerspectiveLutDispatch->getOrCreateStateSet()->setAttribute(aerialPerspectiveLutImage, osg::StateAttribute::ON);
     aerialPerspectiveLutDispatch->getOrCreateStateSet()->setAttribute(gViewDataUBB, osg::StateAttribute::ON);
-    aerialPerspectiveLutDispatch->getOrCreateStateSet()->setAttribute(gAtmosphereShaderParametersUBB, osg::StateAttribute::ON);
+    aerialPerspectiveLutDispatch->getOrCreateStateSet()->setAttribute(gAtmosphereParametersUBB, osg::StateAttribute::ON);
     aerialPerspectiveLutDispatch->getOrCreateStateSet()->addUniform(new osg::Uniform("uTransmittanceLutTexture", 0));
     aerialPerspectiveLutDispatch->getOrCreateStateSet()->setTextureAttribute(0, transmittanceLutTexture, osg::StateAttribute::ON);
     aerialPerspectiveLutDispatch->getOrCreateStateSet()->addUniform(new osg::Uniform("uMultiScatteringLutTexture", 1));
@@ -397,26 +470,20 @@ int main()
 
     osg::ref_ptr<osg::Program> volumetricCloudProgram = new osg::Program;
     volumetricCloudProgram->addShader(screenQuadVertexShader);
-    volumetricCloudProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "VolumetricCloud/RayMarching2.frag.glsl"));
+    volumetricCloudProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "VolumetricCloud/RayMarching3.frag.glsl"));
     osg::ref_ptr<xxx::Pipeline::Pass> volumetricCloudPass = pipeline->addWorkPass("VolumetricCloud", volumetricCloudProgram);
     volumetricCloudPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA32F);
-    volumetricCloudPass->applyTexture(cloudMapTexture, "uCloudMapTexture", 0);
+    volumetricCloudPass->applyTexture(inputPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uDepthTexture", 0);
     volumetricCloudPass->applyTexture(basicNoiseTexture, "uBasicNoiseTexture", 1);
     volumetricCloudPass->applyTexture(detailNoiseTexture, "uDetailNoiseTexture", 2);
-    volumetricCloudPass->applyTexture(transmittanceLutTexture, "uTransmittanceLutTexture", 3);
-    volumetricCloudPass->applyTexture(multiScatteringLutTexture, "uMultiScatteringLutTexture", 4);
-    volumetricCloudPass->applyTexture(skyViewLutTexture, "uSkyViewLutTexture", 5);
+    volumetricCloudPass->applyTexture(cloudMapTexture, "uCloudMapTexture", 3);
+    volumetricCloudPass->applyTexture(transmittanceLutTexture, "uTransmittanceLutTexture", 4);
+    volumetricCloudPass->applyTexture(distantSkyLightLutTexture, "uDistantSkyLightLutTexture", 5);
     volumetricCloudPass->applyTexture(aerialPerspectiveLutTexture, "uAerialPerspectiveLutTexture", 6);
     volumetricCloudPass->applyTexture(blueNoiseTexture, "uBlueNoiseTexture", 7);
-    volumetricCloudPass->applyTexture(distantSkyLightLutTexture, "uDistantSkyLightLutTexture", 8);
     volumetricCloudPass->setAttribute(gViewDataUBB);
-    volumetricCloudPass->setAttribute(gAtmosphereShaderParametersUBB);
-
-    cloudTypeUniform = new osg::Uniform("uCloudType", cloudType);
-    volumetricCloudPass->applyUniform(cloudTypeUniform);
-
-    cloudSpeedUnifrom = new osg::Uniform("uWindSpeed", cloudSpeed);
-    volumetricCloudPass->applyUniform(cloudSpeedUnifrom);
+    volumetricCloudPass->setAttribute(gAtmosphereParametersUBB);
+    volumetricCloudPass->setAttribute(gVolumetricCloudParametersUBB);
 
     osg::ref_ptr<osg::Program> colorGradingProgram = new osg::Program;
     colorGradingProgram->addShader(screenQuadVertexShader);
