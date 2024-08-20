@@ -2906,7 +2906,7 @@ bool FileExists(const std::string &abs_filename, void *) {
   bool ret;
 #ifdef TINYGLTF_ANDROID_LOAD_FROM_ASSETS
   if (asset_manager) {
-    AAsset *asset = AAssetManager_open(asset_manager, abs_filename.c_str(),
+    Asset *asset = AAssetManager_open(asset_manager, abs_filename.c_str(),
                                        AASSET_MODE_STREAMING);
     if (!asset) {
       return false;
@@ -3039,7 +3039,7 @@ bool GetFileSizeInBytes(size_t *filesize_out, std::string *err,
 
 #ifdef TINYGLTF_ANDROID_LOAD_FROM_ASSETS
   if (asset_manager) {
-    AAsset *asset = AAssetManager_open(asset_manager, filepath.c_str(),
+    Asset *asset = AAssetManager_open(asset_manager, filepath.c_str(),
                                        AASSET_MODE_STREAMING);
     if (!asset) {
       if (err) {
@@ -3133,7 +3133,7 @@ bool ReadWholeFile(std::vector<unsigned char> *out, std::string *err,
                    const std::string &filepath, void *) {
 #ifdef TINYGLTF_ANDROID_LOAD_FROM_ASSETS
   if (asset_manager) {
-    AAsset *asset = AAssetManager_open(asset_manager, filepath.c_str(),
+    Asset *asset = AAssetManager_open(asset_manager, filepath.c_str(),
                                        AASSET_MODE_STREAMING);
     if (!asset) {
       if (err) {

@@ -117,7 +117,7 @@ namespace xxx
 			}
 		};
 
-        void drawMeshRendererInspector(MeshRenderer* meshRenderer)
+        void drawMeshRendererInspector(CMeshRenderer* meshRenderer)
         {
             static std::string paths[] = {
                 "Texture/AwesomeFace",
@@ -134,14 +134,14 @@ namespace xxx
                 {
                     if (ImGui::TreeNode(("Material" + std::to_string(i)).c_str()))
                     {
-                        MaterialAsset* material = meshRenderer->getMaterial(i);
+                        AMaterial* material = meshRenderer->getMaterial(i);
                         ImGui::Text(material->getPath().c_str());
 
-                        MaterialTemplateAsset* materialTemplate;
+                        AMaterialTemplate* materialTemplate;
                         if (material->getType() == Asset::Type::MaterialTemplate)
-                            materialTemplate = reinterpret_cast<MaterialTemplateAsset*>(material);
+                            materialTemplate = reinterpret_cast<AMaterialTemplate*>(material);
                         else if (material->getType() == Asset::Type::MaterialInstance)
-                            materialTemplate = dynamic_cast<MaterialInstanceAsset*>(material)->getMaterialTemplate();
+                            materialTemplate = dynamic_cast<AMaterialInstance*>(material)->getMaterialTemplate();
 
                         auto itr = materialTemplate->_parameters.begin();
                         uint32_t buttonId = 0;
@@ -149,60 +149,60 @@ namespace xxx
                         {
                             switch (itr->second.index())
                             {
-                            case size_t(MaterialTemplateAsset::ParameterIndex::Bool):
+                            case size_t(AMaterialTemplate::ParameterIndex::Bool):
                             {
                                 bool boolValue = std::get<bool>(itr->second);
                                 if (ImGui::Checkbox(itr->first.c_str(), &boolValue))
                                     materialTemplate->setParameter(itr->first, boolValue);
                                 break;
                             }
-                            case size_t(MaterialTemplateAsset::ParameterIndex::Int):
+                            case size_t(AMaterialTemplate::ParameterIndex::Int):
                             {
                                 int intValue = std::get<int>(itr->second);
                                 if (ImGui::DragInt(itr->first.c_str(), &intValue))
                                     materialTemplate->setParameter(itr->first, intValue);
                                 break;
                             }
-                            case size_t(MaterialTemplateAsset::ParameterIndex::Float):
+                            case size_t(AMaterialTemplate::ParameterIndex::Float):
                             {
                                 float floatValue = std::get<float>(itr->second);
                                 if (ImGui::DragFloat(itr->first.c_str(), &floatValue))
                                     materialTemplate->setParameter(itr->first, floatValue);
                                 break;
                             }
-                            case size_t(MaterialTemplateAsset::ParameterIndex::Float2):
+                            case size_t(AMaterialTemplate::ParameterIndex::Float2):
                             {
                                 osg::Vec2 float2Value = std::get<osg::Vec2>(itr->second);
                                 if (ImGui::DragFloat2(itr->first.c_str(), &float2Value.x()))
                                     materialTemplate->setParameter(itr->first, float2Value);
                                 break;
                             }
-                            case size_t(MaterialTemplateAsset::ParameterIndex::Float3):
+                            case size_t(AMaterialTemplate::ParameterIndex::Float3):
                             {
                                 osg::Vec3 float3Value = std::get<osg::Vec3>(itr->second);
                                 if (ImGui::ColorEdit3(itr->first.c_str(), &float3Value.x()))
                                     materialTemplate->setParameter(itr->first, float3Value);
                                 break;
                             }
-                            case size_t(MaterialTemplateAsset::ParameterIndex::Float4):
+                            case size_t(AMaterialTemplate::ParameterIndex::Float4):
                             {
                                 osg::Vec4 float4Value = std::get<osg::Vec4>(itr->second);
                                 if (ImGui::ColorEdit4(itr->first.c_str(), &float4Value.x()))
                                     materialTemplate->setParameter(itr->first, float4Value);
                                 break;
                             }
-                            case size_t(MaterialTemplateAsset::ParameterIndex::Texture):
+                            case size_t(AMaterialTemplate::ParameterIndex::Texture):
                             {
-                                using TextureAssetAndUnit = MaterialTemplateAsset::TextureAssetAndUnit;
-                                TextureAssetAndUnit& textureAssetAndUnit = std::get<TextureAssetAndUnit>(itr->second);
+                                using TextureAndUnit = AMaterialTemplate::TextureAndUnit;
+                                TextureAndUnit& textureAndUnit = std::get<TextureAndUnit>(itr->second);
 
-                                if (ImGui::BeginCombo(itr->first.c_str(), textureAssetAndUnit.first->getPath().c_str()))
+                                if (ImGui::BeginCombo(itr->first.c_str(), textureAndUnit.first->getPath().c_str()))
                                 {
                                     for (int n = 0; n < IM_ARRAYSIZE(paths); ++n)
                                     {
-                                        const bool is_selected = (textureAssetAndUnit.first->getPath() == paths[n]);
+                                        const bool is_selected = (textureAndUnit.first->getPath() == paths[n]);
                                         if (ImGui::Selectable(paths[n].c_str(), is_selected))
-                                            materialTemplate->setParameter(itr->first, xxx::AssetManager::loadAsset<xxx::TextureAsset>(paths[n]));
+                                            materialTemplate->setParameter(itr->first, xxx::AssetManager::loadAsset<xxx::ATexture>(paths[n]));
 
                                         // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
                                         if (is_selected)
@@ -211,7 +211,7 @@ namespace xxx
                                     ImGui::EndCombo();
                                 }
 
-                                //ImGui::Text(textureAssetAndUnit.first->getPath().c_str());
+                                //ImGui::Text(textureAndUnit.first->getPath().c_str());
                                 break;
                             }
                             default:
@@ -336,7 +336,7 @@ namespace xxx
                     {
                         Component* component = activedEntity->getComponent(i);
                         if (component->getType() == Component::Type::MeshRenderer)
-                            drawMeshRendererInspector(dynamic_cast<MeshRenderer*>(component));
+                            drawMeshRendererInspector(dynamic_cast<CMeshRenderer*>(component));
                     }
                 }
                 
