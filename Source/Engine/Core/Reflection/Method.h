@@ -1,7 +1,7 @@
 #pragma once
 #include "Type.h"
-#include "Any.h"
 #include "Argument.h"
+#include "Metadata.h"
 
 #include <array>
 #include <vector>
@@ -31,7 +31,7 @@ namespace xxx::refl
         static constexpr bool is_const = true;
     };
 
-    class Method
+    class Method : public MetadataBase
     {
     public:
         Method(std::string_view name) : mName(name) {}

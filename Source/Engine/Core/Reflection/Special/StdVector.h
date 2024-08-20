@@ -45,7 +45,6 @@ namespace xxx::refl
 
         virtual void appendElement(void* vector, Argument newElement) const override
         {
-            //if constexpr (std::is_base_of_v<Object, std::remove_pointer_t<ElementType>>)
             static_cast<std::vector<ElementType>*>(vector)->emplace_back(newElement.getValue<ElementType>());
         }
 

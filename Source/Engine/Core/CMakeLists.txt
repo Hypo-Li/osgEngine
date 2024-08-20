@@ -29,4 +29,4 @@ add_library (
     "Context.h"
 
     "Serialization/Serializer.h"
-)
+ "Reflection/Metadata.h")

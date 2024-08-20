@@ -61,12 +61,7 @@ namespace xxx::refl
                 delete mWrapper;
         }
 
-        AnyWrapper* getWrapper() const
-        {
-            return mWrapper;
-        }
-
-        bool isValid() const
+        operator bool()
         {
             return mWrapper != nullptr;
         }

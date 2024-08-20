@@ -3,12 +3,16 @@
 
 namespace xxx::refl
 {
+    template <typename T>
+    class AnyWrapperInstance;
     template <typename ClassType, typename ObjectType>
     class PropertyInstance;
     template <typename T, std::enable_if_t<std::is_member_function_pointer_v<T>, int>>
     class MethodInstance;
 	class Type
 	{
+        template <typename T>
+        friend class AnyWrapperInstance;
         template <typename ClassType, typename ObjectType>
         friend class PropertyInstance;
         template <typename T, std::enable_if_t<std::is_member_function_pointer_v<T>, int>>

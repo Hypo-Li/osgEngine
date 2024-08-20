@@ -1,5 +1,6 @@
 #include "Engine/Core/Entity.h"
 #include "Engine/Core/Component.h"
+#include "Engine/Render/Shader.h"
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
@@ -39,24 +40,14 @@ namespace xxx::refl
         clazz->setBaseClass(dynamic_cast<Class*>(Reflection::getType<Object>()));
         Property* propObjects = clazz->addProperty("Objects", &Test::mObjects);
         Property* propVec2 = clazz->addProperty("Vec2", &Test::mVec2);
+        propVec2->addMetadata(MetaKey::ClampMin, 0);
+        propVec2->addMetadata(MetaKey::ClampMax, 1.0f);
+        propVec2->addMetadata(MetaKey::DisplayName, "MyVec2");
+        propVec2->addMetadata(MetaKey::ToolTip, "This is a demo vec2");
         sRegisteredClassMap.emplace("Test", clazz);
         return clazz;
     }
 
-    template <>
-    inline Type* Reflection::createType<osg::Vec2f>()
-    {
-        Struct* structure = new Struct("osg::Vec2f", sizeof(osg::Vec2f));
-        structure->addProperty("x",
-            std::function<void(osg::Vec2f&, float&)>([](osg::Vec2& obj, float& v) { v = obj._v[0]; }),
-            std::function<void(osg::Vec2f&, const float&)>([](osg::Vec2& obj, const float& v) {obj._v[0] = v; })
-        );
-        structure->addProperty("y",
-            std::function<void(osg::Vec2f&, float&)>([](osg::Vec2& obj, float& v) { v = obj._v[1]; }),
-            std::function<void(osg::Vec2f&, const float&)>([](osg::Vec2& obj, const float& v) {obj._v[1] = v; })
-        );
-        return structure;
-    }
 }
 
 void outputPropertiesInfo(Class* clazz)
@@ -73,6 +64,9 @@ int main()
 {
     Class* testClass = dynamic_cast<Class*>(Reflection::getType<Test>());
     Property* propObjects = testClass->getProperty("Objects");
+    Property* propVec2 = testClass->getProperty("Vec2");
+    std::optional<std::string_view> displayName = propVec2->getMetadata<std::string_view>(MetaKey::DisplayName);
+    std::optional<std::string_view> category = propVec2->getMetadata<std::string_view>(MetaKey::Category);
     StdVector* stdVectorObjects = dynamic_cast<StdVector*>(propObjects->getType());
     
     Object* obj = new Object;
@@ -90,6 +84,11 @@ int main()
     propX->getValue(&v, &x);
     propX->setValue(&v, x + 1.0f);
     void* ptr = propX->getValuePtr(&v);
+
+    Any any = 0.0f;
+
+    Type* classShader = Reflection::getType<Shader>();
+    Type* classTexture = Reflection::getType<Texture>();
 
     outputPropertiesInfo(testClass);
 

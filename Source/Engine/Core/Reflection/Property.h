@@ -1,7 +1,7 @@
 #pragma once
 #include "Type.h"
-#include "Any.h"
 #include "Argument.h"
+#include "Metadata.h"
 
 #include <functional>
 
@@ -17,7 +17,7 @@ namespace xxx::refl
         using object_type = Object;
     };
 
-	class Property
+	class Property : public MetadataBase
 	{
 	public:
         Property(std::string_view name) : mName(name) {}
@@ -50,9 +50,15 @@ namespace xxx::refl
         using SetterType = std::function<void(ClassType&, const ObjectType&)>;
     public:
         PropertyInstance(std::string_view name, PropertyType property) :
+#ifdef _DEBUG
+            mType(Type::getType<ObjectType>()),
+#endif
             Property(name),
             mProperty(property) {}
         PropertyInstance(std::string_view name, GetterType getter, SetterType setter) :
+#ifdef _DEBUG
+            mType(Type::getType<ObjectType>()),
+#endif
             Property(name),
             mProperty(nullptr),
             mGetter(getter),
@@ -105,5 +111,8 @@ namespace xxx::refl
         PropertyType mProperty;
         GetterType mGetter;
         SetterType mSetter;
+#ifdef _DEBUG
+        Type* mType;
+#endif
     };
 }
