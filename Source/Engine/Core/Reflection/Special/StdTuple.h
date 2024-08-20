@@ -20,7 +20,7 @@ namespace xxx::refl
 
     class Reflection;
     template <typename T, std::enable_if_t<is_instance_of_v<T, std::tuple>, int> = 0>
-    class StdTupleInstance : public Special
+    class StdTupleInstance : public StdTuple
     {
         friend class Reflection;
         static constexpr size_t ElementCount = std::tuple_size_v<T>;
@@ -55,9 +55,24 @@ namespace xxx::refl
         }
 
     protected:
+        template <std::size_t... Is>
+        std::string createTupleArgsString(std::index_sequence<Is...>)
+        {
+            std::string result;
+            std::vector<std::string_view> typeNames = { Reflection::getType<std::tuple_element_t<Is, T>>()->getName()... };
+            for (uint32_t i = 0; i < typeNames.size(); ++i)
+            {
+                result += typeNames[i];
+                if (i != typeNames.size() - 1)
+                    result += ", ";
+            }
+            return result;
+        }
+
         StdTupleInstance()
         {
-            mName = typeid(T).name();
+            static std::string name = "std::tuple<" + createTupleArgsString(std::make_index_sequence<std::tuple_size_v<T>>{}) + ">";
+            mName = name; // typeid(T).name();
             mSize = sizeof(T);
         }
     };

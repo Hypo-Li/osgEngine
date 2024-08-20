@@ -21,17 +21,6 @@ namespace xxx
         Texture();
         virtual ~Texture();
 
-        virtual void serialize(Serializer& serializer)
-        {
-            serializer << Tag::FieldBegin{ "Type" } << mType << Tag::FieldEnd{};
-            serializer << Tag::FieldBegin{ "Width" } << mWidth << Tag::FieldEnd{};
-            serializer << Tag::FieldBegin{ "Height" } << mHeight << Tag::FieldEnd{};
-            serializer << Tag::FieldBegin{ "Depth" } << mDepth << Tag::FieldEnd{};
-            serializer << Tag::FieldBegin{ "Format" } << mFormat << Tag::FieldEnd{};
-            serializer << Tag::FieldBegin{ "PixelFormat" } << mPixelFormat << Tag::FieldEnd{};
-            serializer << Tag::FieldBegin{ "PixelType" } << mPixelType << Tag::FieldEnd{};
-        }
-
     private:
         Type mType;
         int mWidth, mHeight, mDepth;

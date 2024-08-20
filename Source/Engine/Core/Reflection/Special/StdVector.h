@@ -58,7 +58,8 @@ namespace xxx::refl
     protected:
         StdVectorInstance()
         {
-            mName = typeid(std::vector<ElementType>).name();
+            static std::string name = "std::vector<" + std::string(Reflection::getType<ElementType>()->getName()) + ">";
+            mName = name; // typeid(std::vector<ElementType>).name();
             mSize = sizeof(std::vector<ElementType>);
         }
     };

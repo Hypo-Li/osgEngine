@@ -34,6 +34,14 @@ namespace xxx::refl
             return newProperty;
         }
 
+        template <typename Getter, typename Setter>
+        Property* addProperty(std::string_view name, Getter getter, Setter setter)
+        {
+            Property* newProperty = new PropertyInstance(name, getter, setter);
+            mProperties.push_back(newProperty);
+            return newProperty;
+        }
+
     private:
         Struct(std::string_view name, size_t size) : Type(name, size) {}
         virtual ~Struct() = default;

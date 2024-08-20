@@ -64,7 +64,8 @@ namespace xxx::refl
     protected:
         StdSetInstance()
         {
-            mName = typeid(std::set<ElementType>).name();
+            static std::string name = "std::set<" + std::string(Reflection::getType<ElementType>()->getName()) + ">";
+            mName = name; // typeid(std::set<ElementType>).name();
             mSize = sizeof(std::set<ElementType>);
         }
     };

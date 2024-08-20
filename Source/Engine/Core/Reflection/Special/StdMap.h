@@ -79,7 +79,8 @@ namespace xxx::refl
     protected:
         StdMapInstance()
         {
-            mName = typeid(std::map<KeyType, ValueType>).name();
+            static std::string name = "std::map<" + std::string(Reflection::getType<KeyType>()->getName()) + ", " + std::string(Reflection::getType<ValueType>()->getName()) + ">";
+            mName = name; // typeid(std::map<KeyType, ValueType>).name();
             mSize = sizeof(std::map<KeyType, ValueType>);
         }
     };

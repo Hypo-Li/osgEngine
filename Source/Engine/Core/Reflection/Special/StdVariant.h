@@ -55,9 +55,24 @@ namespace xxx::refl
         }
 
     protected:
+        template <std::size_t... Is>
+        std::string createVariantArgsString(std::index_sequence<Is...>)
+        {
+            std::string result;
+            std::vector<std::string_view> typeNames = { Reflection::getType<std::variant_alternative_t<Is, T>>()->getName()... };
+            for (uint32_t i = 0; i < typeNames.size(); ++i)
+            {
+                result += typeNames[i];
+                if (i != typeNames.size() - 1)
+                    result += ", ";
+            }
+            return result;
+        }
+
         StdVariantInstance()
         {
-            mName = typeid(T).name();
+            static std::string name = "std::variant<" + createVariantArgsString(std::make_index_sequence<std::variant_size_v<T>>{}) + ">";
+            mName = name; // typeid(T).name();
             mSize = sizeof(T);
         }
     };

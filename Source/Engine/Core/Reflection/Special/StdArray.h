@@ -43,7 +43,8 @@ namespace xxx::refl
     protected:
         StdArrayInstance()
         {
-            mName = typeid(std::array<ElementType, ElementCount>).name();
+            static std::string name = "std::array<" + std::string(Reflection::getType<ElementType>()->getName()) + ", " + std::to_string(ElementCount) + ">";
+            mName = name; // typeid(std::array<ElementType, ElementCount>).name();
             mSize = sizeof(std::array<ElementType, ElementCount>);
         }
         virtual ~StdArrayInstance() = default;

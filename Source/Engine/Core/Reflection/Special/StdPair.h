@@ -49,7 +49,8 @@ namespace xxx::refl
     protected:
         StdPairInstance()
         {
-            mName = typeid(std::pair<FirstType, SecondType>).name();
+            static std::string name = "std::pair<" + std::string(Reflection::getType<FirstType>()->getName()) + ", " + std::string(Reflection::getType<SecondType>()->getName()) + ">";
+            mName = name; // typeid(std::pair<FirstType, SecondType>).name();
             mSize = sizeof(std::pair<FirstType, SecondType>);
         }
     };

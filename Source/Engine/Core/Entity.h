@@ -32,6 +32,11 @@ namespace xxx
         {
             return static_cast<refl::Class*>(refl::Reflection::getType<Entity>());
         }
+        static const Entity* getDefaultObject()
+        {
+            static osg::ref_ptr<Entity> defaultEntity = new Entity;
+            return defaultEntity.get();
+        }
 
 	public:
 		Entity(std::string&& name = "");
