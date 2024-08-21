@@ -52,6 +52,11 @@ namespace xxx::refl
             return mConstructor();
         }
 
+        const xxx::Object* getDefaultObject() const
+        {
+            return mDefaultObject;
+        }
+
     protected:
         void setBaseClass(Class* baseClass)
         {
@@ -76,12 +81,18 @@ namespace xxx::refl
 
     private:
         using Constructor = std::function<xxx::Object* (void)>;
-        Class(std::string_view name, size_t size, Constructor constructor) : Type(name, size), mBaseClass(nullptr), mConstructor(constructor) {}
+        Class(std::string_view name, size_t size, Constructor constructor) :
+            Type(name, size),
+            mBaseClass(nullptr),
+            mConstructor(constructor),
+            mDefaultObject(constructor())
+        {}
         virtual ~Class() = default;
 
         Class* mBaseClass;
         std::vector<Property*> mProperties;
         std::vector<Method*> mMethods;
         Constructor mConstructor;
+        const xxx::Object* mDefaultObject;
 	};
 }

@@ -18,11 +18,6 @@ namespace xxx
         {
             return static_cast<refl::Class*>(refl::Reflection::getType<Shader>());
         }
-        static const Shader* getDefaultObject()
-        {
-            static osg::ref_ptr<Shader> defaultObject = new Shader;
-            return defaultObject.get();
-        }
     public:
         Shader() = default;
 

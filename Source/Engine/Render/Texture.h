@@ -8,14 +8,6 @@
 
 namespace xxx
 {
-    enum TextureType : uint8_t
-    {
-        Texture2D,
-        Texture2DArray,
-        Texture3D,
-        TextureCubemap,
-    };
-
     class Texture : public Object
     {
         friend class refl::Reflection;
@@ -28,17 +20,11 @@ namespace xxx
         {
             return static_cast<refl::Class*>(refl::Reflection::getType<Texture>());
         }
-        static const Texture* getDefaultObject()
-        {
-            static osg::ref_ptr<Texture> defaultObject = new Texture;
-            return defaultObject.get();
-        }
     public:
         Texture() = default;
         virtual ~Texture() = default;
 
-    private:
-        TextureType mType;
+    protected:
         int mWidth, mHeight, mDepth;
         GLenum mFormat;
         GLenum mPixelFormat;
@@ -49,29 +35,19 @@ namespace xxx
         osg::ref_ptr<osg::Texture> mOsgTexture;
     };
 
+    class Texture2D : public Texture
+    {
+    public:
+
+    };
+
     namespace refl
     {
-        template <>
-        inline Type* Reflection::createType<TextureType>()
-        {
-            Enum* enumerate = new Enum("TextureType", sizeof(TextureType));
-            enumerate->setValues<TextureType>(
-                {
-                    {"Texture2D", TextureType::Texture2D},
-                    {"Texture2DArray", TextureType::Texture2DArray},
-                    {"Texture3D", TextureType::Texture3D},
-                    {"TextureCubemap", TextureType::TextureCubemap}
-                }
-            );
-            return enumerate;
-        }
-
         template <>
         inline Type* Reflection::createType<Texture>()
         {
             Class* clazz = new Class("Texture", sizeof(Texture), Texture::createInstance);
             clazz->setBaseClass(dynamic_cast<Class*>(Reflection::getType<Object>()));
-            Property* propType = clazz->addProperty("Type", &Texture::mType);
             Property* propWidth = clazz->addProperty("Width", &Texture::mWidth);
             Property* propHeight = clazz->addProperty("Height", &Texture::mHeight);
             Property* propFormat = clazz->addProperty("Format", &Texture::mFormat);

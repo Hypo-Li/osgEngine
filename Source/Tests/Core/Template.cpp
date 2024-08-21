@@ -1,7 +1,12 @@
-#include <Core/Render/Pipeline.h>
+#include <Engine/Render/Pipeline.h>
 #include <osgViewer/Viewer>
 #include <osgDB/ReadFile>
 #include <osgGA/TrackballManipulator>
+
+osg::Geode* createGeode()
+{
+
+}
 
 int test()
 {

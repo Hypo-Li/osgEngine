@@ -56,6 +56,12 @@ namespace xxx::refl
             return getOrCreateType<_T>();
         }
 
+        template <typename T>
+        static Class* getClass()
+        {
+            return dynamic_cast<Class*>(getType<T>());
+        }
+
         static Class* getClassByName(std::string_view name)
         {
             auto findResult = sRegisteredClassMap.find(name);

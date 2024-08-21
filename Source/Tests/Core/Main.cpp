@@ -21,11 +21,6 @@ public:
     {
         return static_cast<refl::Class*>(refl::Reflection::getType<Test>());
     }
-    static const Test* getDefaultObject()
-    {
-        static osg::ref_ptr<Test> defaultTest = new Test;
-        return defaultTest.get();
-    }
 public:
     std::vector<Object*> mObjects;
     osg::Vec2f mVec2;
@@ -68,7 +63,8 @@ int main()
     std::optional<std::string_view> displayName = propVec2->getMetadata<std::string_view>(MetaKey::DisplayName);
     std::optional<std::string_view> category = propVec2->getMetadata<std::string_view>(MetaKey::Category);
     StdVector* stdVectorObjects = dynamic_cast<StdVector*>(propObjects->getType());
-    
+
+    const Object* testDefaultObject = testClass->getDefaultObject();
     Object* obj = new Object;
     Test t;
     stdVectorObjects->appendElement(propObjects->getValuePtr(&t), obj);
@@ -87,8 +83,11 @@ int main()
 
     Any any = 0.0f;
 
-    Type* classShader = Reflection::getType<Shader>();
-    Type* classTexture = Reflection::getType<Texture>();
+    Class* classShader = Reflection::getClass<Shader>();
+    Class* classTexture = Reflection::getClass<Texture>();
+
+    const Object* shaderDefaultObject = classShader->getDefaultObject();
+    const Object* textureDefaultObject = classTexture->getDefaultObject();
 
     outputPropertiesInfo(testClass);
 

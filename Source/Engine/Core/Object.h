@@ -5,8 +5,6 @@
 #include <osg/Referenced>
 #include <osg/ref_ptr>
 
-#include <objbase.h>
-
 namespace xxx
 {
     struct Guid
@@ -25,15 +23,10 @@ namespace xxx
             return A != rhs.A || B != rhs.B || C != rhs.C || D != rhs.D;
         }
 
-        static Guid newGuid()
-        {
-            Guid result;
-            if (CoCreateGuid((GUID*)&result) == S_OK)
-                return result;
-            return result;
-        }
+        static Guid newGuid();
     };
 
+    class Asset;
     class Object : public osg::Referenced
     {
         friend class refl::Reflection;
@@ -45,11 +38,6 @@ namespace xxx
         virtual refl::Class* getClass() const
         {
             return static_cast<refl::Class*>(refl::Reflection::getType<Object>());
-        }
-        static const Object* getDefaultObject()
-        {
-            static osg::ref_ptr<Object> defaultObject = new Object;
-            return defaultObject.get();
         }
 
     public:
@@ -64,6 +52,7 @@ namespace xxx
 
     private:
         Guid mGuid;
+        //osg::ref_ptr<Asset> mOwnerAsset;
     };
 
     namespace refl

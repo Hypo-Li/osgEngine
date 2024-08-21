@@ -15,10 +15,6 @@ namespace xxx
         {
             return static_cast<refl::Class*>(refl::Reflection::getType<Component>());
         }
-        static const Component* getDefaultObject()
-        {
-            return nullptr;
-        }
 
     private:
         friend class Entity;

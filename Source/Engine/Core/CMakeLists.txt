@@ -29,4 +29,4 @@ add_library (
     "Context.h"
 
     "Serialization/Serializer.h"
- "Reflection/Metadata.h")
+ "Reflection/Metadata.h" "Asset.h" "Object.cpp" "AssetManager.h" "Serialization/AssetSaver.h" "Serialization/Serializer.cpp")
