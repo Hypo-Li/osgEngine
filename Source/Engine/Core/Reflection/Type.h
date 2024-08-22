@@ -1,20 +1,47 @@
 #pragma once
 #include <string_view>
 
+template <class>
+inline constexpr bool is_std_array_v = std::false_type{};
+
+template <class T, size_t Size>
+inline constexpr bool is_std_array_v<std::array<T, Size>> = std::true_type{};
+
+template <class T, template<class...> class U>
+inline constexpr bool is_instance_of_v = std::false_type{};
+
+template <template <class...> class U, class... Vs>
+inline constexpr bool is_instance_of_v<U<Vs...>, U> = std::true_type{};
+
+// container Traits
+template <typename T>
+struct container_traits;
+
+template <typename T>
+using container_traits_t = typename container_traits<T>::type;
+template <typename T>
+using container_traits_t1 = typename container_traits<T>::type1;
+template <typename T>
+using container_traits_t2 = typename container_traits<T>::type2;
+
 namespace xxx::refl
 {
     template <typename T>
     class AnyWrapperInstance;
+    template <typename ClassType, typename ObjectType, std::size_t Index>
+    class PropertyValueInstance;
     template <typename ClassType, typename ObjectType>
-    class PropertyInstance;
+    class PropertyAccessorInstance;
     template <typename T, std::enable_if_t<std::is_member_function_pointer_v<T>, int>>
     class MethodInstance;
 	class Type
 	{
         template <typename T>
         friend class AnyWrapperInstance;
+        template <typename ClassType, typename ObjectType, std::size_t Index>
+        friend class PropertyValueInstance;
         template <typename ClassType, typename ObjectType>
-        friend class PropertyInstance;
+        friend class PropertyAccessorInstance;
         template <typename T, std::enable_if_t<std::is_member_function_pointer_v<T>, int>>
         friend class MethodInstance;
     public:

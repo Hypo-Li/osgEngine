@@ -34,14 +34,8 @@ namespace xxx
         inline Type* Reflection::createType<osg::Vec2f>()
         {
             Struct* structure = new Struct("osg::Vec2f", sizeof(osg::Vec2f));
-            structure->addProperty("x",
-                std::function<void(osg::Vec2f&, float&)>([](osg::Vec2& obj, float& v) { v = obj._v[0]; }),
-                std::function<void(osg::Vec2f&, const float&)>([](osg::Vec2& obj, const float& v) {obj._v[0] = v; })
-            );
-            structure->addProperty("y",
-                std::function<void(osg::Vec2f&, float&)>([](osg::Vec2& obj, float& v) { v = obj._v[1]; }),
-                std::function<void(osg::Vec2f&, const float&)>([](osg::Vec2& obj, const float& v) {obj._v[1] = v; })
-            );
+            structure->addProperty<0>("x", &osg::Vec2f::_v);
+            structure->addProperty<1>("y", &osg::Vec2f::_v);
             return structure;
         }
 
@@ -49,18 +43,9 @@ namespace xxx
         inline Type* Reflection::createType<osg::Vec3f>()
         {
             Struct* structure = new Struct("osg::Vec3f", sizeof(osg::Vec3f));
-            structure->addProperty("x",
-                std::function<void(osg::Vec3f&, float&)>([](osg::Vec3f& obj, float& v) { v = obj._v[0]; }),
-                std::function<void(osg::Vec3f&, const float&)>([](osg::Vec3f& obj, const float& v) {obj._v[0] = v; })
-            );
-            structure->addProperty("y",
-                std::function<void(osg::Vec3f&, float&)>([](osg::Vec3f& obj, float& v) { v = obj._v[1]; }),
-                std::function<void(osg::Vec3f&, const float&)>([](osg::Vec3f& obj, const float& v) {obj._v[1] = v; })
-            );
-            structure->addProperty("z",
-                std::function<void(osg::Vec3f&, float&)>([](osg::Vec3f& obj, float& v) { v = obj._v[2]; }),
-                std::function<void(osg::Vec3f&, const float&)>([](osg::Vec3f& obj, const float& v) {obj._v[2] = v; })
-            );
+            structure->addProperty<0>("x", &osg::Vec2f::_v);
+            structure->addProperty<1>("y", &osg::Vec2f::_v);
+            structure->addProperty<2>("z", &osg::Vec2f::_v);
             return structure;
         }
 
@@ -68,22 +53,10 @@ namespace xxx
         inline Type* Reflection::createType<osg::Vec4f>()
         {
             Struct* structure = new Struct("osg::Vec4f", sizeof(osg::Vec4f));
-            structure->addProperty("x",
-                std::function<void(osg::Vec4f&, float&)>([](osg::Vec4f& obj, float& v) { v = obj._v[0]; }),
-                std::function<void(osg::Vec4f&, const float&)>([](osg::Vec4f& obj, const float& v) {obj._v[0] = v; })
-            );
-            structure->addProperty("y",
-                std::function<void(osg::Vec4f&, float&)>([](osg::Vec4f& obj, float& v) { v = obj._v[1]; }),
-                std::function<void(osg::Vec4f&, const float&)>([](osg::Vec4f& obj, const float& v) {obj._v[1] = v; })
-            );
-            structure->addProperty("z",
-                std::function<void(osg::Vec4f&, float&)>([](osg::Vec4f& obj, float& v) { v = obj._v[2]; }),
-                std::function<void(osg::Vec4f&, const float&)>([](osg::Vec4f& obj, const float& v) {obj._v[2] = v; })
-            );
-            structure->addProperty("w",
-                std::function<void(osg::Vec4f&, float&)>([](osg::Vec4f& obj, float& v) { v = obj._v[3]; }),
-                std::function<void(osg::Vec4f&, const float&)>([](osg::Vec4f& obj, const float& v) {obj._v[3] = v; })
-            );
+            structure->addProperty<0>("x", &osg::Vec2f::_v);
+            structure->addProperty<1>("y", &osg::Vec2f::_v);
+            structure->addProperty<2>("z", &osg::Vec2f::_v);
+            structure->addProperty<3>("w", &osg::Vec2f::_v);
             return structure;
         }
 

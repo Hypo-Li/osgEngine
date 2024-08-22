@@ -1,6 +1,6 @@
 #pragma once
 #include "Reflection/Reflection.h"
-#include "Serialization/Serializer.h"
+//#include "Serialization/Serializer.h"
 
 #include <osg/Referenced>
 #include <osg/ref_ptr>
@@ -45,10 +45,10 @@ namespace xxx
         virtual ~Object() = default;
 
         // load something from osg object when serialization
-        virtual void preSerialize(Serializer& serializer) {}
+        virtual void preSerialize() {}
 
         // store something to osg object when deserialization and release
-        virtual void postSerialize(Serializer& serializer) {}
+        virtual void postSerialize() {}
 
     private:
         Guid mGuid;
@@ -72,7 +72,8 @@ namespace xxx
         inline Type* Reflection::createType<Object>()
         {
             Class* clazz = new Class("Object", sizeof(Object), Object::createInstance);
-            Property* propGuid = clazz->addProperty("Guid", &Object::mGuid);
+            // Guid is a special property, cannot serialize directly.
+            //Property* propGuid = clazz->addProperty("Guid", &Object::mGuid);
             sRegisteredClassMap.emplace("Object", clazz);
             return clazz;
         }

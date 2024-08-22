@@ -481,7 +481,7 @@ int main()
     osg::ref_ptr<osg::Program> atmosphereProgram = new osg::Program;
     atmosphereProgram->addShader(screenQuadVertexShader);
     atmosphereProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Atmosphere/RayMarching.frag.glsl"));
-    osg::ref_ptr<xxx::Pipeline::Pass> atmospherePass = pipeline->addWorkPass("Atmosphere", atmosphereProgram);
+    osg::ref_ptr<xxx::Pipeline::Pass> atmospherePass = pipeline->addWorkPass("Atmosphere", atmosphereProgram, GL_COLOR_BUFFER_BIT);
     atmospherePass->attach(BufferType::COLOR_BUFFER0, GL_RGBA32F);
     atmospherePass->applyTexture(transmittanceLutTexture, "uTransmittanceLutTexture", 0);
     atmospherePass->applyTexture(multiScatteringLutTexture, "uMultiScatteringLutTexture", 1);
@@ -501,7 +501,7 @@ int main()
     osg::ref_ptr<osg::Program> volumetricCloudProgram = new osg::Program;
     volumetricCloudProgram->addShader(screenQuadVertexShader);
     volumetricCloudProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "VolumetricCloud/RayMarching3.frag.glsl"));
-    osg::ref_ptr<xxx::Pipeline::Pass> volumetricCloudPass = pipeline->addWorkPass("VolumetricCloud", volumetricCloudProgram, GL_COLOR_BUFFER_BIT, osg::Vec2(0.25, 0.25));
+    osg::ref_ptr<xxx::Pipeline::Pass> volumetricCloudPass = pipeline->addWorkPass("VolumetricCloud", volumetricCloudProgram, GL_COLOR_BUFFER_BIT, false, osg::Vec2(0.25, 0.25));
     volumetricCloudPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA32F);
     volumetricCloudPass->attach(BufferType::COLOR_BUFFER1, GL_R16F);
     volumetricCloudPass->applyTexture(inputPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uDepthTexture", 0);
@@ -528,7 +528,7 @@ int main()
     osg::ref_ptr<osg::Program> cloudReconstructionProgram = new osg::Program;
     cloudReconstructionProgram->addShader(screenQuadVertexShader);
     cloudReconstructionProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "VolumetricCloud/Reconstruction.frag.glsl"));
-    osg::ref_ptr<xxx::Pipeline::Pass> cloudReconstructionPass = pipeline->addWorkPass("CloudReconstruction", cloudReconstructionProgram);
+    osg::ref_ptr<xxx::Pipeline::Pass> cloudReconstructionPass = pipeline->addWorkPass("CloudReconstruction", cloudReconstructionProgram, GL_COLOR_BUFFER_BIT);
     cloudReconstructionPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F);
     cloudReconstructionPass->applyTexture(volumetricCloudPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uCurrentCloudColorTexture", 0);
     cloudReconstructionPass->applyTexture(volumetricCloudPass->getBufferTexture(BufferType::COLOR_BUFFER1), "uCurrentCloudDepthTexture", 1);
@@ -539,19 +539,19 @@ int main()
     osg::ref_ptr<osg::Program> copyColorProgram = new osg::Program;
     copyColorProgram->addShader(screenQuadVertexShader);
     copyColorProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CopyColor.frag.glsl"));
-    osg::ref_ptr<xxx::Pipeline::Pass> copyCloudPass = pipeline->addWorkPass("CopyCloud", copyColorProgram);
+    osg::ref_ptr<xxx::Pipeline::Pass> copyCloudPass = pipeline->addWorkPass("CopyCloud", copyColorProgram, GL_COLOR_BUFFER_BIT);
     copyCloudPass->attach(BufferType::COLOR_BUFFER0, historyCloudColorTexture);
     copyCloudPass->applyTexture(cloudReconstructionPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorTexture", 0);
 
     osg::ref_ptr<osg::Program> colorGradingProgram = new osg::Program;
     colorGradingProgram->addShader(screenQuadVertexShader);
     colorGradingProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CombineAtmosphereAndCloud.frag.glsl"));
-    osg::ref_ptr<xxx::Pipeline::Pass> finalPass = pipeline->addFinalPass("Final", colorGradingProgram);
-    finalPass->applyTexture(atmospherePass->getBufferTexture(BufferType::COLOR_BUFFER0), "uAtmosphereColorTexture", 0);
-    finalPass->applyTexture(cloudReconstructionPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uCloudColorTexture", 1);
+    osg::ref_ptr<xxx::Pipeline::Pass> displayPass = pipeline->addDisplayPass("Display", colorGradingProgram);
+    displayPass->applyTexture(atmospherePass->getBufferTexture(BufferType::COLOR_BUFFER0), "uAtmosphereColorTexture", 0);
+    displayPass->applyTexture(cloudReconstructionPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uCloudColorTexture", 1);
 
     viewer->setCameraManipulator(new ControllerManipulator(50));
-    viewer->addEventHandler(new xxx::ImGuiHandler(viewer, finalPass->getCamera()));
+    viewer->addEventHandler(new xxx::ImGuiHandler(viewer, displayPass->getCamera()));
     viewer->addEventHandler(new osgViewer::StatsHandler);
 
     viewer->realize();

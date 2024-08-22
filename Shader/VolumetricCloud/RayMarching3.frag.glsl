@@ -1,7 +1,7 @@
 #version 460 core
 #extension GL_GOOGLE_include_directive : enable
 in vec2 uv;
-out vec4 fragData;
+out vec4 fragData[2];
 
 uniform sampler2D uDepthTexture;
 uniform sampler3D uBasicNoiseTexture;
@@ -13,6 +13,7 @@ uniform sampler3D uAerialPerspectiveLutTexture;
 uniform sampler2D uBlueNoiseTexture;
 uniform float osg_FrameTime;
 uniform uint osg_FrameNumber;
+uniform vec4 uResolution;
 
 layout(std140, binding = 0) uniform ViewData
 {
@@ -157,6 +158,7 @@ const uint uCloudShadowSampleCountMax = 12;
 //const float uPhaseBlend = 0.2;
 
 vec3 gDistantSkyLight = vec3(0.0);
+vec2 gFullResCoord = vec2(0.0);
 
 struct ParticipatingMediaPhaseContext
 {
@@ -278,7 +280,7 @@ float sampleCloudDensity(vec3 worldPos, float normalizedHeight)
     return final_cloud;
 }
 
-vec4 rayMarchCloud(vec3 worldPos, vec3 worldDir, float tDepth)
+vec4 rayMarchCloud(in vec3 worldPos, in vec3 worldDir, inout float tDepth)
 {
     float viewHeight = length(worldPos);
     float tMin, tMax;
@@ -293,9 +295,8 @@ vec4 rayMarchCloud(vec3 worldPos, vec3 worldDir, float tDepth)
             float tempBottom = all(greaterThan(tBottom2, vec2(0))) ? min(tBottom2.x, tBottom2.y) : max(tBottom2.x, tBottom2.y);
 
             if (all(greaterThan(tBottom2, vec2(0))))
-            {
                 tempTop = max(0.0, min(tTop2.x, tTop2.y));
-            }
+
             tMin = min(tempBottom, tempTop);
             tMax = max(tempBottom, tempTop);
         }
@@ -328,7 +329,7 @@ vec4 rayMarchCloud(vec3 worldPos, vec3 worldDir, float tDepth)
 
     ParticipatingMediaPhaseContext pmpc = setupParticipatingMediaPhaseContext(phase, uMsPhaseFactor);
 
-    float t = tMin + stepT * getBlueNoise(ivec2(gl_FragCoord.xy), osg_FrameNumber % 8);
+    float t = tMin + getBlueNoise(ivec2(gFullResCoord), osg_FrameNumber / 16 % 8) * stepT;
     vec3 luminance = vec3(0.0);
     vec3 transmittanceToView = vec3(1.0);
     float tAPWeightedSum = 0.0;
@@ -336,29 +337,32 @@ vec4 rayMarchCloud(vec3 worldPos, vec3 worldDir, float tDepth)
 
     for (uint i = 0; i < stepCountUint; ++i)
     {
-        vec3 samplePos = worldPos + worldDir * t;
-        float sampleHeight = length(samplePos);
-        float normalizedHeight = saturate((sampleHeight - uCloudLayerBottomRadiusKm) / uCloudLayerThicknessKm);
-        float density = sampleCloudDensity(samplePos, normalizedHeight);
+        const vec3 samplePos = worldPos + worldDir * t;
+        const float sampleHeight = length(samplePos);
+        const float normalizedHeight = saturate((sampleHeight - uCloudLayerBottomRadiusKm) / uCloudLayerThicknessKm);
+        const float density = sampleCloudDensity(samplePos, normalizedHeight);
 
-        const vec3 upVector = samplePos / sampleHeight;
-        float viewZenithCos = dot(uSunDirection, upVector);
-        vec2 sampleUV;
-        transmittanceLutParametersToUV(sampleHeight, viewZenithCos, sampleUV);
-        vec3 transmittanceToLight0 = texture(uTransmittanceLutTexture, sampleUV).rgb;
+        vec3 transmittanceToLight0;
+        {
+            const vec3 upVector = samplePos / sampleHeight;
+            const float viewZenithCos = dot(uSunDirection, upVector);
+            vec2 sampleUV;
+            transmittanceLutParametersToUV(sampleHeight, viewZenithCos, sampleUV);
+            transmittanceToLight0 = texture(uTransmittanceLutTexture, sampleUV).rgb;
+        }
         ParticipatingMediaContext pmc = setupParticipatingMediaContext(uAlbedo, density * uExtinction, uMsScattFactor, uMsExtinFactor, transmittanceToLight0);
-        
-        vec3 distantLightLuminance = gDistantSkyLight * saturate(0.5 + normalizedHeight);
 
         if (density > 0.0)
         {
+            if (t < tDepth)
+                tDepth = t;
             const float maxTransmittanceToView = max(max(transmittanceToView.x, transmittanceToView.y), transmittanceToView.z);
             vec3 extinctionAcc[MS_COUNT];
             const float shadowLengthTest = uCloudShadowTracingMaxDistanceKm;
             const float shadowStepCount = float(uCloudShadowSampleCountMax);
             const float invShadowStepCount = 1.0 / shadowStepCount;
-            const float shadowJitteringSeed = float(osg_FrameNumber % 8) + pseudoRandom(gl_FragCoord.xy);
-            const float shadowJitterNorm = interleavedGradientNoise(gl_FragCoord.xy, shadowJitteringSeed) - 0.5;
+            const float shadowJitteringSeed = float(osg_FrameNumber / 16 % 8) + pseudoRandom(gFullResCoord);
+            const float shadowJitterNorm = 0.5; //interleavedGradientNoise(gl_FragCoord.xy, shadowJitteringSeed) - 0.5;
 
             for (uint ms = 0; ms < MS_COUNT; ++ms)
                 extinctionAcc[ms] = vec3(0.0);
@@ -373,13 +377,13 @@ vec4 rayMarchCloud(vec3 worldPos, vec3 worldDir, float tDepth)
                 const float shadowSampleDistance = shadowLengthTest * (previousNormT + detalNormT * shadowJitterNorm);
                 const vec3 shadowSamplePos = samplePos + uSunDirection * shadowSampleDistance;
                 const float shadowSampleNormalizedHeight = saturate((length(shadowSamplePos) - uCloudLayerBottomRadiusKm) / uCloudLayerThicknessKm);
-                float density = sampleCloudDensity(shadowSamplePos, shadowSampleNormalizedHeight);
+                float shadowSampleDensity = sampleCloudDensity(shadowSamplePos, shadowSampleNormalizedHeight);
                 previousNormT = currentNormT;
 
-                if (density <= 0)
+                if (shadowSampleDensity <= 0)
                     continue;
                 
-                ParticipatingMediaContext shadowPMC = setupParticipatingMediaContext(vec3(0), density * uExtinction, uMsScattFactor, uMsExtinFactor, vec3(0));
+                ParticipatingMediaContext shadowPMC = setupParticipatingMediaContext(vec3(0), shadowSampleDensity * uExtinction, uMsScattFactor, uMsExtinFactor, vec3(0));
 
                 for (uint ms = 0; ms < MS_COUNT; ++ms)
                     extinctionAcc[ms] += shadowPMC.extinctionCoeff[ms] * extinctionFactor;
@@ -397,6 +401,7 @@ vec4 rayMarchCloud(vec3 worldPos, vec3 worldDir, float tDepth)
             
         // }
 
+        const vec3 distantLightLuminance = gDistantSkyLight * saturate(0.5 + normalizedHeight);
         for (uint ms = MS_COUNT - 1; ms >= 0; --ms)
         {
             const vec3 scatteringCoeff = pmc.scatteringCoeff[ms];
@@ -413,15 +418,11 @@ vec4 rayMarchCloud(vec3 worldPos, vec3 worldDir, float tDepth)
             luminance += transmittanceToView * luminanceIntegral;
 
             if (ms == 0)
-            {
                 transmittanceToView *= safePathSegmentTransmittance;
-            }
         }
 
         if (all(lessThan(transmittanceToView, uStopTracingTransmittanceThreshold)))
-        {
             break;
-        }
 
         t += stepT;
     }
@@ -441,8 +442,33 @@ vec4 rayMarchCloud(vec3 worldPos, vec3 worldDir, float tDepth)
     return outColor;
 }
 
+int bayerFilter4x4[] = {
+    0, 8, 2, 10,
+    12, 4, 14, 6,
+    3, 11, 1, 9,
+    15, 7, 13, 5
+};
+
 void main()
 {
+    gDistantSkyLight = texelFetch(uDistantSkyLightLutTexture, ivec2(0, 0), 0).rgb;
+
+#if 1
+    uint bayerIndex = osg_FrameNumber % 16;
+    ivec2 bayerOffset = ivec2(bayerFilter4x4[bayerIndex] % 4, bayerFilter4x4[bayerIndex] / 4);
+    ivec2 iFullResCoord = ivec2(gl_FragCoord.xy) * 4 + bayerOffset;
+    gFullResCoord = iFullResCoord + vec2(0.5);
+    float depth = texelFetch(uDepthTexture, iFullResCoord, 0).r;
+
+    vec2 fullRes = textureSize(uDepthTexture, 0);
+    vec4 clipSpace = vec4(gFullResCoord / fullRes * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+    vec4 viewSpace = uInverseProjectionMatrix * clipSpace;
+    viewSpace *= 1.0 / viewSpace.w;
+    vec3 worldDir = normalize(mat3(uInverseViewMatrix) * viewSpace.xyz);
+    vec3 worldPos = getWorldPos(uInverseViewMatrix[3].xyz);
+    float viewHeight = length(worldPos);
+#else
+    gFullResCoord = gl_FragCoord.xy;
     float depth = texelFetch(uDepthTexture, ivec2(gl_FragCoord.xy), 0).r;
     vec4 clipSpace = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
     vec4 viewSpace = uInverseProjectionMatrix * clipSpace;
@@ -450,6 +476,8 @@ void main()
     vec3 worldDir = normalize(mat3(uInverseViewMatrix) * viewSpace.xyz);
     vec3 worldPos = getWorldPos(uInverseViewMatrix[3].xyz);
     float viewHeight = length(worldPos);
-    gDistantSkyLight = texelFetch(uDistantSkyLightLutTexture, ivec2(0, 0), 0).rgb;
-    fragData = vec4(rayMarchCloud(worldPos, worldDir, -viewSpace.z));
+#endif
+    float tDepth = depth == 1.0 ? uCloudLayerTopRadiusKm : -viewSpace.z / 1000.0;
+    fragData[0] = vec4(rayMarchCloud(worldPos, worldDir, tDepth));
+    fragData[1] = vec4(tDepth);
 }

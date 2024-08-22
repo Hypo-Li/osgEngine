@@ -57,9 +57,21 @@ namespace xxx::refl
         }
 
         template <typename T>
+        static Struct* getStruct()
+        {
+            return dynamic_cast<Struct*>(getType<T>());
+        }
+
+        template <typename T>
         static Class* getClass()
         {
             return dynamic_cast<Class*>(getType<T>());
+        }
+
+        template <typename T>
+        static Special* getSpecial()
+        {
+            return dynamic_cast<Special*>(getType<T>());
         }
 
         static Class* getClassByName(std::string_view name)
@@ -69,6 +81,21 @@ namespace xxx::refl
                 return nullptr;
             return findResult->second;
         }
+
+    public:
+        static const refl::Type* BoolType;
+        static const refl::Type* CharType;
+        static const refl::Type* WCharType;
+        static const refl::Type* Int8Type;
+        static const refl::Type* Int16Type;
+        static const refl::Type* Int32Type;
+        static const refl::Type* Int64Type;
+        static const refl::Type* Uint8Type;
+        static const refl::Type* Uint16Type;
+        static const refl::Type* Uint32Type;
+        static const refl::Type* Uint64Type;
+        static const refl::Type* FloatType;
+        static const refl::Type* DoubleType;
 
     private:
         template <typename T, std::enable_if_t<!(is_special_v<T> || is_instance_of_v<T, osg::ref_ptr>), int> = 0>

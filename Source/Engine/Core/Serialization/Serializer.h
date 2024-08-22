@@ -34,18 +34,6 @@ namespace xxx
         virtual void serialize(Object*& object) = 0;
 
     protected:
-        static const refl::Type* sBoolType;
-        static const refl::Type* sCharType;
-        static const refl::Type* sWCharType;
-        static const refl::Type* sInt8Type;
-        static const refl::Type* sInt16Type;
-        static const refl::Type* sInt32Type;
-        static const refl::Type* sInt64Type;
-        static const refl::Type* sUint8Type;
-        static const refl::Type* sUint16Type;
-        static const refl::Type* sUint32Type;
-        static const refl::Type* sUint64Type;
-        static const refl::Type* sFloatType;
-        static const refl::Type* sDoubleType;
+        
     };
 }

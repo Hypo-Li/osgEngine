@@ -24,6 +24,13 @@ public:
 public:
     std::vector<Object*> mObjects;
     osg::Vec2f mVec2;
+
+    void setP(float newP) { p = newP; }
+    float getP() const { return p; }
+
+private:
+    float p;
+
 };
 
 namespace xxx::refl
@@ -39,6 +46,10 @@ namespace xxx::refl
         propVec2->addMetadata(MetaKey::ClampMax, 1.0f);
         propVec2->addMetadata(MetaKey::DisplayName, "MyVec2");
         propVec2->addMetadata(MetaKey::ToolTip, "This is a demo vec2");
+        Property* propP = clazz->addProperty("p",
+            std::function<void(const Test&, float&)>([](const Test& obj, float& v) { v = obj.getP(); }),
+            std::function<void(Test&, const float&)>([](Test& obj, const float& v) { obj.setP(v); })
+        );
         sRegisteredClassMap.emplace("Test", clazz);
         return clazz;
     }
@@ -73,7 +84,9 @@ int main()
     Entity* entity1 = new Entity;
     entity0->appendChild(entity1);
 
-    Struct* vec2fStruct = dynamic_cast<Struct*>(Reflection::getType<osg::Vec2f>());
+    Struct* vec2fStruct = Reflection::getStruct<osg::Vec2f>();
+    Struct* vec3fStruct = Reflection::getStruct<osg::Vec3f>();
+    Struct* vec4fStruct = Reflection::getStruct<osg::Vec4f>();
     Property* propX = vec2fStruct->getProperty("x");
     osg::Vec2f v(1.0f, 2.0f);
     float x;

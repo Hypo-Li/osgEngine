@@ -26,18 +26,19 @@ namespace xxx::refl
         }
 
     protected:
-        template <typename T>
-        Property* addProperty(std::string_view name, T member)
+        template <std::size_t Index = 0, typename ClassType, typename ObjectType>
+        Property* addProperty(std::string_view name, ObjectType ClassType::* member)
         {
-            Property* newProperty = new PropertyInstance(name, member);
+            Property* newProperty = new PropertyValueInstance<ClassType, ObjectType, Index>(name, member);
             mProperties.push_back(newProperty);
             return newProperty;
         }
 
-        template <typename Getter, typename Setter>
+        template <typename Getter, typename Setter,
+            std::enable_if_t<is_instance_of_v<Getter, std::function> && is_instance_of_v<Setter, std::function>, int> = 0>
         Property* addProperty(std::string_view name, Getter getter, Setter setter)
         {
-            Property* newProperty = new PropertyInstance(name, getter, setter);
+            Property* newProperty = new PropertyAccessorInstance(name, getter, setter);
             mProperties.push_back(newProperty);
             return newProperty;
         }
