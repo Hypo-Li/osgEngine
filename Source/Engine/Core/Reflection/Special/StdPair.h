@@ -3,6 +3,12 @@
 
 #include <utility>
 
+template <typename T1, typename T2>
+struct container_traits<std::pair<T1, T2>> {
+    using type1 = T1;
+    using type2 = T2;
+};
+
 namespace xxx::refl
 {
     class StdPair : public Special

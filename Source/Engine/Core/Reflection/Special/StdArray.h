@@ -3,6 +3,12 @@
 
 #include <array>
 
+template <typename T, size_t N>
+struct container_traits<std::array<T, N>> {
+    using type = T;
+    static constexpr size_t Count = N;
+};
+
 namespace xxx::refl
 {
     class StdArray : public Special

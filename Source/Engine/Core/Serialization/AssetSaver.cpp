@@ -52,9 +52,12 @@ namespace xxx
             }
             case refl::Type::Kind::Enum:
             {
-
+                serialize(*(int64_t*)(valuePtr));
             }
             case refl::Type::Kind::Struct:
+            {
+
+            }
             case refl::Type::Kind::Class:
             case refl::Type::Kind::Special:
             default:

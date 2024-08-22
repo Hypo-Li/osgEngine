@@ -1,4 +1,4 @@
 add_executable(Instanced "Main.cpp")
 
 LINK_WITH_VARIABLES(Instanced OPENTHREADS_LIBRARY OSG_LIBRARY OSGDB_LIBRARY OSGUTIL_LIBRARY OSGGA_LIBRARY OSGVIEWER_LIBRARY)
-target_link_libraries(Instanced PRIVATE Core ThirdParty ${OPENGL_LIBRARIES})
+target_link_libraries(Instanced PRIVATE Core Render ThirdParty ${OPENGL_LIBRARIES})

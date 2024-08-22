@@ -14,23 +14,23 @@ namespace xxx
         virtual ~Asset() = default;
 
         template <typename T, std::enable_if_t<std::is_base_of_v<Object, T>, int> = 0>
-        T* getRootObject()
+        T* getPrimaryObject()
         {
-            return dynamic_cast<T*>(mRootObject.get());
+            return dynamic_cast<T*>(mPrimaryObject.get());
         }
 
         template <typename T, std::enable_if_t<std::is_base_of_v<Object, T>, int> = 0>
         T* findObjectByGuid(Guid guid)
         {
-            auto findResult = mStoredObjects.find(guid);
-            if (findResult != mStoredObjects.end())
+            auto findResult = mSecondaryObjects.find(guid);
+            if (findResult != mSecondaryObjects.end())
                 return dynamic_cast<T*>(findResult->second.get());
             return nullptr;
         }
 
     private:
         std::string mPath;
-        osg::ref_ptr<Object> mRootObject;
-        std::unordered_map<Guid, osg::ref_ptr<Object>> mStoredObjects;
+        osg::ref_ptr<Object> mPrimaryObject;
+        std::unordered_map<Guid, osg::ref_ptr<Object>> mSecondaryObjects;
     };
 }

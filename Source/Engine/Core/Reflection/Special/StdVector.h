@@ -4,6 +4,11 @@
 
 #include <vector>
 
+template <typename T>
+struct container_traits<std::vector<T>> {
+    using type = T;
+};
+
 namespace xxx::refl
 {
     class StdVector : public Special

@@ -4,6 +4,12 @@
 
 #include <map>
 
+template <typename T1, typename T2>
+struct container_traits<std::map<T1, T2>> {
+    using type1 = T1;
+    using type2 = T2;
+};
+
 namespace xxx::refl
 {
     class StdMap : public Special

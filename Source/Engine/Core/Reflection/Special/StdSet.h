@@ -4,6 +4,11 @@
 
 #include <set>
 
+template <typename T>
+struct container_traits<std::set<T>> {
+    using type = T;
+};
+
 namespace xxx::refl
 {
     class StdSet : public Special

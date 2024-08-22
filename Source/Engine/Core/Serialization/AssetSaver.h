@@ -19,24 +19,28 @@ namespace xxx
             return true;
         }
 
-        virtual void serialize(bool& value);
-        virtual void serialize(char& value);
-        virtual void serialize(wchar_t& value);
-        virtual void serialize(int8_t& value);
-        virtual void serialize(int16_t& value);
-        virtual void serialize(int32_t& value);
-        virtual void serialize(int64_t& value);
-        virtual void serialize(uint8_t& value);
-        virtual void serialize(uint16_t& value);
-        virtual void serialize(uint32_t& value);
-        virtual void serialize(uint64_t& value);
-        virtual void serialize(float& value);
-        virtual void serialize(double& value);
-        virtual void serialize(std::string& value);
+        void serialize(bool& value, size_t count = 1);
+        void serialize(char& value, size_t count = 1);
+        void serialize(wchar_t& value, size_t count = 1);
+        void serialize(int8_t& value, size_t count = 1);
+        void serialize(int16_t& value, size_t count = 1);
+        void serialize(int32_t& value, size_t count = 1);
+        void serialize(int64_t& value, size_t count = 1);
+        void serialize(uint8_t& value, size_t count = 1);
+        void serialize(uint16_t& value, size_t count = 1);
+        void serialize(uint32_t& value, size_t count = 1);
+        void serialize(uint64_t& value, size_t count = 1);
+        void serialize(float& value, size_t count = 1);
+        void serialize(double& value, size_t count = 1);
+        void serialize(std::string& value, size_t count = 1);
 
         virtual void serialize(Object*& object) override;
 
-    private:
+        void serializeProperty(Property* property, )
 
+    private:
+        std::unordered_map<Guid, size_t> mObjectGuidMap;
+        std::vector<std::pair<std::string, uint32_t>> mStringMap;
+        std::vector<uint8_t> mBuffer;
     };
 }
