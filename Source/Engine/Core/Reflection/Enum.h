@@ -15,6 +15,11 @@ namespace xxx::refl
         static constexpr uint32_t INDEX_NONE = std::numeric_limits<uint32_t>::max();
         static constexpr std::string_view NAME_NONE = std::string_view("");
 
+        Type* getUnderlyingType() const
+        {
+            return mUnderlyingType;
+        }
+
         uint32_t getIndexByName(std::string_view name) const
         {
             uint32_t count = mValues.size();
@@ -75,18 +80,18 @@ namespace xxx::refl
             return INDEX_NONE;
         }
 
-    protected:
+    private:
         template <typename E, std::enable_if_t<std::is_enum_v<E>, int> = 0>
-        void setValues(std::initializer_list<std::pair<std::string_view, E>> values)
+        Enum(std::string_view name, std::initializer_list<std::pair<std::string_view, E>> values) :
+            Type(name, sizeof(E)),
+            mUnderlyingType(Type::getType<std::underlying_type_t<E>>())
         {
             for (std::pair<std::string_view, E> value : values)
                 mValues.emplace_back(value.first, static_cast<int64_t>(value.second));
         }
-
-    private:
-        Enum(std::string_view name, size_t size) : Type(name, size) {}
         virtual ~Enum() = default;
 
         std::vector<std::pair<std::string_view, int64_t>> mValues;
+        Type* mUnderlyingType;
     };
 }

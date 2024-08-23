@@ -39,6 +39,7 @@ namespace xxx::refl
             return mName;
         }
 
+        virtual bool isValueProperty() const = 0;
         virtual Type* getType() const = 0;
         virtual Type* getOwnerType() const = 0;
         virtual void getValue(void* instance, void* value) const = 0;
@@ -72,6 +73,11 @@ namespace xxx::refl
         }
         
         virtual ~PropertyValueInstance() = default;
+
+        virtual bool isValueProperty() const override
+        {
+            return true;
+        }
 
         virtual Type* getType() const override
         {
@@ -140,6 +146,11 @@ namespace xxx::refl
             mSetter(setter) {}
 
         virtual ~PropertyAccessorInstance() = default;
+
+        virtual bool isValueProperty() const override
+        {
+            return false;
+        }
 
         virtual Type* getType() const override
         {

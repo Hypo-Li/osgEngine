@@ -44,6 +44,11 @@ namespace xxx
         Object() : mGuid(Guid::newGuid()) {}
         virtual ~Object() = default;
 
+        Guid getGuid() const
+        {
+            return mGuid;
+        }
+
         // load something from osg object when serialization
         virtual void preSerialize() {}
 

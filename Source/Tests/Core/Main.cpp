@@ -33,8 +33,30 @@ private:
 
 };
 
+enum class Color
+{
+    Red,
+    Green,
+    Blue,
+};
+
 namespace xxx::refl
 {
+    template <>
+    inline Type* Reflection::createType<Color>()
+    {
+        using EnumValue = std::pair<std::string_view, Color>;
+        Enum* enumerate = new Enum(
+            "Color",
+            {
+                EnumValue("Red", Color::Red),
+                EnumValue("Green", Color::Green),
+                EnumValue("Blue", Color::Blue),
+            }
+        );
+        return enumerate;
+    }
+
     template <>
     inline Type* Reflection::createType<Test>()
     {
@@ -93,6 +115,8 @@ int main()
     propX->getValue(&v, &x);
     propX->setValue(&v, x + 1.0f);
     void* ptr = propX->getValuePtr(&v);
+
+    Enum* colorEnum = dynamic_cast<Enum*>(Reflection::getType<Color>());
 
     Any any = 0.0f;
 

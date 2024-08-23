@@ -57,6 +57,47 @@ osg::Geode* createGeode()
     return geode;
 }
 
+class TestCallback : public osg::StateSet::Callback
+{
+public:
+    virtual void operator() (osg::StateSet* ss, osg::NodeVisitor* nv)
+    {
+        static int currentPass = 1;
+        osgGA::EventVisitor* ev = nv->asEventVisitor();
+        if (ev)
+        {
+            osgGA::GUIActionAdapter* aa = ev->getActionAdapter();
+            osgGA::EventQueue::Events& events = ev->getEvents();
+            for (osgGA::EventQueue::Events::iterator itr = events.begin();
+                    itr != events.end(); ++itr)
+            {
+                osgGA::GUIEventAdapter* ea = dynamic_cast<osgGA::GUIEventAdapter*>(itr->get());
+                if (ea)
+                {
+                    if (ea->getEventType() == osgGA::GUIEventAdapter::KEYDOWN)
+                    {
+                        using Key = osgGA::GUIEventAdapter::KeySymbol;
+                        if (ea->getKey() == Key::KEY_K)
+                        {
+                            if (currentPass == 1)
+                            {
+                                ss->setDefine("INPUT_PASS", "2");
+                                currentPass = 2;
+                            }
+                            else
+                            {
+                                ss->setDefine("INPUT_PASS", "1");
+                                currentPass = 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        traverse(ss, nv);
+    }
+};
+
 int main()
 {
     const int width = 1280, height = 720;
@@ -88,13 +129,14 @@ int main()
     input1Pass->attach(BufferType::COLOR_BUFFER0, GL_RGBA8);
     input1Pass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT, osg::Texture::NEAREST, osg::Texture::NEAREST);
     input1Pass->getCamera()->getOrCreateStateSet()->setDefine("INPUT_PASS", "1");
+    input1Pass->getCamera()->getOrCreateStateSet()->setEventCallback(new TestCallback);
 
     osg::ref_ptr<xxx::Pipeline::Pass> input2Pass = pipeline->addInputPass("Input2", 0x00000002, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     input2Pass->attach(BufferType::COLOR_BUFFER0, GL_RGBA8);
     input2Pass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT, osg::Texture::NEAREST, osg::Texture::NEAREST);
     input2Pass->getCamera()->getOrCreateStateSet()->setDefine("INPUT_PASS", "2");
 
-    osg::ref_ptr<xxx::Pipeline::Pass> earthPass = pipeline->addInputPass("Earth", 0x00000001, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    /*osg::ref_ptr<xxx::Pipeline::Pass> earthPass = pipeline->addInputPass("Earth", 0x00000001, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     osg::ref_ptr<xxx::Pipeline::Pass> gbufferPass = pipeline->addInputPass("GBuffer", 0x00000002, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     osg::ref_ptr<xxx::Pipeline::Pass> shadowCastPass = pipeline->addInputPass("ShadowCast", 0x00000004, GL_DEPTH_BUFFER_BIT, true, osg::Vec2(2048, 2048));
     osg::ref_ptr<xxx::Pipeline::Pass> shadowMaskPass = pipeline->addWorkPass("ShadowMask", new osg::Program, GL_COLOR_BUFFER_BIT);
@@ -107,7 +149,7 @@ int main()
     osg::ref_ptr<xxx::Pipeline::Pass> colorGradingPass = pipeline->addWorkPass("ColorGrading", new osg::Program, GL_COLOR_BUFFER_BIT);
     osg::ref_ptr<xxx::Pipeline::Pass> forwardOpaquePass = pipeline->addInputPass("ForwardOpaque", 0x00000010, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     osg::ref_ptr<xxx::Pipeline::Pass> forwardTransparentPass = pipeline->addInputPass("ForwardTransparent", 0x00000020, 0);
-    osg::ref_ptr<xxx::Pipeline::Pass> uiPass = pipeline->addInputPass("UI", 0x00000040, 0);
+    osg::ref_ptr<xxx::Pipeline::Pass> uiPass = pipeline->addInputPass("UI", 0x00000040, 0);*/
 
     osg::Shader* screenQuadShader = osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Common/ScreenQuad.vert.glsl");
     osg::Program* displayProgram = new osg::Program;

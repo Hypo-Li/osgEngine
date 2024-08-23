@@ -14,7 +14,7 @@ namespace xxx::refl
         }
 
         virtual std::vector<Type*> getTypes() const = 0;
-        virtual uint32_t getIndex(void* instance) const = 0;
+        virtual uint32_t getTypeIndex(void* instance) const = 0;
         virtual void* getValuePtr(void* instance) const = 0;
     };
 
@@ -43,7 +43,7 @@ namespace xxx::refl
         {
             return getTypesImpl(std::make_index_sequence<std::variant_size_v<T>>());
         }
-        virtual uint32_t getIndex(void* instance) const override
+        virtual uint32_t getTypeIndex(void* instance) const override
         {
             T* variant = static_cast<T*>(instance);
             return variant->index();

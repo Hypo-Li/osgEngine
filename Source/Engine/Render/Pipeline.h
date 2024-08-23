@@ -125,7 +125,7 @@ namespace xxx
 
         Pass* addDisplayPass(const std::string& name, osg::Program* program);
 
-        void resize(int width, int height, bool resizeFinalPass)
+        void resize(int width, int height, bool resizeDisplayPass)
         {
             // set new aspect
             double fovy, aspect, zNear, zFar;
@@ -135,8 +135,8 @@ namespace xxx
             // final pass will resize by osg automatically
             for (Pass* pass : _passes)
             {
-                bool isFinalPass = pass->_camera->getRenderTargetImplementation() != osg::Camera::FRAME_BUFFER_OBJECT;
-                if ((!isFinalPass || (isFinalPass && resizeFinalPass)) && !pass->_fixedSize)
+                bool isDisplayPass = pass->_camera->getRenderTargetImplementation() != osg::Camera::FRAME_BUFFER_OBJECT;
+                if (!pass->_fixedSize && ( !isDisplayPass || (isDisplayPass && resizeDisplayPass) ) )
                 {
                     // get real size
                     int realWidth = width * pass->_sizeScale.x();
