@@ -5,10 +5,16 @@ namespace xxx
     using namespace refl;
     void AssetSaver::serialize(Object*& object)
     {
+        object->preSerialize();
+        std::string className;
         Class* clazz = object->getClass();
+        if (isSaving())
+            className = clazz->getName();
+        serialize(&className);
         const auto& properties = clazz->getProperties();
         for (Property* prop : properties)
             serializeProperty(prop, object);
+        object->postSerialize();
     }
 
     void AssetSaver::serializeType(Type* type, void* data, size_t count)
@@ -80,7 +86,7 @@ namespace xxx
     }
 
     template <typename T>
-    void getEnumValueNames(std::vector<std::string>& enumValueNames, void* data, size_t count)
+    void getEnumValueNames(Enum* type, std::vector<std::string>& enumValueNames, void* data, size_t count)
     {
         for (size_t i = 0; i < count; ++i)
             enumValueNames[i] = type->getNameByValue(static_cast<int64_t>(((T*)(data))[i]));
@@ -91,21 +97,21 @@ namespace xxx
         std::vector<std::string> enumValueNames(count);
         Type* underlying = type->getUnderlyingType();
         if (underlying == Reflection::Int8Type)
-            getEnumValueNames<int8_t>(enumValueNames, data, count);
+            getEnumValueNames<int8_t>(type, enumValueNames, data, count);
         else if (underlying == Reflection::Int16Type)
-            getEnumValueNames<int16_t>(enumValueNames, data, count);
+            getEnumValueNames<int16_t>(type, enumValueNames, data, count);
         else if (underlying == Reflection::Int32Type)
-            getEnumValueNames<int32_t>(enumValueNames, data, count);
+            getEnumValueNames<int32_t>(type, enumValueNames, data, count);
         else if (underlying == Reflection::Int64Type)
-            getEnumValueNames<int64_t>(enumValueNames, data, count);
+            getEnumValueNames<int64_t>(type, enumValueNames, data, count);
         else if (underlying == Reflection::Uint8Type)
-            getEnumValueNames<uint8_t>(enumValueNames, data, count);
+            getEnumValueNames<uint8_t>(type, enumValueNames, data, count);
         else if (underlying == Reflection::Uint16Type)
-            getEnumValueNames<uint16_t>(enumValueNames, data, count);
+            getEnumValueNames<uint16_t>(type, enumValueNames, data, count);
         else if (underlying == Reflection::Uint32Type)
-            getEnumValueNames<uint32_t>(enumValueNames, data, count);
+            getEnumValueNames<uint32_t>(type, enumValueNames, data, count);
         else if (underlying == Reflection::Uint64Type)
-            getEnumValueNames<uint64_t>(enumValueNames, data, count);
+            getEnumValueNames<uint64_t>(type, enumValueNames, data, count);
         serialize(enumValueNames.data(), count);
     }
 
@@ -113,7 +119,9 @@ namespace xxx
     {
         for (size_t i = 0; i < count; ++i)
         {
-            uint32_t propertyCount = type->getProperties().size();
+            uint32_t propertyCount;
+            if (isSaving())
+                propertyCount = type->getProperties().size();
             serialize(&propertyCount);
             for (Property* prop : type->getProperties())
                 serializeProperty(prop, data);
@@ -234,8 +242,18 @@ namespace xxx
 
     bool AssetSaver::serializeProperty(Property* property, void* object)
     {
-        std::string propertyName(property->getName());
+        std::string propertyName;
+        if (isSaving())
+            propertyName = property->getName();
         serialize(&propertyName);
+
+        // check property name
+        if (isLoading() && propertyName != property->getName())
+        {
+            uint32_t propertySize;
+            serialize(&propertySize);
+
+        }
 
         void* valuePtr;
         if (property->isValueProperty())

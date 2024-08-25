@@ -24,6 +24,8 @@ public:
 public:
     std::vector<Object*> mObjects;
     osg::Vec2f mVec2;
+    std::set<int> mIntSet;
+    std::map<std::string, double> mStringDoubleMap;
 
     void setP(float newP) { p = newP; }
     float getP() const { return p; }
@@ -72,6 +74,8 @@ namespace xxx::refl
             std::function<void(const Test&, float&)>([](const Test& obj, float& v) { v = obj.getP(); }),
             std::function<void(Test&, const float&)>([](Test& obj, const float& v) { obj.setP(v); })
         );
+        Property* propIntSet = clazz->addProperty("IntSet", &Test::mIntSet);
+        Property* propStringDoubleMap = clazz->addProperty("StringDoubleMap", &Test::mStringDoubleMap);
         sRegisteredClassMap.emplace("Test", clazz);
         return clazz;
     }
@@ -100,6 +104,17 @@ int main()
     const Object* testDefaultObject = testClass->getDefaultObject();
     Object* obj = new Object;
     Test t;
+    t.mIntSet.insert(2);
+    t.mIntSet.insert(3);
+    t.mIntSet.insert(8);
+    StdSet* stdSet = dynamic_cast<StdSet*>(testClass->getProperty("IntSet")->getType());
+    auto ptrs = stdSet->getElementPtrs(&(t.mIntSet));
+    t.mIntSet.insert(5);
+    for (auto ptr : ptrs)
+    {
+        *(int*)ptr = 1;
+
+    }
     stdVectorObjects->appendElement(propObjects->getValuePtr(&t), obj);
 
     Entity* entity0 = new Entity;

@@ -28,7 +28,6 @@ namespace xxx
         std::vector<std::pair<uint32_t, VertexAttributeView>> mVertexAttributeViews;
         IndexBufferView mIndexBufferView;
 
-        std::vector<std::pair<uint32_t, osg::ref_ptr<osg::Array>>> mOsgVertexAttributeArrays;
-        osg::ref_ptr<osg::DrawElements> mOsgDrawElements;
+        std::vector<osg::ref_ptr<osg::Geometry>> mOsgGeometries;
     };
 }
