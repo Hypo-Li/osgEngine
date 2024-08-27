@@ -1,10 +1,10 @@
 #pragma once
-#include "Serializer.h"
+#include "AssetSerializer.h"
 #include "../Object.h"
 
 namespace xxx
 {
-    class AssetSaver : public Serializer
+    class AssetSaver : public AssetSerializer
     {
     public:
         virtual ~AssetSaver() = default;

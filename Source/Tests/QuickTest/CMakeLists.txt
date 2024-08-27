@@ -1,4 +1,4 @@
-add_executable(QuickTest "Main.cpp")
+add_executable(QuickTest "Main.cpp" "NewPipeline.cpp")
 
 LINK_WITH_VARIABLES(QuickTest OPENTHREADS_LIBRARY OSG_LIBRARY OSGDB_LIBRARY OSGUTIL_LIBRARY OSGGA_LIBRARY OSGVIEWER_LIBRARY)
 target_link_libraries(QuickTest PRIVATE Core Render ThirdParty ${OPENGL_LIBRARIES})

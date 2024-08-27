@@ -1,3 +1,5 @@
+#if 0
+
 #include <Engine/Render/Pipeline.h>
 #include <osgViewer/Viewer>
 #include <osgDB/ReadFile>
@@ -138,15 +140,9 @@ void main()
 }
 )";
 
-class MyGeometry : public osg::Geometry
+osg::Geometry* createGeometry()
 {
-public:
-    bool mIsCulled;
-};
-
-MyGeometry* createGeometry()
-{
-    MyGeometry* geometry = new MyGeometry;
+    osg::Geometry* geometry = new osg::Geometry;
     geometry->setVertexArray(new osg::Vec3Array(std::begin(positions), std::end(positions)));
     geometry->addPrimitiveSet(new osg::DrawArrays(GL_TRIANGLES, 0, 3));
     osg::Program* program = new osg::Program;
@@ -219,7 +215,7 @@ int main()
     atmosphereParametersArray->setBufferObject(atmosphereParametersUBO);
     gAtmosphereParametersUBB = new osg::UniformBufferBinding(1, atmosphereParametersArray, 0, sizeof(AtmosphereParametersBuffer));
 
-    const int width = 1280, height = 720;
+    const int width = 1920, height = 1080;
     osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits();
     traits->width = width; traits->height = height;
     traits->windowDecoration = true;
@@ -239,7 +235,8 @@ int main()
     camera->setViewport(0, 0, width, height);
     camera->setProjectionMatrixAsPerspective(90.0, double(width) / double(height), 0.1, 400.0);
 
-    rootGroup->addChild(createGeode());
+    for (int i = 0; i < 1000; ++i)
+        rootGroup->addChild(createGeode());
 
     osg::ref_ptr<xxx::Pipeline> pipeline = new xxx::Pipeline(viewer, gc);
     using BufferType = xxx::Pipeline::Pass::BufferType;
@@ -257,7 +254,7 @@ int main()
     input2Pass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT, osg::Texture::NEAREST, osg::Texture::NEAREST);
     input2Pass->getCamera()->getOrCreateStateSet()->setDefine("INPUT_PASS", "2");
 
-    osg::ref_ptr<osg::Program> transmittanceLutProgram = new osg::Program;
+    /*osg::ref_ptr<osg::Program> transmittanceLutProgram = new osg::Program;
     transmittanceLutProgram->addShader(screenQuadShader);
     transmittanceLutProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Atmosphere/TransmittanceLut.frag.glsl"));
     osg::ref_ptr<xxx::Pipeline::Pass> transmittanceLutPass = pipeline->addWorkPass("TransmittanceLut", transmittanceLutProgram, 0, true, osg::Vec2(256, 64));
@@ -309,7 +306,7 @@ int main()
     colorGradingLut4Pass->attach(BufferType::COLOR_BUFFER5, colorGradingLutTexture, 0, 29);
     colorGradingLut4Pass->attach(BufferType::COLOR_BUFFER6, colorGradingLutTexture, 0, 30);
     colorGradingLut4Pass->attach(BufferType::COLOR_BUFFER7, colorGradingLutTexture, 0, 31);
-    colorGradingLut4Pass->getCamera()->getStateSet()->setDefine("COLOR_GRADING_INDEX", "3");
+    colorGradingLut4Pass->getCamera()->getStateSet()->setDefine("COLOR_GRADING_INDEX", "3");*/
 
     osg::Program* displayProgram = new osg::Program;
     displayProgram->addShader(screenQuadShader);
@@ -317,6 +314,7 @@ int main()
     osg::ref_ptr<xxx::Pipeline::Pass> displayPass = pipeline->addDisplayPass("Display", displayProgram);
     displayPass->applyTexture(input1Pass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorTexture", 0);
 
+    viewer->setThreadingModel(osgViewer::Viewer::SingleThreaded);
     viewer->setCameraManipulator(new osgGA::TrackballManipulator);
     viewer->addEventHandler(new osgViewer::StatsHandler);
     viewer->realize();
@@ -326,3 +324,5 @@ int main()
     }
     return 0;
 }
+
+#endif // 0

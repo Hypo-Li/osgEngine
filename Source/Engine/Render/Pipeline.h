@@ -120,7 +120,7 @@ namespace xxx
         // sizeScale: 当fixedSize为true时为相较于默认FBO viewport大小的缩放比例, 否则为固定的viewport大小
         Pass* addInputPass(const std::string& name, osg::Node::NodeMask cullMask, GLbitfield clearMask, bool fixedSize = false, osg::Vec2 sizeScale = osg::Vec2(1.0, 1.0));
 
-        Pass* addWorkPass(const std::string& name, osg::Program* program, GLbitfield clearMask, bool fixedSize = false, osg::Vec2 sizeScale = osg::Vec2(1.0, 1.0), bool runOnce = false);
+        Pass* addWorkPass(const std::string& name, osg::Program* program, GLbitfield clearMask, bool fixedSize = false, osg::Vec2 sizeScale = osg::Vec2(1.0, 1.0));
 
         Pass* addDisplayPass(const std::string& name, osg::Program* program);
 

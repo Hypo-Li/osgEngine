@@ -30,7 +30,7 @@ namespace xxx
         return newPass;
     }
 
-    class ScreenQuadRunOnceCullCallback : public osg::NodeCallback
+    class RunOnceCullCallback : public osg::NodeCallback
     {
     public:
         virtual void operator()(osg::Node* node, osg::NodeVisitor* nv)
@@ -40,7 +40,7 @@ namespace xxx
         }
     };
 
-    Pipeline::Pass* Pipeline::addWorkPass(const std::string& name, osg::Program* program, GLbitfield clearMask, bool fixedSize, osg::Vec2 sizeScale, bool runOnce)
+    Pipeline::Pass* Pipeline::addWorkPass(const std::string& name, osg::Program* program, GLbitfield clearMask, bool fixedSize, osg::Vec2 sizeScale)
     {
         osg::Camera* camera = new osg::Camera;
         camera->setName(name);
@@ -69,9 +69,6 @@ namespace xxx
             program->getShader(i)->setName(name);
         geode->getOrCreateStateSet()->setAttribute(program, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
         camera->addChild(geode);
-
-        if (runOnce)
-            geode->setCullCallback(new ScreenQuadRunOnceCullCallback);
 
         _view->addSlave(camera, false);
         Pass* newPass = new Pass(camera, fixedSize, sizeScale);
