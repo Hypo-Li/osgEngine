@@ -8,14 +8,12 @@
 
 namespace xxx
 {
-    class Serializer
+    class Serializer : public osg::Referenced
     {
     public:
         virtual ~Serializer() = 0;
 
         virtual void serialize(Object*& object) = 0;
-
-    protected:
         
     };
 }

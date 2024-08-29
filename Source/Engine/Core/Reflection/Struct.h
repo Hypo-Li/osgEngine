@@ -12,6 +12,16 @@ namespace xxx::refl
     public:
         virtual Kind getKind() const override { return Kind::Struct; }
 
+        void* newInstance() const
+        {
+            return mConstructor();
+        }
+
+        void deleteInstance(void* instance) const
+        {
+            mDestructor(instance);
+        }
+
         Property* getProperty(std::string_view name) const
         {
             for (auto prop : mProperties)
@@ -44,9 +54,17 @@ namespace xxx::refl
         }
 
     private:
-        Struct(std::string_view name, size_t size) : Type(name, size) {}
+        using Constructor = std::function<void* (void)>;
+        using Destructor = std::function<void(void*)>;
+        Struct(std::string_view name, size_t size, Constructor constructor, Destructor destructor) :
+            Type(name, size),
+            mConstructor(constructor),
+            mDestructor(destructor)
+        {}
         virtual ~Struct() = default;
 
         std::vector<Property*> mProperties;
+        Constructor mConstructor;
+        Destructor mDestructor;
     };
 }

@@ -2,12 +2,23 @@
 #include <osg/View>
 // Impl
 #include <osg/Texture2D>
+#include <osg/Texture2DMultisample>
 #include <osg/Geometry>
 #include <osg/Geode>
 #include <cassert>
 
 namespace xxx
 {
+    class MyTexture2DMultisample : public osg::Texture2DMultisample
+    {
+    public:
+        MyTexture2DMultisample();
+
+        MyTexture2DMultisample(GLsizei numSamples, GLboolean fixedsamplelocations);
+
+        virtual void apply(osg::State& state) const override;
+    };
+
     class Pipeline : public osg::Referenced
     {
         class ResizedCallback;
@@ -38,7 +49,7 @@ namespace xxx
                 _camera->attach(buffer, texture, level, face, mipmapGeneration);
             }
 
-            void attach(BufferType buffer, GLenum internalFormat,
+            void attach(BufferType buffer, GLenum internalFormat, bool multisampling = false,
                 osg::Texture::FilterMode minFilter = osg::Texture::LINEAR, osg::Texture::FilterMode magFilter = osg::Texture::LINEAR,
                 osg::Texture::WrapMode wrapS = osg::Texture::CLAMP_TO_EDGE, osg::Texture::WrapMode wrapT = osg::Texture::CLAMP_TO_EDGE)
             {
@@ -54,8 +65,19 @@ namespace xxx
                     { GL_RGB10_A2, GL_RGBA },
                 };
                 osg::Viewport* viewport = _camera->getViewport();
-                osg::Texture2D* texture = new osg::Texture2D;
-                texture->setTextureSize(viewport->width(), viewport->height());
+                osg::Texture* texture;
+                if (multisampling)
+                {
+                    osg::Texture2DMultisample* tex2dms = new MyTexture2DMultisample(4, true);
+                    texture = tex2dms;
+                    tex2dms->setTextureSize(viewport->width(), viewport->height());
+                }
+                else
+                {
+                    osg::Texture2D* tex2d = new osg::Texture2D;
+                    texture = tex2d;
+                    tex2d->setTextureSize(viewport->width(), viewport->height());
+                }
                 texture->setInternalFormat(internalFormat);
                 constexpr uint32_t count = sizeof(formatTable) / sizeof(std::pair<GLenum, GLenum>);
                 for (uint32_t i = 0; i < count; i++)
@@ -63,7 +85,6 @@ namespace xxx
                     if (formatTable[i].first == internalFormat)
                         texture->setSourceFormat(formatTable[i].second);
                 }
-                //texture->setSourceType(sourceType);
                 texture->setFilter(osg::Texture::MIN_FILTER, minFilter);
                 texture->setFilter(osg::Texture::MAG_FILTER, magFilter);
                 texture->setWrap(osg::Texture::WRAP_S, wrapS);
@@ -148,10 +169,19 @@ namespace xxx
                     auto& bufferAttachmentMap = pass->_camera->getBufferAttachmentMap();
                     for (auto itr : bufferAttachmentMap)
                     {
-                        osg::Texture2D* texture = dynamic_cast<osg::Texture2D*>(itr.second._texture.get());
-                        assert(texture && "Unsupport texture type!");
-                        texture->setTextureSize(realWidth, realHeight);
-                        texture->dirtyTextureObject();
+                        osg::Texture2D* texture2d = dynamic_cast<osg::Texture2D*>(itr.second._texture.get());
+                        osg::Texture2DMultisample* texture2dMs = dynamic_cast<osg::Texture2DMultisample*>(itr.second._texture.get());
+                        assert((texture2d || texture2dMs) && "Unsupport texture type!");
+                        if (texture2d)
+                        {
+                            texture2d->setTextureSize(realWidth, realHeight);
+                            texture2d->dirtyTextureObject();
+                        }
+                        else if (texture2dMs)
+                        {
+                            texture2dMs->setTextureSize(realWidth, realHeight);
+                            texture2dMs->dirtyTextureObject();
+                        }
                     }
                     pass->_camera->dirtyAttachmentMap();
                     pass->_resolutionUniform->set(osg::Vec4(realWidth, realHeight, 1.0f / realWidth, 1.0f / realHeight));

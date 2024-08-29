@@ -10,6 +10,16 @@ namespace xxx::refl
     {
         friend class Reflection;
     public:
+        virtual void* newInstance() const override
+        {
+            return new std::string;
+        }
+
+        virtual void deleteInstance(void* instance) const override
+        {
+            delete static_cast<std::string*>(instance);
+        }
+
         virtual SpecialType getSpecialType() const
         {
             return SpecialType::Std_String;

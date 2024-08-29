@@ -23,11 +23,11 @@ namespace xxx::refl
         virtual Type* getKeyType() const = 0;
         virtual Type* getValueType() const = 0;
         virtual size_t getKeyValuePairCount(void* instance) const = 0;
-        virtual void* getValuePtrByKey(void* instance, Argument key) const = 0;
+        virtual void* getValuePtrByKey(void* instance, void* key) const = 0;
         virtual std::vector<std::pair<const void*, void*>> getKeyValuePtrs(void* instance) const = 0;
 
-        virtual void insertKeyValuePair(void* instance, Argument key, Argument value) const = 0;
-        virtual void removeKeyValuePairByKey(void* instance, Argument key) const = 0;
+        virtual void insertKeyValuePair(void* instance, void* key, void* value) const = 0;
+        virtual void removeKeyValuePairByKey(void* instance, void* key) const = 0;
     };
 
     class Reflection;
@@ -38,6 +38,16 @@ namespace xxx::refl
         using KeyType = container_traits_t1<T>;
         using ValueType = container_traits_t2<T>;
     public:
+        virtual void* newInstance() const override
+        {
+            return new std::map<KeyType, ValueType>;
+        }
+
+        virtual void deleteInstance(void* instance) const override
+        {
+            delete static_cast<std::map<KeyType, ValueType>*>(instance);
+        }
+
         virtual Type* getKeyType() const override
         {
             return Type::getType<KeyType>();
@@ -50,10 +60,10 @@ namespace xxx::refl
         {
             return static_cast<std::map<KeyType, ValueType>*>(instance)->size();
         }
-        virtual void* getValuePtrByKey(void* instance, Argument key) const override
+        virtual void* getValuePtrByKey(void* instance, void* key) const override
         {
             std::map<KeyType, ValueType>* map = static_cast<std::map<KeyType, ValueType>*>(instance);
-            auto findResult = map->find(key.getValue<KeyType>());
+            auto findResult = map->find(*(KeyType*)(key));
             if (findResult != map->end())
                 return &findResult->second;
             return nullptr;
@@ -69,15 +79,15 @@ namespace xxx::refl
             return result;
         }
 
-        virtual void insertKeyValuePair(void* instance, Argument key, Argument value) const override
+        virtual void insertKeyValuePair(void* instance, void* key, void* value) const override
         {
             std::map<KeyType, ValueType>* map = static_cast<std::map<KeyType, ValueType>*>(instance);
-            map->emplace(key.getValue<KeyType>(), value.getValue<ValueType>());
+            map->emplace(*(KeyType*)(key), *(ValueType*)(value));
         }
-        virtual void removeKeyValuePairByKey(void* instance, Argument key) const override
+        virtual void removeKeyValuePairByKey(void* instance, void* key) const override
         {
             std::map<KeyType, ValueType>* map = static_cast<std::map<KeyType, ValueType>*>(instance);
-            auto findResult = map->find(key.getValue<KeyType>());
+            auto findResult = map->find(*(KeyType*)(key));
             if (findResult != map->end())
                 map->erase(findResult);
         }

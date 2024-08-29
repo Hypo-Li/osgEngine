@@ -2,6 +2,62 @@
 
 namespace xxx
 {
+    MyTexture2DMultisample::MyTexture2DMultisample() : osg::Texture2DMultisample()
+    {}
+
+    MyTexture2DMultisample::MyTexture2DMultisample(GLsizei numSamples, GLboolean fixedsamplelocations) :
+        osg::Texture2DMultisample(numSamples, fixedsamplelocations)
+    {}
+
+    void MyTexture2DMultisample::apply(osg::State& state) const
+    {
+        // current OpenGL context.
+        const unsigned int contextID = state.getContextID();
+        const osg::GLExtensions* extensions = state.get<osg::GLExtensions>();
+        if (!extensions->isTextureMultisampledSupported)
+        {
+            OSG_INFO << "Texture2DMultisample not supported." << std::endl;
+            return;
+        }
+
+        // get the texture object for the current contextID.
+        TextureObject* textureObject = getTextureObject(contextID);
+
+        if (textureObject)
+        {
+            textureObject->bind();
+        }
+        else if ((_textureWidth != 0) && (_textureHeight != 0) && (_numSamples != 0))
+        {
+            // no image present, but dimensions at set so lets create the texture
+            /*GLenum texStorageSizedInternalFormat = extensions->isTextureStorageEnabled && (_borderWidth == 0) ? selectSizedInternalFormat() : 0;
+            if (texStorageSizedInternalFormat != 0)
+            {
+                textureObject = generateAndAssignTextureObject(contextID, getTextureTarget(), 1, texStorageSizedInternalFormat, _textureWidth, _textureHeight, 1, 0);
+                textureObject->bind();
+
+                extensions->glTexStorage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, _numSamples, texStorageSizedInternalFormat, _textureWidth, _textureHeight, _fixedsamplelocations);
+            }
+            else*/
+            {
+                textureObject = generateAndAssignTextureObject(contextID, getTextureTarget(), 1, _internalFormat, _textureWidth, _textureHeight, 1, _borderWidth);
+                textureObject->bind();
+
+                extensions->glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE,
+                                                 _numSamples,
+                                                 _internalFormat,
+                                                 _textureWidth,
+                                                 _textureHeight,
+                                                 _fixedsamplelocations);
+            }
+
+        }
+        else
+        {
+            glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+        }
+    }
+
     Pipeline::Pass* Pipeline::addInputPass(const std::string& name, osg::Node::NodeMask cullMask, GLbitfield clearMask, bool fixedSize, osg::Vec2 sizeScale)
     {
         osg::Camera* camera = new osg::Camera;

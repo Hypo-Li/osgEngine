@@ -31,6 +31,16 @@ namespace xxx::refl
         using ElementType = container_traits_t<T>;
         static constexpr size_t ElementCount = container_traits<T>::Count;
     public:
+        virtual void* newInstance() const override
+        {
+            return new std::array<ElementType, ElementCount>;
+        }
+
+        virtual void deleteInstance(void* instance) const override
+        {
+            delete static_cast<std::array<ElementType, ElementCount>*>(instance);
+        }
+
         virtual Type* getElementType() const override
         {
             return Type::getType<ElementType>();

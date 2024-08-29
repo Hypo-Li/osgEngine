@@ -47,9 +47,14 @@ namespace xxx::refl
             return mMethods;
         }
 
-        xxx::Object* createInstance() const
+        xxx::Object* newInstance() const
         {
             return mConstructor();
+        }
+
+        void deleteInstance(xxx::Object* instance) const
+        {
+            mDestructor(instance);
         }
 
         const xxx::Object* getDefaultObject() const
@@ -62,7 +67,6 @@ namespace xxx::refl
         {
             mBaseClass = baseClass;
         }
-
 
         template <std::size_t Index = 0, typename ClassType, typename ObjectType>
         Property* addProperty(std::string_view name, ObjectType ClassType::* member)
@@ -91,10 +95,12 @@ namespace xxx::refl
 
     private:
         using Constructor = std::function<xxx::Object* (void)>;
-        Class(std::string_view name, size_t size, Constructor constructor) :
+        using Destructor = std::function<void(xxx::Object*)>;
+        Class(std::string_view name, size_t size, Constructor constructor, Destructor destructor) :
             Type(name, size),
             mBaseClass(nullptr),
             mConstructor(constructor),
+            mDestructor(destructor),
             mDefaultObject(constructor())
         {}
         virtual ~Class() = default;
@@ -103,6 +109,7 @@ namespace xxx::refl
         std::vector<Property*> mProperties;
         std::vector<Method*> mMethods;
         Constructor mConstructor;
+        Destructor mDestructor;
         const xxx::Object* mDefaultObject;
 	};
 }

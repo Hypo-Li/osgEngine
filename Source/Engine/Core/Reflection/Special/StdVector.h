@@ -33,6 +33,16 @@ namespace xxx::refl
         friend class Reflection;
         using ElementType = container_traits_t<T>;
     public:
+        virtual void* newInstance() const override
+        {
+            return new std::vector<ElementType>;
+        }
+
+        virtual void deleteInstance(void* instance) const override
+        {
+            delete static_cast<std::vector<ElementType>*>(instance);
+        }
+
         virtual Type* getElementType() const override
         {
             return Type::getType<ElementType>();

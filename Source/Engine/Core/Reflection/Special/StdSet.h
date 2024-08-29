@@ -23,8 +23,8 @@ namespace xxx::refl
         virtual size_t getElementCount(void* instance) const = 0;
         virtual std::vector<const void*> getElementPtrs(void* instance) const = 0;
 
-        virtual void insertElement(void* instance, Argument element) const = 0;
-        virtual void removeElement(void* instance, Argument element) const = 0;
+        virtual void insertElement(void* instance, void* element) const = 0;
+        virtual void removeElement(void* instance, void* element) const = 0;
     };
 
     class Reflection;
@@ -34,6 +34,16 @@ namespace xxx::refl
         friend class Reflection;
         using ElementType = container_traits_t<T>;
     public:
+        virtual void* newInstance() const override
+        {
+            return new std::set<ElementType>;
+        }
+
+        virtual void deleteInstance(void* instance) const override
+        {
+            delete static_cast<std::set<ElementType>*>(instance);
+        }
+
         virtual Type* getElementType() const override
         {
             return Type::getType<ElementType>();
@@ -53,15 +63,15 @@ namespace xxx::refl
             return result;
         }
 
-        virtual void insertElement(void* instance, Argument element) const override
+        virtual void insertElement(void* instance, void* element) const override
         {
             std::set<ElementType>* set = static_cast<std::set<ElementType>*>(instance);
-            set->insert(element.getValue<ElementType>());
+            set->insert(*(ElementType*)(element));
         }
-        virtual void removeElement(void* instance, Argument element) const override
+        virtual void removeElement(void* instance, void* element) const override
         {
             std::set<ElementType>* set = static_cast<std::set<ElementType>*>(instance);
-            auto findResult = set->find(element.getValue<ElementType>());
+            auto findResult = set->find(*(ElementType*)(element));
             if (findResult != set->end())
                 set->erase(findResult);
         }

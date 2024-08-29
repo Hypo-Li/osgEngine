@@ -39,6 +39,16 @@ namespace xxx::refl
             return nullptr;
         }
     public:
+        virtual void* newInstance() const override
+        {
+            return new T;
+        }
+
+        virtual void deleteInstance(void* instance) const override
+        {
+            delete static_cast<T*>(instance);
+        }
+
         virtual std::vector<Type*> getTypes() const override
         {
             return getTypesImpl(std::make_index_sequence<std::variant_size_v<T>>());

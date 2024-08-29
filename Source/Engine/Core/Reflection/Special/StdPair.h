@@ -33,6 +33,16 @@ namespace xxx::refl
         using FirstType = container_traits_t1<T>;
         using SecondType = container_traits_t2<T>;
     public:
+        virtual void* newInstance() const override
+        {
+            return new std::pair<FirstType, SecondType>;
+        }
+
+        virtual void deleteInstance(void* instance) const override
+        {
+            delete static_cast<std::pair<FirstType, SecondType>*>(instance);
+        }
+
         virtual Type* getFirstType() const override
         {
             return Type::getType<FirstType>();
