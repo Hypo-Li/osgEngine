@@ -221,7 +221,7 @@ namespace xxx
         {
         case SpecialType::Std_String:
         {
-            serialize((std::string*)(data), count);
+            serialize(static_cast<std::string*>(data), count);
             break;
         }
         case SpecialType::Std_Array:
@@ -229,7 +229,7 @@ namespace xxx
             StdArray* stdArray = dynamic_cast<StdArray*>(type);
             for (size_t i = 0; i < count; ++i)
             {
-                void* stdArrayData = (uint8_t*)(data)+stdArray->getSize() * i;
+                void* stdArrayData = static_cast<uint8_t*>(data) + stdArray->getSize() * i;
                 serializeType(stdArray->getElementType(), stdArray->getElementPtrByIndex(stdArrayData, 0), stdArray->getElementCount());
             }
             break;
@@ -265,23 +265,25 @@ namespace xxx
                     void* stdMapData = static_cast<uint8_t*>(data) + stdMap->getSize() * i;
                     size_t keyValuePairCount;
                     serialize(&keyValuePairCount);
-                    std::vector<void*> keyPtrs(keyValuePairCount), valuePtrs(keyValuePairCount);
-                    for (size_t j = 0; j < keyValuePairCount; ++j)
+                    if (keyValuePairCount > 0)
                     {
-                        keyPtrs[j] = newInstanceByType(stdMap->getKeyType());
-                        valuePtrs[j] = newInstanceByType(stdMap->getValueType());
-                    }
-                    serializeType(stdMap->getKeyType(), keyPtrs[0], keyValuePairCount);
-                    serializeType(stdMap->getValueType(), valuePtrs[0], keyValuePairCount);
-                    for (size_t j = 0; j < keyValuePairCount; ++j)
-                    {
-                        stdMap->insertKeyValuePair(stdMapData, keyPtrs[j], valuePtrs[j]);
-                        deleteInstanceByType(stdMap->getKeyType(), keyPtrs[j]);
-                        deleteInstanceByType(stdMap->getValueType(), valuePtrs[j]);
+                        std::vector<void*> keyPtrs(keyValuePairCount), valuePtrs(keyValuePairCount);
+                        for (size_t j = 0; j < keyValuePairCount; ++j)
+                        {
+                            keyPtrs[j] = newInstanceByType(stdMap->getKeyType());
+                            valuePtrs[j] = newInstanceByType(stdMap->getValueType());
+                        }
+                        serializeType(stdMap->getKeyType(), keyPtrs[0], keyValuePairCount);
+                        serializeType(stdMap->getValueType(), valuePtrs[0], keyValuePairCount);
+                        for (size_t j = 0; j < keyValuePairCount; ++j)
+                        {
+                            stdMap->insertKeyValuePair(stdMapData, keyPtrs[j], valuePtrs[j]);
+                            deleteInstanceByType(stdMap->getKeyType(), keyPtrs[j]);
+                            deleteInstanceByType(stdMap->getValueType(), valuePtrs[j]);
+                        }
                     }
                 }
             }
-            
             break;
         }
         case SpecialType::Std_Pair:
@@ -320,7 +322,10 @@ namespace xxx
                             elementPtrs[j] = newInstanceByType(stdSet->getElementType());
                         serializeType(stdSet->getElementType(), elementPtrs[0], elementCount);
                         for (size_t j = 0; j < elementCount; ++j)
-                            stdSet->insertElement(stdSetData);
+                        {
+                            stdSet->insertElement(stdSetData, elementPtrs[j]);
+                            deleteInstanceByType(stdSet->getElementType(), elementPtrs[j]);
+                        }
                     }
                 }
             }
@@ -331,9 +336,9 @@ namespace xxx
             StdTuple* stdTuple = dynamic_cast<StdTuple*>(type);
             for (size_t i = 0; i < count; ++i)
             {
-                void* currentData = (uint8_t*)(data)+stdTuple->getSize() * i;
+                void* stdTupleData = static_cast<uint8_t*>(data) + stdTuple->getSize() * i;
                 std::vector<Type*> tupleTypes = stdTuple->getTypes();
-                std::vector<void*> tupleElementPtrs = stdTuple->getElementPtrs(currentData);
+                std::vector<void*> tupleElementPtrs = stdTuple->getElementPtrs(stdTupleData);
                 size_t tupleElementCount = stdTuple->getElementCount();
                 for (size_t i = 0; i < tupleElementCount; ++i)
                     serializeType(tupleTypes[i], tupleElementPtrs[i]);
@@ -345,24 +350,48 @@ namespace xxx
             StdVariant* stdVariant = dynamic_cast<StdVariant*>(type);
             for (size_t i = 0; i < count; ++i)
             {
-                void* currentData = (uint8_t*)(data)+stdVariant->getSize() * i;
-                uint32_t typeIndex = stdVariant->getTypeIndex(currentData);
-                Type* currentType = stdVariant->getTypes().at(typeIndex);
-                void* valuePtr = stdVariant->getValuePtr(currentData);
-                serializeType(currentType, valuePtr);
+                void* stdVariantData = static_cast<uint8_t*>(data) + stdVariant->getSize() * i;
+                uint32_t typeIndex = stdVariant->getTypeIndex(stdVariantData);
+                Type* variantType = stdVariant->getTypes().at(typeIndex);
+                void* valuePtr = stdVariant->getValuePtr(stdVariantData);
+                serializeType(variantType, valuePtr);
             }
             break;
         }
         case SpecialType::Std_Vector:
         {
             StdVector* stdVector = dynamic_cast<StdVector*>(type);
-            for (size_t i = 0; i < count; ++i)
+            if (isSaving())
             {
-                void* currentData = (uint8_t*)(data)+stdVector->getSize() * i;
-                size_t elementCount = stdVector->getElementCount(currentData);
-                serialize(&elementCount);
-                if (elementCount > 0)
-                    serializeType(stdVector->getElementType(), stdVector->getElementPtrByIndex(currentData, 0), elementCount);
+                for (size_t i = 0; i < count; ++i)
+                {
+                    void* stdVectorData = static_cast<uint8_t*>(data) + stdVector->getSize() * i;
+                    size_t elementCount = stdVector->getElementCount(stdVectorData);
+                    serialize(&elementCount);
+                    if (elementCount > 0)
+                        serializeType(stdVector->getElementType(), stdVector->getElementPtrByIndex(stdVectorData, 0), elementCount);
+                }
+            }
+            else
+            {
+                for (size_t i = 0; i < count; ++i)
+                {
+                    void* stdVectorData = static_cast<uint8_t*>(data) + stdVector->getSize() * i;
+                    size_t elementCount;
+                    serialize(&elementCount);
+                    if (elementCount > 0)
+                    {
+                        std::vector<void*> elementPtrs(elementCount);
+                        for (size_t j = 0; j < elementCount; ++j)
+                            elementPtrs[j] = newInstanceByType(stdVector->getElementType());
+                        serializeType(stdVector->getElementType(), elementPtrs[0], elementCount);
+                        for (size_t j = 0; j < elementCount; ++j)
+                        {
+                            stdVector->appendElement(stdVectorData, elementPtrs[j]);
+                            deleteInstanceByType(stdVector->getElementType(), elementPtrs[j]);
+                        }
+                    }
+                }
             }
             break;
         }

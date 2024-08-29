@@ -22,7 +22,7 @@ namespace xxx::refl
         virtual Type* getElementType() const = 0;
         virtual size_t getElementCount(void* vector) const = 0;
         virtual void* getElementPtrByIndex(void* vector, uint32_t index) const = 0;
-        virtual void appendElement(void* vector, Argument newElement) const = 0;
+        virtual void appendElement(void* vector, void* newElement) const = 0;
         virtual void removeElementByIndex(void* vector, uint32_t index) const = 0;
     };
 
@@ -58,9 +58,9 @@ namespace xxx::refl
             return &(static_cast<std::vector<ElementType>*>(vector)->at(index));
         }
 
-        virtual void appendElement(void* vector, Argument newElement) const override
+        virtual void appendElement(void* vector, void* element) const override
         {
-            static_cast<std::vector<ElementType>*>(vector)->emplace_back(newElement.getValue<ElementType>());
+            static_cast<std::vector<ElementType>*>(vector)->emplace_back(*(ElementType*)(element));
         }
 
         virtual void removeElementByIndex(void* vector, uint32_t index) const override
