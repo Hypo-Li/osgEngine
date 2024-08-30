@@ -4,45 +4,38 @@ namespace xxx
 {
     using namespace refl;
 
-    static void* newInstanceByType(Type* type)
+    static void checkProperty(const Object* defaultObject, Object* object)
     {
-        Type::Kind kind = type->getKind();
-        if (kind == Type::Kind::Fundamental || kind == Type::Kind::Enum)
-            return new uint8_t[type->getSize()];
-        else if (kind == Type::Kind::Struct)
-            return dynamic_cast<Struct*>(type)->newInstance();
-        else if (kind == Type::Kind::Class)
-            return dynamic_cast<Class*>(type)->newInstance();
-        else if (kind == Type::Kind::Special)
-            return dynamic_cast<Special*>(type)->newInstance();
-        else
-            return nullptr;
-    }
-
-    static void deleteInstanceByType(Type* type, void* instance)
-    {
-        Type::Kind kind = type->getKind();
-        if (kind == Type::Kind::Fundamental || kind == Type::Kind::Enum)
-            delete[](uint8_t*)(instance);
-        else if (kind == Type::Kind::Struct)
-            dynamic_cast<Struct*>(type)->deleteInstance(instance);
-        else if (kind == Type::Kind::Class)
-            return dynamic_cast<Class*>(type)->deleteInstance(static_cast<Object*>(instance));
-        else if (kind == Type::Kind::Special)
-            return dynamic_cast<Special*>(type)->deleteInstance(instance);
+        Class* clazz = defaultObject->getClass();
+        std::vector<Property*> diffProperties;
+        while (clazz)
+        {
+            for (Property* prop : clazz->getProperties())
+            {
+                // check default obj and obj is equal
+                bool isEqual;
+                if (!isEqual)
+                    diffProperties.push_back(prop);
+            }
+            clazz = clazz->getBaseClass();
+        }
     }
 
     void AssetSerializer::serialize(Object*& object)
     {
         object->preSerialize();
-        std::string className;
         Class* clazz = object->getClass();
-        if (isSaving())
-            className = clazz->getName();
-        serialize(&className);
-        const auto& properties = clazz->getProperties();
-        for (Property* prop : properties)
-            serializeProperty(prop, object);
+        const Object* defaultObject = clazz->getDefaultObject();
+        Class* base = clazz;
+        uint32_t propertyCount = 0;
+        while (base)
+        {
+            propertyCount += base->getProperties().size();
+            base = base->getBaseClass();
+        }
+        serialize(&propertyCount);
+        /*for (Property* prop : properties)
+            serializeProperty(prop, object);*/
         object->postSerialize();
     }
 
@@ -237,6 +230,8 @@ namespace xxx
         case SpecialType::Std_Map:
         {
             StdMap* stdMap = dynamic_cast<StdMap*>(type);
+            Type* keyType = stdMap->getKeyType();
+            Type* valueType = stdMap->getValueType();
             if (isSaving())
             {
                 for (size_t i = 0; i < count; ++i)
@@ -244,17 +239,11 @@ namespace xxx
                     void* stdMapData = static_cast<uint8_t*>(data) + stdMap->getSize() * i;
                     std::vector<std::pair<const void*, void*>> keyValuePtrs = stdMap->getKeyValuePtrs(stdMapData);
                     size_t keyValuePairCount = keyValuePtrs.size();
-                    std::vector<void*> keyPtrs(keyValuePairCount), valuePtrs(keyValuePairCount);
+                    serialize(&keyValuePairCount);
                     for (size_t j = 0; j < keyValuePairCount; ++j)
                     {
-                        keyPtrs[j] = const_cast<void*>(keyValuePtrs[j].first);
-                        valuePtrs[j] = keyValuePtrs[j].second;
-                    }
-                    serialize(&keyValuePairCount);
-                    if (keyValuePairCount > 0)
-                    {
-                        serializeType(stdMap->getKeyType(), keyPtrs[0], keyValuePairCount);
-                        serializeType(stdMap->getValueType(), valuePtrs[0], keyValuePairCount);
+                        serializeType(keyType, const_cast<void*>(keyValuePtrs[j].first));
+                        serializeType(valueType, keyValuePtrs[j].second);
                     }
                 }
             }
@@ -265,22 +254,15 @@ namespace xxx
                     void* stdMapData = static_cast<uint8_t*>(data) + stdMap->getSize() * i;
                     size_t keyValuePairCount;
                     serialize(&keyValuePairCount);
-                    if (keyValuePairCount > 0)
+                    for (size_t j = 0; j < keyValuePairCount; ++j)
                     {
-                        std::vector<void*> keyPtrs(keyValuePairCount), valuePtrs(keyValuePairCount);
-                        for (size_t j = 0; j < keyValuePairCount; ++j)
-                        {
-                            keyPtrs[j] = newInstanceByType(stdMap->getKeyType());
-                            valuePtrs[j] = newInstanceByType(stdMap->getValueType());
-                        }
-                        serializeType(stdMap->getKeyType(), keyPtrs[0], keyValuePairCount);
-                        serializeType(stdMap->getValueType(), valuePtrs[0], keyValuePairCount);
-                        for (size_t j = 0; j < keyValuePairCount; ++j)
-                        {
-                            stdMap->insertKeyValuePair(stdMapData, keyPtrs[j], valuePtrs[j]);
-                            deleteInstanceByType(stdMap->getKeyType(), keyPtrs[j]);
-                            deleteInstanceByType(stdMap->getValueType(), valuePtrs[j]);
-                        }
+                        void* keyPtr = keyType->newInstance();
+                        void* valuePtr = valueType->newInstance();
+                        serializeType(keyType, keyPtr);
+                        serializeType(valueType, valuePtr);
+                        stdMap->insertKeyValuePair(stdMapData, keyPtr, valuePtr);
+                        keyType->deleteInstance(keyPtr);
+                        valueType->deleteInstance(valuePtr);
                     }
                 }
             }
@@ -300,6 +282,7 @@ namespace xxx
         case SpecialType::Std_Set:
         {
             StdSet* stdSet = dynamic_cast<StdSet*>(type);
+            Type* elementType = stdSet->getElementType();
             for (size_t i = 0; i < count; ++i)
             {
                 void* stdSetData = static_cast<uint8_t*>(data) + stdSet->getSize() * i;
@@ -308,24 +291,19 @@ namespace xxx
                     std::vector<const void*> elementPtrs = stdSet->getElementPtrs(stdSetData);
                     size_t elementCount = elementPtrs.size();
                     serialize(&elementCount);
-                    if (elementCount > 0)
-                        serializeType(stdSet->getElementType(), const_cast<void*>(elementPtrs[0]), elementCount);
+                    for (size_t j = 0; j < elementCount; ++j)
+                        serializeType(elementType, const_cast<void*>(elementPtrs[j]));
                 }
                 else
                 {
                     size_t elementCount;
                     serialize(&elementCount);
-                    if (elementCount > 0)
+                    for (size_t j = 0; j < elementCount; ++j)
                     {
-                        std::vector<void*> elementPtrs(elementCount);
-                        for (size_t j = 0; j < elementCount; ++j)
-                            elementPtrs[j] = newInstanceByType(stdSet->getElementType());
-                        serializeType(stdSet->getElementType(), elementPtrs[0], elementCount);
-                        for (size_t j = 0; j < elementCount; ++j)
-                        {
-                            stdSet->insertElement(stdSetData, elementPtrs[j]);
-                            deleteInstanceByType(stdSet->getElementType(), elementPtrs[j]);
-                        }
+                        void* elementPtr = elementType->newInstance();
+                        serializeType(elementType, elementPtr);
+                        stdSet->insertElement(stdSetData, elementPtr);
+                        elementType->deleteInstance(elementPtr);
                     }
                 }
             }
@@ -348,19 +326,38 @@ namespace xxx
         case SpecialType::Std_Variant:
         {
             StdVariant* stdVariant = dynamic_cast<StdVariant*>(type);
-            for (size_t i = 0; i < count; ++i)
+            if (isSaving())
             {
-                void* stdVariantData = static_cast<uint8_t*>(data) + stdVariant->getSize() * i;
-                uint32_t typeIndex = stdVariant->getTypeIndex(stdVariantData);
-                Type* variantType = stdVariant->getTypes().at(typeIndex);
-                void* valuePtr = stdVariant->getValuePtr(stdVariantData);
-                serializeType(variantType, valuePtr);
+                for (size_t i = 0; i < count; ++i)
+                {
+                    void* stdVariantData = static_cast<uint8_t*>(data) + stdVariant->getSize() * i;
+                    uint32_t typeIndex = stdVariant->getTypeIndex(stdVariantData);
+                    serialize(&typeIndex);
+                    Type* variantType = stdVariant->getTypes().at(typeIndex);
+                    void* valuePtr = stdVariant->getValuePtr(stdVariantData);
+                    serializeType(variantType, valuePtr);
+                }
+            }
+            else
+            {
+                for (size_t i = 0; i < count; ++i)
+                {
+                    void* stdVariantData = static_cast<uint8_t*>(data) + stdVariant->getSize() * i;
+                    uint32_t typeIndex;
+                    serialize(&typeIndex);
+                    Type* variantType = stdVariant->getTypes().at(typeIndex);
+                    void* valuePtr = variantType->newInstance();
+                    serializeType(variantType, valuePtr);
+                    stdVariant->setValueByTypeIndex(stdVariantData, typeIndex, valuePtr);
+                    variantType->deleteInstance(valuePtr);
+                }
             }
             break;
         }
         case SpecialType::Std_Vector:
         {
             StdVector* stdVector = dynamic_cast<StdVector*>(type);
+            Type* elementType = stdVector->getElementType();
             if (isSaving())
             {
                 for (size_t i = 0; i < count; ++i)
@@ -369,7 +366,7 @@ namespace xxx
                     size_t elementCount = stdVector->getElementCount(stdVectorData);
                     serialize(&elementCount);
                     if (elementCount > 0)
-                        serializeType(stdVector->getElementType(), stdVector->getElementPtrByIndex(stdVectorData, 0), elementCount);
+                        serializeType(elementType, stdVector->getElementPtrByIndex(stdVectorData, 0), elementCount);
                 }
             }
             else
@@ -381,15 +378,8 @@ namespace xxx
                     serialize(&elementCount);
                     if (elementCount > 0)
                     {
-                        std::vector<void*> elementPtrs(elementCount);
-                        for (size_t j = 0; j < elementCount; ++j)
-                            elementPtrs[j] = newInstanceByType(stdVector->getElementType());
-                        serializeType(stdVector->getElementType(), elementPtrs[0], elementCount);
-                        for (size_t j = 0; j < elementCount; ++j)
-                        {
-                            stdVector->appendElement(stdVectorData, elementPtrs[j]);
-                            deleteInstanceByType(stdVector->getElementType(), elementPtrs[j]);
-                        }
+                        stdVector->resize(stdVectorData, elementCount);
+                        serializeType(elementType, stdVector->getElementPtrByIndex(stdVectorData, 0), elementCount);
                     }
                 }
             }

@@ -52,14 +52,17 @@ namespace xxx::refl
         {
             return Type::getType<KeyType>();
         }
+
         virtual Type* getValueType() const override
         {
             return Type::getType<ValueType>();
         }
+
         virtual size_t getKeyValuePairCount(void* instance) const override
         {
             return static_cast<std::map<KeyType, ValueType>*>(instance)->size();
         }
+
         virtual void* getValuePtrByKey(void* instance, void* key) const override
         {
             std::map<KeyType, ValueType>* map = static_cast<std::map<KeyType, ValueType>*>(instance);
@@ -68,6 +71,7 @@ namespace xxx::refl
                 return &findResult->second;
             return nullptr;
         }
+
         virtual std::vector<std::pair<const void*, void*>> getKeyValuePtrs(void* instance) const override
         {
             std::vector<std::pair<const void*, void*>> result;
@@ -84,6 +88,7 @@ namespace xxx::refl
             std::map<KeyType, ValueType>* map = static_cast<std::map<KeyType, ValueType>*>(instance);
             map->emplace(*(KeyType*)(key), *(ValueType*)(value));
         }
+
         virtual void removeKeyValuePairByKey(void* instance, void* key) const override
         {
             std::map<KeyType, ValueType>* map = static_cast<std::map<KeyType, ValueType>*>(instance);

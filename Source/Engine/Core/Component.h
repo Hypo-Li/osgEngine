@@ -6,10 +6,6 @@ namespace xxx
     class Component : public Object
     {
         friend class refl::Reflection;
-        static Object* createInstance()
-        {
-            return nullptr;
-        }
     public:
         virtual refl::Class* getClass() const
         {
@@ -42,7 +38,7 @@ namespace xxx
         template <>
         inline Type* Reflection::createType<Component>()
         {
-            Class* clazz = new Class("Component", sizeof(Component), Component::createInstance);
+            Class* clazz = new Class("Component", sizeof(Component), newObject<Component>, deleteObject<Component>);
             clazz->setBaseClass(dynamic_cast<Class*>(Reflection::getType<Object>()));
             Property* propOwner = clazz->addProperty("Owner", &Component::mOwner);
             sRegisteredClassMap.emplace("Component", clazz);

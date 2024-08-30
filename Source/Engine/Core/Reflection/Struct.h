@@ -12,12 +12,12 @@ namespace xxx::refl
     public:
         virtual Kind getKind() const override { return Kind::Struct; }
 
-        void* newInstance() const
+        virtual void* newInstance() const override
         {
             return mConstructor();
         }
 
-        void deleteInstance(void* instance) const
+        virtual void deleteInstance(void* instance) const override
         {
             mDestructor(instance);
         }

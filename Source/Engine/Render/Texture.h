@@ -46,7 +46,7 @@ namespace xxx
         template <>
         inline Type* Reflection::createType<Texture>()
         {
-            Class* clazz = new Class("Texture", sizeof(Texture), Texture::createInstance);
+            Class* clazz = new Class("Texture", sizeof(Texture), newObject<Texture>, deleteObject<Texture>);
             clazz->setBaseClass(dynamic_cast<Class*>(Reflection::getType<Object>()));
             Property* propWidth = clazz->addProperty("Width", &Texture::mWidth);
             Property* propHeight = clazz->addProperty("Height", &Texture::mHeight);

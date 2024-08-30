@@ -12,9 +12,10 @@ layout(std140, binding = 0) uniform ViewData
     mat4 uInverseViewMatrix;
     mat4 uProjectionMatrix;
     mat4 uInverseProjectionMatrix;
+    vec4 uEarthNearFar;
     vec4 uGbufferNearFar;
     vec4 uForwardOpaqueNearFar;
-    vec4 uOpaqueTotalNearFar;
+    vec4 uTotalNearFar;
 };
 
 #define MAX_DISTANCE 4294967296.0
@@ -48,16 +49,24 @@ void main()
 
     vec4 color = texelFetch(uColorTexture, iTexcoord, 0);
     float depth = texelFetch(uDepthTexture, iTexcoord, 0).r;
+    float depthMs0 = texelFetch(uDepthMsTexture, iTexcoord, 0).r;
+    float depthMs1 = texelFetch(uDepthMsTexture, iTexcoord, 1).r;
+    float depthMs2 = texelFetch(uDepthMsTexture, iTexcoord, 2).r;
+    float depthMs3 = texelFetch(uDepthMsTexture, iTexcoord, 3).r;
+    float minDepth = min(min(depthMs0, depthMs1), min(depthMs2, depthMs3));
+    if (depth == 1.0 && minDepth == 1.0)
+    {
+        fragData = color;
+        gl_FragDepth = 1.0;
+        return;
+    }
+
     float dist = convertDepthToDistance(depth, uGbufferNearFar.x, uGbufferNearFar.y);
 
     vec4 colorMs0 = texelFetch(uColorMsTexture, iTexcoord, 0);
     vec4 colorMs1 = texelFetch(uColorMsTexture, iTexcoord, 1);
     vec4 colorMs2 = texelFetch(uColorMsTexture, iTexcoord, 2);
     vec4 colorMs3 = texelFetch(uColorMsTexture, iTexcoord, 3);
-    float depthMs0 = texelFetch(uDepthMsTexture, iTexcoord, 0).r;
-    float depthMs1 = texelFetch(uDepthMsTexture, iTexcoord, 1).r;
-    float depthMs2 = texelFetch(uDepthMsTexture, iTexcoord, 2).r;
-    float depthMs3 = texelFetch(uDepthMsTexture, iTexcoord, 3).r;
 
     vec4 depthMs = vec4(depthMs0, depthMs1, depthMs2, depthMs3);
     vec4 distMs = convertDepthToDistance(depthMs, vec4(uForwardOpaqueNearFar.x), vec4(uForwardOpaqueNearFar.y));

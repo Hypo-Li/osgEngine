@@ -47,15 +47,18 @@ namespace xxx::refl
         {
             return Type::getType<FirstType>();
         }
+
         virtual Type* getSecondType() const override
         {
             return Type::getType<SecondType>();
         }
+
         virtual void* getFirstPtr(void* instance) const override
         {
             std::pair<FirstType, SecondType>* pair = static_cast<std::pair<FirstType, SecondType>*>(instance);
             return &pair->first;
         }
+
         virtual void* getSecondPtr(void* instance) const override
         {
             std::pair<FirstType, SecondType>* pair = static_cast<std::pair<FirstType, SecondType>*>(instance);

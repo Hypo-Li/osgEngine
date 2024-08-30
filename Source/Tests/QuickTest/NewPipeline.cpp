@@ -101,9 +101,10 @@ struct ViewData
     osg::Matrixf inverseViewMatrix;
     osg::Matrixf projectionMatrix;
     osg::Matrixf inverseProjectionMatrix;
+    osg::Vec4f earthNearFar;
     osg::Vec4f gbufferNearFar;
     osg::Vec4f forwardOpaqueNearFar;
-    osg::Vec4f opaqueTotalNearFar;
+    osg::Vec4f totalNearFar;
 }gViewData;
 osg::ref_ptr<osg::UniformBufferBinding> gViewDataUBB;
 
@@ -112,6 +113,33 @@ osg::ref_ptr<osg::UniformBufferBinding> gViewDataUBB;
 #define TRANS_MASK          0x00000004
 #define FORWARD_OPAQUE_MASK 0x00000008
 #define FORWARD_TRANS_MASK  0x00000010
+
+/**
+*   [ ?  0  0  0 ]
+*   [ 0  ?  0  0 ]
+*   [ 0  0  A  B ]
+*   [ 0  0 -1  0 ]
+* N = B / (A - 1.0);
+* F = B / (A + 1.0);
+* A = (N + F) / (N - F);
+* B = 2NF / (N - F);
+*/
+
+class EarthPassPreDrawCallback : public osg::Camera::DrawCallback
+{
+public:
+    virtual void operator () (osg::RenderInfo& renderInfo) const
+    {
+        osg::Matrixd& projectionMatrix = renderInfo.getCurrentCamera()->getProjectionMatrix();
+        float A = projectionMatrix(2, 2), B = projectionMatrix(3, 2);
+        float zNear = B / (A - 1.0), zFar = B / (A + 1.0);
+        gViewData.earthNearFar = osg::Vec4f(zNear, zFar, A, B);
+
+        osg::FloatArray* buffer = static_cast<osg::FloatArray*>(gViewDataUBB->getBufferData());
+        buffer->assign((float*)&gViewData, (float*)(&gViewData + 1));
+        buffer->dirty();
+    }
+};
 
 class GBufferPassPreDrawCallback : public osg::Camera::DrawCallback
 {
@@ -126,7 +154,7 @@ public:
         float A = gViewData.projectionMatrix(2, 2), B = gViewData.projectionMatrix(3, 2);
         float zNear = B / (A - 1.0), zFar = B / (A + 1.0);
         gViewData.gbufferNearFar = osg::Vec4f(zNear, zFar, A, B);
-        gViewData.opaqueTotalNearFar = osg::Vec4f(zNear, zFar, A, B);
+        gViewData.totalNearFar = osg::Vec4f(zNear, zFar, A, B);
 
         osg::FloatArray* buffer = static_cast<osg::FloatArray*>(gViewDataUBB->getBufferData());
         buffer->assign((float*)&gViewData, (float*)(&gViewData + 1));
@@ -159,9 +187,9 @@ public:
         float A = gViewData.projectionMatrix(2, 2), B = gViewData.projectionMatrix(3, 2);
         float zNear = B / (A - 1.0f), zFar = B / (A + 1.0f);
         gViewData.forwardOpaqueNearFar = osg::Vec4f(zNear, zFar, A, B);
-        zNear = std::min(zNear, gViewData.opaqueTotalNearFar.x()), zFar = std::max(zFar, gViewData.opaqueTotalNearFar.y());
+        zNear = std::min(zNear, gViewData.totalNearFar.x()), zFar = std::max(zFar, gViewData.totalNearFar.y());
         A = (zNear + zFar) / (zNear - zFar), B = 2.0f * zNear * zFar / (zNear - zFar);
-        gViewData.opaqueTotalNearFar = osg::Vec4f(zNear, zFar, A, B);
+        gViewData.totalNearFar = osg::Vec4f(zNear, zFar, A, B);
 
         osg::FloatArray* buffer = static_cast<osg::FloatArray*>(gViewDataUBB->getBufferData());
         buffer->assign((float*)&gViewData, (float*)(&gViewData + 1));
@@ -171,7 +199,14 @@ public:
 
 class ForwardTransparentPassPreDrawCallback : public osg::Camera::DrawCallback
 {
+    osg::ref_ptr<osg::FrameBufferObject> mReadFBO;
+    osg::ref_ptr<osg::FrameBufferObject> mDrawFBO;
 public:
+    ForwardTransparentPassPreDrawCallback(osg::FrameBufferObject* readFBO, osg::FrameBufferObject* drawFBO) : mReadFBO(readFBO), mDrawFBO(drawFBO)
+    {
+
+    }
+
     virtual void operator () (osg::RenderInfo& renderInfo) const
     {
         gViewData.projectionMatrix = renderInfo.getCurrentCamera()->getProjectionMatrix();
@@ -180,6 +215,18 @@ public:
         osg::FloatArray* buffer = static_cast<osg::FloatArray*>(gViewDataUBB->getBufferData());
         buffer->assign((float*)&gViewData, (float*)(&gViewData + 1));
         buffer->dirty();
+
+        mReadFBO->apply(*renderInfo.getState(), osg::FrameBufferObject::READ_FRAMEBUFFER);
+        mDrawFBO->apply(*renderInfo.getState(), osg::FrameBufferObject::DRAW_FRAMEBUFFER);
+        const osg::Texture* tex = mReadFBO->getAttachment(osg::FrameBufferObject::BufferComponent::COLOR_BUFFER0).getTexture();
+        int w = tex->getTextureWidth(), h = tex->getTextureHeight();
+        osg::GLExtensions* ext = renderInfo.getState()->get<osg::GLExtensions>();
+        ext->glBlitFramebuffer(
+            0, 0, static_cast<GLint>(w), static_cast<GLint>(h),
+            0, 0, static_cast<GLint>(w), static_cast<GLint>(h),
+            GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST
+        );
+
     }
 };
 
@@ -205,6 +252,21 @@ void main()
 }
 )";
 
+static const char* fs = R"(
+#version 430 core
+in vec3 v2f_fragPos;
+in vec3 v2f_normal;
+in vec4 v2f_color;
+out vec4 fragData;
+void main()
+{
+    vec3 normal = normalize(v2f_normal);
+    vec3 viewDir = normalize(-v2f_fragPos);
+    float ndv = max(dot(normal, viewDir), 0.0);
+    fragData = vec4(v2f_color.rgb * ndv, 1.0);
+}
+)";
+
 static const char* trans_vs = R"(
 #version 430 core
 in vec4 osg_Vertex;
@@ -224,9 +286,10 @@ layout(std140, binding = 0) uniform ViewData
     mat4 uInverseViewMatrix;
     mat4 uProjectionMatrix;
     mat4 uInverseProjectionMatrix;
-    vec4 uGbufferNearFar;
+    vec4 uEarthNearFar;
+    vec4 uGBufferNearFar;
     vec4 uForwardOpaqueNearFar;
-    vec4 uOpaqueTotalNearFar;
+    vec4 uTotalNearFar;
 };
 
 void main()
@@ -236,22 +299,7 @@ void main()
     v2f_fragPos = viewSpace.xyz;
     v2f_normal = osg_NormalMatrix * osg_Normal;
     v2f_color = osg_Color;
-    v2f_gndcz = -uOpaqueTotalNearFar.z - uOpaqueTotalNearFar.w / viewSpace.z;
-}
-)";
-
-static const char* fs = R"(
-#version 430 core
-in vec3 v2f_fragPos;
-in vec3 v2f_normal;
-in vec4 v2f_color;
-out vec4 fragData;
-void main()
-{
-    vec3 normal = normalize(v2f_normal);
-    vec3 viewDir = normalize(-v2f_fragPos);
-    float ndv = max(dot(normal, viewDir), 0.0);
-    fragData = vec4(v2f_color.rgb * ndv, 1.0);
+    v2f_gndcz = -uTotalNearFar.z - uTotalNearFar.w / viewSpace.z;
 }
 )";
 
@@ -305,28 +353,33 @@ int main()
     colorProgram->addShader(new osg::Shader(osg::Shader::VERTEX, vs));
     colorProgram->addShader(new osg::Shader(osg::Shader::FRAGMENT, fs));
 
+    //osg::Node* earthNode = osgDB::readNodeFile(TEMP_DIR "earth.obj");
+    //earthNode->getOrCreateStateSet()->setAttribute(colorProgram, osg::StateAttribute::ON);
+    //earthNode->setNodeMask(EARTH_MASK);
+    //rootGroup->addChild(earthNode);
+
     osg::Node* gbufferNode = osgDB::readNodeFile(TEMP_DIR "gbuffer.obj");
     gbufferNode->getOrCreateStateSet()->setAttribute(colorProgram, osg::StateAttribute::ON);
     gbufferNode->setNodeMask(GBUFFER_MASK);
     rootGroup->addChild(gbufferNode);
+
+    osg::Program* transProgram = new osg::Program;
+    transProgram->addShader(new osg::Shader(osg::Shader::VERTEX, trans_vs));
+    transProgram->addShader(new osg::Shader(osg::Shader::FRAGMENT, trans_fs));
+
+    osg::Node* transNode = osgDB::readNodeFile(TEMP_DIR "trans.obj");
+    transNode->getOrCreateStateSet()->setAttribute(transProgram, osg::StateAttribute::ON);
+    transNode->getOrCreateStateSet()->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+    transNode->setNodeMask(TRANS_MASK);
+    rootGroup->addChild(transNode);
 
     osg::Node* forwardOpaqueNode = osgDB::readNodeFile(TEMP_DIR "fwd_opaque.obj");
     forwardOpaqueNode->getOrCreateStateSet()->setAttribute(colorProgram, osg::StateAttribute::ON);
     forwardOpaqueNode->setNodeMask(FORWARD_OPAQUE_MASK);
     rootGroup->addChild(forwardOpaqueNode);
 
-    osg::Program* transColorProgram = new osg::Program;
-    transColorProgram->addShader(new osg::Shader(osg::Shader::VERTEX, trans_vs));
-    transColorProgram->addShader(new osg::Shader(osg::Shader::FRAGMENT, trans_fs));
-
-    osg::Node* transNode = osgDB::readNodeFile(TEMP_DIR "trans.obj");
-    transNode->getOrCreateStateSet()->setAttribute(transColorProgram, osg::StateAttribute::ON);
-    transNode->getOrCreateStateSet()->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
-    transNode->setNodeMask(TRANS_MASK);
-    rootGroup->addChild(transNode);
-
     osg::Node* forwardTransNode = osgDB::readNodeFile(TEMP_DIR "fwd_trans.obj");
-    forwardTransNode->getOrCreateStateSet()->setAttribute(transColorProgram, osg::StateAttribute::ON);
+    forwardTransNode->getOrCreateStateSet()->setAttribute(transProgram, osg::StateAttribute::ON);
     forwardTransNode->getOrCreateStateSet()->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
     forwardTransNode->setNodeMask(FORWARD_TRANS_MASK);
     rootGroup->addChild(forwardTransNode);
@@ -335,11 +388,37 @@ int main()
     using BufferType = xxx::Pipeline::Pass::BufferType;
     osg::Shader* screenQuadShader = osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Common/ScreenQuad.vert.glsl");
 
+    osg::ref_ptr<xxx::Pipeline::Pass> earthPass = pipeline->addInputPass("Earth", EARTH_MASK, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    earthPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F);
+    earthPass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT32, false, osg::Texture::NEAREST, osg::Texture::NEAREST);
+    earthPass->getCamera()->setPreDrawCallback(new EarthPassPreDrawCallback);
+
     osg::ref_ptr<xxx::Pipeline::Pass> gbufferPass = pipeline->addInputPass("GBuffer", GBUFFER_MASK, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     gbufferPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F);
     gbufferPass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT32, false, osg::Texture::NEAREST, osg::Texture::NEAREST);
     gbufferPass->setAttribute(gViewDataUBB, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
     gbufferPass->getCamera()->setPreDrawCallback(new GBufferPassPreDrawCallback);
+
+
+    // Shadow Cast
+    // Shadow Mask
+    // SSAO
+    // Lighting
+    
+    // CombineEarthAndGBuffer
+    osg::Program* combineEarthAndGBufferProgram = new osg::Program;
+    combineEarthAndGBufferProgram->addShader(screenQuadShader);
+    combineEarthAndGBufferProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CombineEarthAndGBuffer.frag.glsl"));
+    osg::ref_ptr<xxx::Pipeline::Pass> combineEarthAndGBufferPass = pipeline->addWorkPass("CombineEarthAndGBufferColor", combineEarthAndGBufferProgram, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    combineEarthAndGBufferPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F);
+    combineEarthAndGBufferPass->setAttribute(gViewDataUBB, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+    combineEarthAndGBufferPass->applyTexture(earthPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uEarthColorTexture", 0);
+    combineEarthAndGBufferPass->applyTexture(earthPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uEarthDepthTexture", 1);
+    combineEarthAndGBufferPass->applyTexture(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uGBufferColorTexture", 2);
+    combineEarthAndGBufferPass->applyTexture(gbufferPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uGBufferDepthTexture", 3);
+
+    // Atmosphere
+    // Volumetric Cloud
 
     osg::ref_ptr<xxx::Pipeline::Pass> transparentPass = pipeline->addInputPass("Transparent", TRANS_MASK, 0);
     transparentPass->attach(BufferType::COLOR_BUFFER0, gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER0));
@@ -349,6 +428,10 @@ int main()
     //transparentPass->setMode(GL_CULL_FACE, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
     transparentPass->setMode(GL_BLEND, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
     transparentPass->getCamera()->setPreDrawCallback(new TransparentPassPreDrawCallback);
+
+    // TAA
+    // Bloom
+    // ColorGrading
 
     osg::ref_ptr<xxx::Pipeline::Pass> forwardOpaquePass = pipeline->addInputPass("ForwardOpaque", FORWARD_OPAQUE_MASK, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     forwardOpaquePass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F, true);
@@ -360,8 +443,8 @@ int main()
     combineColorAndDepthMsProgram->addShader(screenQuadShader);
     combineColorAndDepthMsProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CombineColorAndDepthMs.frag.glsl"));
     osg::ref_ptr<xxx::Pipeline::Pass> combineForwardOpaquePass = pipeline->addWorkPass("CombineForwardOpaque", combineColorAndDepthMsProgram, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    combineForwardOpaquePass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F, true);
-    combineForwardOpaquePass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT32, true, osg::Texture::NEAREST, osg::Texture::NEAREST);
+    combineForwardOpaquePass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F);
+    combineForwardOpaquePass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT32, false, osg::Texture::NEAREST, osg::Texture::NEAREST);
     combineForwardOpaquePass->setAttribute(new osg::Depth(osg::Depth::ALWAYS), osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
     combineForwardOpaquePass->setAttribute(gViewDataUBB, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
     combineForwardOpaquePass->applyTexture(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorTexture", 0);
@@ -369,21 +452,44 @@ int main()
     combineForwardOpaquePass->applyTexture(forwardOpaquePass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorMsTexture", 2);
     combineForwardOpaquePass->applyTexture(forwardOpaquePass->getBufferTexture(BufferType::DEPTH_BUFFER), "uDepthMsTexture", 3);
 
+    // 在合并ForwardOpaque时直接使用multisample texture附加到fbo会导致时间开销为原来的4倍(4xMSAA), 为了避免这种情况, 这里使用一次拷贝
+    // 可以用glBlitFramebuffer替代
+    /*osg::Program* copyColorAndDepthProgram = new osg::Program;
+    copyColorAndDepthProgram->addShader(screenQuadShader);
+    copyColorAndDepthProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CopyColorAndDepth.frag.glsl"));
+    osg::ref_ptr<xxx::Pipeline::Pass> copyColorAndDepthToMsPass = pipeline->addWorkPass("CopyColorAndDepthToMs", copyColorAndDepthProgram, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    copyColorAndDepthToMsPass->setAttribute(new osg::Depth(osg::Depth::ALWAYS), osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+    copyColorAndDepthToMsPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F, true);
+    copyColorAndDepthToMsPass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT32, true, osg::Texture::NEAREST, osg::Texture::NEAREST);
+    copyColorAndDepthToMsPass->applyTexture(combineForwardOpaquePass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorTexture", 0);
+    copyColorAndDepthToMsPass->applyTexture(combineForwardOpaquePass->getBufferTexture(BufferType::DEPTH_BUFFER), "uDepthTexture", 1);*/
+
+    osg::ref_ptr<osg::FrameBufferObject> readFbo = new osg::FrameBufferObject;
+    readFbo->setAttachment(BufferType::COLOR_BUFFER0, osg::FrameBufferAttachment(dynamic_cast<osg::Texture2D*>(combineForwardOpaquePass->getBufferTexture(BufferType::COLOR_BUFFER0))));
+    readFbo->setAttachment(BufferType::DEPTH_BUFFER, osg::FrameBufferAttachment(dynamic_cast<osg::Texture2D*>(combineForwardOpaquePass->getBufferTexture(BufferType::DEPTH_BUFFER))));
+
     osg::ref_ptr<xxx::Pipeline::Pass> forwardTransPass = pipeline->addInputPass("ForwardTrans", FORWARD_TRANS_MASK, 0);
-    forwardTransPass->attach(BufferType::COLOR_BUFFER0, combineForwardOpaquePass->getBufferTexture(BufferType::COLOR_BUFFER0));
-    forwardTransPass->attach(BufferType::DEPTH_BUFFER, combineForwardOpaquePass->getBufferTexture(BufferType::DEPTH_BUFFER));
+    forwardTransPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F, true);
+    forwardTransPass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT32, true);
+
+    osg::ref_ptr<osg::FrameBufferObject> drawFbo = new osg::FrameBufferObject;
+    drawFbo->setAttachment(BufferType::COLOR_BUFFER0, osg::FrameBufferAttachment(dynamic_cast<osg::Texture2DMultisample*>(forwardTransPass->getBufferTexture(BufferType::COLOR_BUFFER0))));
+    drawFbo->setAttachment(BufferType::DEPTH_BUFFER, osg::FrameBufferAttachment(dynamic_cast<osg::Texture2DMultisample*>(forwardTransPass->getBufferTexture(BufferType::DEPTH_BUFFER))));
+
     forwardTransPass->setAttribute(gViewDataUBB, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
     forwardTransPass->setAttribute(new osg::Depth(osg::Depth::LESS, 0.0, 1.0, false), osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
     //forwardTransPass->setMode(GL_CULL_FACE, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
     forwardTransPass->setMode(GL_BLEND, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
-    forwardTransPass->getCamera()->setPreDrawCallback(new TransparentPassPreDrawCallback);
+    forwardTransPass->getCamera()->setPreDrawCallback(new ForwardTransparentPassPreDrawCallback(readFbo, drawFbo));
+
+    // UI
 
     osg::Program* displayProgram = new osg::Program;
     displayProgram->addShader(screenQuadShader);
     displayProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CopyColorMs.frag.glsl"));
     osg::ref_ptr<xxx::Pipeline::Pass> displayPass = pipeline->addDisplayPass("Display", displayProgram);
-    displayPass->applyTexture(combineForwardOpaquePass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorMsTexture", 0);
-    displayPass->applyTexture(combineForwardOpaquePass->getBufferTexture(BufferType::DEPTH_BUFFER), "uDepthMsTexture", 1);
+    displayPass->applyTexture(forwardTransPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorMsTexture", 0);
+    displayPass->applyTexture(forwardTransPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uDepthMsTexture", 1);
     displayPass->setAttribute(new osg::Depth(osg::Depth::ALWAYS), osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
 
     viewer->setThreadingModel(osgViewer::Viewer::SingleThreaded);

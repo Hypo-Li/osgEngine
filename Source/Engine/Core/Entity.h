@@ -23,10 +23,6 @@ namespace xxx
 	class Entity : public Object
 	{
         friend class refl::Reflection;
-        static Object* createInstance()
-        {
-            return new Entity;
-        }
     public:
         virtual refl::Class* getClass() const
         {
@@ -187,7 +183,7 @@ namespace xxx
         template <>
         inline Type* Reflection::createType<Entity>()
         {
-            Class* clazz = new Class("Entity", sizeof(Entity), Entity::createInstance);
+            Class* clazz = new Class("Entity", sizeof(Entity), newObject<Entity>, deleteObject<Entity>);
             clazz->setBaseClass(dynamic_cast<Class*>(Reflection::getType<Object>()));
             Property* propName = clazz->addProperty("Name", &Entity::mName);
             Property* propParent = clazz->addProperty("Parent", &Entity::mParent);

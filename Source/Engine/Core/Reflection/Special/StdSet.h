@@ -48,10 +48,12 @@ namespace xxx::refl
         {
             return Type::getType<ElementType>();
         }
+
         virtual size_t getElementCount(void* instance) const override
         {
             return static_cast<std::set<ElementType>*>(instance)->size();
         }
+
         virtual std::vector<const void*> getElementPtrs(void* instance) const override
         {
             std::vector<const void*> result;
@@ -68,6 +70,7 @@ namespace xxx::refl
             std::set<ElementType>* set = static_cast<std::set<ElementType>*>(instance);
             set->insert(*(ElementType*)(element));
         }
+
         virtual void removeElement(void* instance, void* element) const override
         {
             std::set<ElementType>* set = static_cast<std::set<ElementType>*>(instance);

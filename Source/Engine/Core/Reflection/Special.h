@@ -20,10 +20,8 @@ namespace xxx::refl
     public:
         virtual Kind getKind() const override { return Kind::Special; }
         virtual SpecialType getSpecialType() const = 0;
-        virtual void* newInstance() const = 0;
-        virtual void deleteInstance(void* instance) const = 0;
 
     protected:
-        virtual ~Special() = 0;
+        virtual ~Special() = default;
     };
 }

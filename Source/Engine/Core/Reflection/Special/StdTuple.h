@@ -26,13 +26,13 @@ namespace xxx::refl
         static constexpr size_t ElementCount = std::tuple_size_v<T>;
 
         template <std::size_t... Is>
-        std::vector<Type*> getTypesImpl(std::index_sequence<Is...>) const
+        static std::vector<Type*> getTypesImpl(std::index_sequence<Is...>)
         {
             return { Type::getType<std::tuple_element_t<Is, T>>()... };
         }
 
         template <std::size_t... Is>
-        std::vector<void*> getElementPtrsImpl(std::index_sequence<Is...>, void* instance) const
+        static std::vector<void*> getElementPtrsImpl(std::index_sequence<Is...>, void* instance)
         {
             T* tuple = static_cast<T*>(instance);
             return { &std::get<Is>(*tuple)... };
@@ -66,7 +66,7 @@ namespace xxx::refl
 
     protected:
         template <std::size_t... Is>
-        std::string createTupleArgsString(std::index_sequence<Is...>)
+        static std::string createTupleArgsString(std::index_sequence<Is...>)
         {
             std::string result;
             std::vector<std::string_view> typeNames = { Reflection::getType<std::tuple_element_t<Is, T>>()->getName()... };

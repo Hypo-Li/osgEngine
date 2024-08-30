@@ -16,6 +16,16 @@ namespace xxx::refl
 	public:
         virtual Kind getKind() const override { return Kind::Class; }
 
+        virtual void* newInstance() const override
+        {
+            return mConstructor();
+        }
+
+        virtual void deleteInstance(void* instance) const override
+        {
+            mDestructor(static_cast<xxx::Object*>(instance));
+        }
+
         Class* getBaseClass() const
         {
             return mBaseClass;
@@ -45,16 +55,6 @@ namespace xxx::refl
         const std::vector<Method*>& getMethods() const
         {
             return mMethods;
-        }
-
-        xxx::Object* newInstance() const
-        {
-            return mConstructor();
-        }
-
-        void deleteInstance(xxx::Object* instance) const
-        {
-            mDestructor(instance);
         }
 
         const xxx::Object* getDefaultObject() const

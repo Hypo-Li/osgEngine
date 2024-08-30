@@ -60,6 +60,8 @@ namespace xxx::refl
 		size_t getSize() const { return mSize; }
 
 		virtual Kind getKind() const = 0;
+        virtual void* newInstance() const = 0;
+        virtual void deleteInstance(void* instance) const = 0;
 
     protected:
         Type() = default;

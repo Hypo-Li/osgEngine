@@ -21,9 +21,10 @@ namespace xxx::refl
 
         virtual Type* getElementType() const = 0;
         virtual size_t getElementCount(void* vector) const = 0;
-        virtual void* getElementPtrByIndex(void* vector, uint32_t index) const = 0;
+        virtual void* getElementPtrByIndex(void* vector, size_t index) const = 0;
         virtual void appendElement(void* vector, void* newElement) const = 0;
-        virtual void removeElementByIndex(void* vector, uint32_t index) const = 0;
+        virtual void removeElementByIndex(void* vector, size_t index) const = 0;
+        virtual void resize(void* vector, size_t size) const = 0;
     };
 
     class Reflection;
@@ -53,7 +54,7 @@ namespace xxx::refl
             return static_cast<std::vector<ElementType>*>(vector)->size();
         }
 
-        virtual void* getElementPtrByIndex(void* vector, uint32_t index) const override
+        virtual void* getElementPtrByIndex(void* vector, size_t index) const override
         {
             return &(static_cast<std::vector<ElementType>*>(vector)->at(index));
         }
@@ -63,11 +64,17 @@ namespace xxx::refl
             static_cast<std::vector<ElementType>*>(vector)->emplace_back(*(ElementType*)(element));
         }
 
-        virtual void removeElementByIndex(void* vector, uint32_t index) const override
+        virtual void removeElementByIndex(void* vector, size_t index) const override
         {
             std::vector<ElementType>* vec = static_cast<std::vector<ElementType>*>(vector);
             vec->erase(vec->begin() + index);
         }
+
+        virtual void resize(void* vector, size_t size) const override
+        {
+            static_cast<std::vector<ElementType>*>(vector)->resize(size);
+        }
+
 
     protected:
         StdVectorInstance()

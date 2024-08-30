@@ -12,10 +12,6 @@ using namespace xxx::refl;
 class Test : public Object
 {
     friend class Reflection;
-    static Object* createInstance()
-    {
-        return new Test;
-    }
 public:
     virtual refl::Class* getClass() const
     {
@@ -62,7 +58,7 @@ namespace xxx::refl
     template <>
     inline Type* Reflection::createType<Test>()
     {
-        Class* clazz = new Class("Test", sizeof(Test), Test::createInstance);
+        Class* clazz = new Class("Test", sizeof(Test), newObject<Test>, deleteObject<Test>);
         clazz->setBaseClass(dynamic_cast<Class*>(Reflection::getType<Object>()));
         Property* propObjects = clazz->addProperty("Objects", &Test::mObjects);
         Property* propVec2 = clazz->addProperty("Vec2", &Test::mVec2);

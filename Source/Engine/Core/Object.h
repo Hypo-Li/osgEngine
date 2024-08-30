@@ -7,6 +7,34 @@
 
 namespace xxx
 {
+    template <typename T>
+    static void* newInstance()
+    {
+        return new T;
+    }
+
+    template <typename T>
+    static void deleteInstance(void* instance)
+    {
+        delete (T*)(instance);
+    }
+
+    template <typename T, std::enable_if_t<std::is_base_of_v<Object, T>, int> = 0>
+    static Object* newObject()
+    {
+        if constexpr (!std::is_abstract_v<T>)
+            return new T;
+        else
+            return nullptr;
+    }
+
+    template <typename T, std::enable_if_t<std::is_base_of_v<Object, T>, int> = 0>
+    static void deleteObject(Object* object)
+    {
+        if constexpr (!std::is_abstract_v<T>)
+            delete (T*)(object);
+    }
+
     struct Guid
     {
         uint32_t A = 0;
@@ -29,11 +57,6 @@ namespace xxx
     class Asset;
     class Object : public osg::Referenced
     {
-        friend class refl::Reflection;
-        static Object* createInstance()
-        {
-            return new Object;
-        }
     public:
         virtual refl::Class* getClass() const
         {
@@ -65,7 +88,7 @@ namespace xxx
         template <>
         inline Type* Reflection::createType<Guid>()
         {
-            Struct* structGuid = new Struct("Guid", sizeof(Guid));
+            Struct* structGuid = new Struct("Guid", sizeof(Guid), newInstance<Guid>, deleteInstance<Guid>);
             Property* propA = structGuid->addProperty("A", &Guid::A);
             Property* propB = structGuid->addProperty("B", &Guid::B);
             Property* propC = structGuid->addProperty("C", &Guid::C);
@@ -76,7 +99,7 @@ namespace xxx
         template <>
         inline Type* Reflection::createType<Object>()
         {
-            Class* clazz = new Class("Object", sizeof(Object), Object::createInstance);
+            Class* clazz = new Class("Object", sizeof(Object), newObject<Object>, deleteObject<Object>);
             // Guid is a special property, cannot serialize directly.
             //Property* propGuid = clazz->addProperty("Guid", &Object::mGuid);
             sRegisteredClassMap.emplace("Object", clazz);
