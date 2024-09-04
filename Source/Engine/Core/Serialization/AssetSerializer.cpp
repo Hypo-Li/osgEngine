@@ -31,7 +31,9 @@ namespace xxx
                 std::string typeName(prop->getDeclaredType()->getName());
                 serialize(&propertyName);
                 serialize(&typeName);
-                // Save Property Here
+
+                void* valuePtr = prop->getValuePtr(object);
+                serializeType(prop->getDeclaredType(), valuePtr);
             }
         }
         else
@@ -56,42 +58,13 @@ namespace xxx
                     Property* prop = *findResult;
                     properties.erase(findResult);
                     
-                    // Load Property Here
+                    void* valuePtr = prop->getValuePtr(object);
+                    serializeType(prop->getDeclaredType(), valuePtr);
                 }
             }
         }
         
         object->postSerialize();
-    }
-
-    void AssetSerializer::serializeProperty(Property* property, void* object)
-    {
-        void* valuePtr;
-        if (property->isMemberProperty())
-            valuePtr = property->getValuePtr(object);
-        else
-        {
-            // For AccessorProperty, we need to manually create instances;
-            if (property->getDeclaredType()->getKind() == Type::Kind::Class)
-            {
-                valuePtr = ;
-            }
-            else
-            {
-                valuePtr = property->getDeclaredType()->newInstance();
-            }
-            property->getValue(object, valuePtr);
-        }
-
-        serializeType(property->getDeclaredType(), valuePtr);
-
-        if (!property->isMemberProperty())
-        {
-            if (property->getDeclaredType()->getKind() != Type::Kind::Class)
-            {
-                property->getDeclaredType()->deleteInstance(valuePtr);
-            }
-        }
     }
 
     void AssetSerializer::serializeType(refl::Type* type, void* data, size_t count)

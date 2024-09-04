@@ -68,10 +68,7 @@ namespace xxx::refl
         propVec2->addMetadata(MetaKey::ClampMax, 1.0f);
         propVec2->addMetadata(MetaKey::DisplayName, "MyVec2");
         propVec2->addMetadata(MetaKey::ToolTip, "This is a demo vec2");
-        Property* propP = clazz->addProperty("p",
-            std::function<void(const Test&, float&)>([](const Test& obj, float& v) { v = obj.getP(); }),
-            std::function<void(Test&, const float&)>([](Test& obj, const float& v) { obj.setP(v); })
-        );
+        Property* propP = clazz->addProperty("p", &Test::p);
         Property* propIntSet = clazz->addProperty("IntSet", &Test::mIntSet);
         Property* propStringDoubleMap = clazz->addProperty("StringDoubleMap", &Test::mStringDoubleMap);
         clazz->addProperty("Color", &Test::mColor);
@@ -148,6 +145,10 @@ void serialize_test(Object* object)
         baseClass = baseClass->getBaseClass();
     }
     size_t propertyCount = serializedProperties.size();
+    for (Property* prop : serializedProperties)
+    {
+        std::cout << prop->getName() << ": " << prop->getDeclaredType()->getName() << std::endl;
+    }
     return;
 }
 
@@ -173,6 +174,11 @@ void compare_test()
     t1->mInt = 2;
     t1->mFloat = 4.5f;
     //t1->mTest = t0;
+
+    Class* shaderClass = Reflection::getClass<Shader>();
+    Property* propParameters = shaderClass->getProperty("Parameters");
+    Type* parametersType = propParameters->getDeclaredType();
+
     serialize_test(t1);
 
     return;

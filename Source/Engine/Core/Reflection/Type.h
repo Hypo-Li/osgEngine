@@ -28,20 +28,16 @@ namespace xxx::refl
 {
     template <typename T>
     class AnyWrapperInstance;
-    template <typename Owner, typename Declared, std::size_t Index>
-    class PropertyMemberInstance;
-    template <typename Owner, typename Declared>
-    class PropertyAccessorInstance;
+    template <typename Owner, typename FakeDeclared, std::size_t Index>
+    class PropertyInstance;
     template <typename T, std::enable_if_t<std::is_member_function_pointer_v<T>, int>>
     class MethodInstance;
 	class Type
 	{
         template <typename T>
         friend class AnyWrapperInstance;
-        template <typename Owner, typename Declared, std::size_t Index>
-        friend class PropertyMemberInstance;
-        template <typename Owner, typename Declared>
-        friend class PropertyAccessorInstance;
+        template <typename Owner, typename FakeDeclared, std::size_t Index>
+        friend class PropertyInstance;
         template <typename T, std::enable_if_t<std::is_member_function_pointer_v<T>, int>>
         friend class MethodInstance;
     public:

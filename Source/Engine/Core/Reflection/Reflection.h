@@ -18,22 +18,35 @@
 
 #include <unordered_map>
 
+template <typename T>
+using remove_cvrefp_t = typename std::remove_pointer_t<std::remove_reference_t<std::remove_cv_t<T>>>;
+
+template <typename T>
+static constexpr bool is_special_v =
+std::is_same_v<T, std::string> ||
+is_std_array_v<T> ||
+is_instance_of_v<T, std::map> ||
+is_instance_of_v<T, std::pair> ||
+is_instance_of_v<T, std::set> ||
+is_instance_of_v<T, std::tuple> ||
+is_instance_of_v<T, std::variant> ||
+is_instance_of_v<T, std::vector>;
+
+template <typename T>
+struct remove_osg_ref_ptr {
+    using type = T;
+};
+
+template <typename T>
+struct remove_osg_ref_ptr<osg::ref_ptr<T>> {
+    using type = T;
+};
+
+template <typename T>
+using remove_osg_ref_ptr_t = typename remove_osg_ref_ptr<T>::type;
+
 namespace xxx::refl
 {
-    template <typename T>
-    using remove_cvrefp_t = typename std::remove_pointer_t<std::remove_reference_t<std::remove_cv_t<T>>>;
-
-    template <typename T>
-    static constexpr bool is_special_v =
-        std::is_same_v<T, std::string> ||
-        is_std_array_v<T> ||
-        is_instance_of_v<T, std::map> ||
-        is_instance_of_v<T, std::pair> ||
-        is_instance_of_v<T, std::set> ||
-        is_instance_of_v<T, std::tuple> ||
-        is_instance_of_v<T, std::variant> ||
-        is_instance_of_v<T, std::vector>;
-
 	class Reflection
 	{
 	public:

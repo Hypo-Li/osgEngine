@@ -30,7 +30,6 @@ namespace xxx
         virtual void serialize(double* value, size_t count = 1) = 0;
         virtual void serialize(std::string* value, size_t count = 1) = 0;
 
-        void serializeProperty(refl::Property* property, void* object);
         void serializeType(refl::Type* type, void* data, size_t count = 1);
         void serializeFundamental(refl::Fundamental* fundamental, void* data, size_t count = 1);
         void serializeEnum(refl::Enum* enumerate, void* data, size_t count = 1);
@@ -48,6 +47,8 @@ namespace xxx
 
     protected:
         Asset* mAsset;
+        std::unordered_map<std::string, uint32_t> mStringTable;
+        uint32_t mStringOffset = 0;
         std::vector<uint8_t> mBuffer;
     };
 }

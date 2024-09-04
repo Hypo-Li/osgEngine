@@ -56,16 +56,7 @@ namespace xxx::refl
         template <std::size_t Index = 0, typename Owner, typename Declared>
         Property* addProperty(std::string_view name, Declared Owner::* member)
         {
-            Property* newProperty = new PropertyMemberInstance<Owner, Declared, Index>(name, member);
-            mProperties.emplace_back(newProperty);
-            return newProperty;
-        }
-
-        template <typename Getter, typename Setter,
-            std::enable_if_t<is_instance_of_v<Getter, std::function>&& is_instance_of_v<Setter, std::function>, int> = 0>
-        Property* addProperty(std::string_view name, Getter getter, Setter setter)
-        {
-            Property* newProperty = new PropertyAccessorInstance(name, getter, setter);
+            Property* newProperty = new PropertyInstance<Owner, Declared, Index>(name, member);
             mProperties.emplace_back(newProperty);
             return newProperty;
         }
