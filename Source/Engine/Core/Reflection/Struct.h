@@ -3,6 +3,11 @@
 
 #include <vector>
 
+namespace xxx
+{
+    class Object;
+}
+
 namespace xxx::refl
 {
     class Reflection;
@@ -11,16 +16,6 @@ namespace xxx::refl
         friend class Reflection;
     public:
         virtual Kind getKind() const override { return Kind::Struct; }
-
-        virtual void* newInstance() const override
-        {
-            return mConstructor();
-        }
-
-        virtual void deleteInstance(void* instance) const override
-        {
-            mDestructor(instance);
-        }
 
         Property* getProperty(std::string_view name) const
         {
@@ -36,11 +31,11 @@ namespace xxx::refl
         }
 
     protected:
-        template <std::size_t Index = 0, typename ClassType, typename ObjectType>
-        Property* addProperty(std::string_view name, ObjectType ClassType::* member)
+        template <std::size_t Index = 0, typename Owner, typename Declared>
+        Property* addProperty(std::string_view name, Declared Owner::* member)
         {
-            Property* newProperty = new PropertyValueInstance<ClassType, ObjectType, Index>(name, member);
-            mProperties.push_back(newProperty);
+            Property* newProperty = new PropertyMemberInstance<Owner, Declared, Index>(name, member);
+            mProperties.emplace_back(newProperty);
             return newProperty;
         }
 
@@ -49,22 +44,61 @@ namespace xxx::refl
         Property* addProperty(std::string_view name, Getter getter, Setter setter)
         {
             Property* newProperty = new PropertyAccessorInstance(name, getter, setter);
-            mProperties.push_back(newProperty);
+            mProperties.emplace_back(newProperty);
             return newProperty;
         }
 
-    private:
-        using Constructor = std::function<void* (void)>;
-        using Destructor = std::function<void(void*)>;
-        Struct(std::string_view name, size_t size, Constructor constructor, Destructor destructor) :
-            Type(name, size),
-            mConstructor(constructor),
-            mDestructor(destructor)
+    protected:
+        Struct(std::string_view name, size_t size) :
+            Type(name, size)
         {}
-        virtual ~Struct() = default;
 
         std::vector<Property*> mProperties;
-        Constructor mConstructor;
-        Destructor mDestructor;
+    };
+
+    template <typename T, typename = std::enable_if_t<!std::is_base_of_v<Object, T>>>
+    class StructInstance : public Struct
+    {
+        friend class Reflection;
+    public:
+        virtual void* newInstance() const override
+        {
+            return new T;
+        }
+
+        virtual void deleteInstance(void* instance) const override
+        {
+            delete static_cast<T*>(instance);
+        }
+
+        virtual void* newInstances(size_t count) const override
+        {
+            return new T[count];
+        }
+
+        virtual void deleteInstances(void* instances) const override
+        {
+            delete[] static_cast<T*>(instances);
+        }
+
+        virtual bool compare(const void* instance1, const void* instance2) const override
+        {
+            if constexpr (is_comparable_v<T>)
+                return *static_cast<const T*>(instance1) == *static_cast<const T*>(instance2);
+            else
+            {
+                for (Property* prop : mProperties)
+                {
+                    if (!prop->compare(instance1, instance2))
+                        return false;
+                }
+                return true;
+            }
+        }
+
+    protected:
+        StructInstance(std::string_view name) :
+            Struct(name, sizeof(T))
+        {}
     };
 }

@@ -28,6 +28,8 @@ namespace xxx
             return nullptr;
         }
 
+        
+
     private:
         std::string mPath;
         osg::ref_ptr<Object> mPrimaryObject;

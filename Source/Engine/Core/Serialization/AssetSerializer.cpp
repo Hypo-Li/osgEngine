@@ -4,66 +4,94 @@ namespace xxx
 {
     using namespace refl;
 
-    static void checkProperty(const Object* defaultObject, Object* object)
-    {
-        Class* clazz = defaultObject->getClass();
-        std::vector<Property*> diffProperties;
-        while (clazz)
-        {
-            for (Property* prop : clazz->getProperties())
-            {
-                // check default obj and obj is equal
-                bool isEqual;
-                if (!isEqual)
-                    diffProperties.push_back(prop);
-            }
-            clazz = clazz->getBaseClass();
-        }
-    }
-
     void AssetSerializer::serialize(Object*& object)
     {
         object->preSerialize();
         Class* clazz = object->getClass();
-        const Object* defaultObject = clazz->getDefaultObject();
-        Class* base = clazz;
-        uint32_t propertyCount = 0;
-        while (base)
+        if (isSaving())
         {
-            propertyCount += base->getProperties().size();
-            base = base->getBaseClass();
+            const Object* defaultObject = clazz->getDefaultObject();
+            std::vector<Property*> serializedProperties;
+            Class* baseClass = clazz;
+            while (baseClass)
+            {
+                for (Property* prop : baseClass->getProperties())
+                {
+                    if (!prop->compare(defaultObject, object))
+                        serializedProperties.emplace_back(prop);
+                }
+                baseClass = baseClass->getBaseClass();
+            }
+            size_t propertyCount = serializedProperties.size();
+            serialize(&propertyCount);
+
+            for (Property* prop : serializedProperties)
+            {
+                std::string propertyName(prop->getName());
+                std::string typeName(prop->getDeclaredType()->getName());
+                serialize(&propertyName);
+                serialize(&typeName);
+                // Save Property Here
+            }
         }
-        serialize(&propertyCount);
-        /*for (Property* prop : properties)
-            serializeProperty(prop, object);*/
+        else
+        {
+            size_t propertyCount;
+            serialize(&propertyCount);
+            std::vector<Property*> properties = clazz->getProperties();
+            for (size_t i = 0; i < propertyCount; ++i)
+            {
+                std::string propertyName;
+                std::string typeName;
+                serialize(&propertyName);
+                serialize(&typeName);
+                auto findResult = std::find_if(properties.begin(), properties.end(),
+                    [propertyName](const Property* prop)->bool
+                    {
+                        return propertyName == prop->getName();
+                    }
+                );
+                if (findResult != properties.end() && (*findResult)->getDeclaredType()->getName() == typeName)
+                {
+                    Property* prop = *findResult;
+                    properties.erase(findResult);
+                    
+                    // Load Property Here
+                }
+            }
+        }
+        
         object->postSerialize();
     }
 
     void AssetSerializer::serializeProperty(Property* property, void* object)
     {
-        std::string propertyName;
-        if (isSaving())
-            propertyName = property->getName();
-        serialize(&propertyName);
-
-        // check property name
-        if (isLoading() && propertyName != property->getName())
-        {
-            uint32_t propertySize;
-            serialize(&propertySize);
-
-        }
-
         void* valuePtr;
-        if (property->isValueProperty())
+        if (property->isMemberProperty())
             valuePtr = property->getValuePtr(object);
         else
         {
-            valuePtr = new uint8_t[property->getType()->getSize()];
+            // For AccessorProperty, we need to manually create instances;
+            if (property->getDeclaredType()->getKind() == Type::Kind::Class)
+            {
+                valuePtr = ;
+            }
+            else
+            {
+                valuePtr = property->getDeclaredType()->newInstance();
+            }
             property->getValue(object, valuePtr);
         }
 
-        serializeType(property->getType(), valuePtr);
+        serializeType(property->getDeclaredType(), valuePtr);
+
+        if (!property->isMemberProperty())
+        {
+            if (property->getDeclaredType()->getKind() != Type::Kind::Class)
+            {
+                property->getDeclaredType()->deleteInstance(valuePtr);
+            }
+        }
     }
 
     void AssetSerializer::serializeType(refl::Type* type, void* data, size_t count)
@@ -100,117 +128,111 @@ namespace xxx
         }
     }
 
-    void AssetSerializer::serializeFundamental(refl::Fundamental* type, void* data, size_t count)
+    void AssetSerializer::serializeFundamental(refl::Fundamental* fundamental, void* data, size_t count)
     {
-        if (type == Reflection::BoolType)
+        if (fundamental == Reflection::BoolType)
             serialize((bool*)(data), count);
-        else if (type == Reflection::CharType)
+        else if (fundamental == Reflection::CharType)
             serialize((char*)(data), count);
-        else if (type == Reflection::WCharType)
+        else if (fundamental == Reflection::WCharType)
             serialize((wchar_t*)(data), count);
-        else if (type == Reflection::Int8Type)
+        else if (fundamental == Reflection::Int8Type)
             serialize((int8_t*)(data), count);
-        else if (type == Reflection::Int16Type)
+        else if (fundamental == Reflection::Int16Type)
             serialize((int16_t*)(data), count);
-        else if (type == Reflection::Int32Type)
+        else if (fundamental == Reflection::Int32Type)
             serialize((int32_t*)(data), count);
-        else if (type == Reflection::Int64Type)
+        else if (fundamental == Reflection::Int64Type)
             serialize((int64_t*)(data), count);
-        else if (type == Reflection::Uint8Type)
+        else if (fundamental == Reflection::Uint8Type)
             serialize((uint8_t*)(data), count);
-        else if (type == Reflection::Uint16Type)
+        else if (fundamental == Reflection::Uint16Type)
             serialize((uint16_t*)(data), count);
-        else if (type == Reflection::Uint32Type)
+        else if (fundamental == Reflection::Uint32Type)
             serialize((uint32_t*)(data), count);
-        else if (type == Reflection::Uint64Type)
+        else if (fundamental == Reflection::Uint64Type)
             serialize((uint64_t*)(data), count);
-        else if (type == Reflection::FloatType)
+        else if (fundamental == Reflection::FloatType)
             serialize((float*)(data), count);
-        else if (type == Reflection::DoubleType)
+        else if (fundamental == Reflection::DoubleType)
             serialize((double*)(data), count);
     }
 
     template <typename T>
-    static void getEnumNames(Enum* type, void* data, std::vector<std::string>& enumNames, size_t count)
+    static void getEnumNames(Enum* enumerate, void* data, std::vector<std::string>& enumNames, size_t count)
     {
         for (size_t i = 0; i < count; ++i)
-            enumNames[i] = type->getNameByValue(static_cast<int64_t>(((T*)(data))[i]));
+            enumNames[i] = enumerate->getNameByValue(static_cast<int64_t>(((T*)(data))[i]));
     }
 
     template <typename T>
-    static void setEnumValues(Enum* type, void* data, const std::vector<std::string>& enumNames, size_t count)
+    static void setEnumValues(Enum* enumerate, void* data, const std::vector<std::string>& enumNames, size_t count)
     {
         for (size_t i = 0; i < count; ++i)
-            ((T*)(data))[i] = static_cast<T>(type->getValueByName(enumNames[i]));
+            ((T*)(data))[i] = static_cast<T>(enumerate->getValueByName(enumNames[i]));
     }
 
-    void AssetSerializer::serializeEnum(Enum* type, void* data, size_t count)
+    void AssetSerializer::serializeEnum(Enum* enumerate, void* data, size_t count)
     {
         std::vector<std::string> enumNames(count);
-        Type* underlying = type->getUnderlyingType();
+        Type* underlying = enumerate->getUnderlyingType();
         if (isSaving())
         {
             if (underlying == Reflection::Int8Type)
-                getEnumNames<int8_t>(type, data, enumNames, count);
+                getEnumNames<int8_t>(enumerate, data, enumNames, count);
             else if (underlying == Reflection::Int16Type)
-                getEnumNames<int16_t>(type, data, enumNames, count);
+                getEnumNames<int16_t>(enumerate, data, enumNames, count);
             else if (underlying == Reflection::Int32Type)
-                getEnumNames<int32_t>(type, data, enumNames, count);
+                getEnumNames<int32_t>(enumerate, data, enumNames, count);
             else if (underlying == Reflection::Int64Type)
-                getEnumNames<int64_t>(type, data, enumNames, count);
+                getEnumNames<int64_t>(enumerate, data, enumNames, count);
             else if (underlying == Reflection::Uint8Type)
-                getEnumNames<uint8_t>(type, data, enumNames, count);
+                getEnumNames<uint8_t>(enumerate, data, enumNames, count);
             else if (underlying == Reflection::Uint16Type)
-                getEnumNames<uint16_t>(type, data, enumNames, count);
+                getEnumNames<uint16_t>(enumerate, data, enumNames, count);
             else if (underlying == Reflection::Uint32Type)
-                getEnumNames<uint32_t>(type, data, enumNames, count);
+                getEnumNames<uint32_t>(enumerate, data, enumNames, count);
             else if (underlying == Reflection::Uint64Type)
-                getEnumNames<uint64_t>(type, data, enumNames, count);
+                getEnumNames<uint64_t>(enumerate, data, enumNames, count);
             serialize(enumNames.data(), count);
         }
         else
         {
             serialize(enumNames.data(), count);
             if (underlying == Reflection::Int8Type)
-                setEnumValues<int8_t>(type, data, enumNames, count);
+                setEnumValues<int8_t>(enumerate, data, enumNames, count);
             else if (underlying == Reflection::Int16Type)
-                setEnumValues<int16_t>(type, data, enumNames, count);
+                setEnumValues<int16_t>(enumerate, data, enumNames, count);
             else if (underlying == Reflection::Int32Type)
-                setEnumValues<int32_t>(type, data, enumNames, count);
+                setEnumValues<int32_t>(enumerate, data, enumNames, count);
             else if (underlying == Reflection::Int64Type)
-                setEnumValues<int64_t>(type, data, enumNames, count);
+                setEnumValues<int64_t>(enumerate, data, enumNames, count);
             else if (underlying == Reflection::Uint8Type)
-                setEnumValues<uint8_t>(type, data, enumNames, count);
+                setEnumValues<uint8_t>(enumerate, data, enumNames, count);
             else if (underlying == Reflection::Uint16Type)
-                setEnumValues<uint16_t>(type, data, enumNames, count);
+                setEnumValues<uint16_t>(enumerate, data, enumNames, count);
             else if (underlying == Reflection::Uint32Type)
-                setEnumValues<uint32_t>(type, data, enumNames, count);
+                setEnumValues<uint32_t>(enumerate, data, enumNames, count);
             else if (underlying == Reflection::Uint64Type)
-                setEnumValues<uint64_t>(type, data, enumNames, count);
+                setEnumValues<uint64_t>(enumerate, data, enumNames, count);
         }
     }
 
-    void AssetSerializer::serializeStruct(Struct* type, void* data, size_t count)
+    void AssetSerializer::serializeStruct(Struct* structure, void* data, size_t count)
     {
         for (size_t i = 0; i < count; ++i)
-        {
-            uint32_t propertyCount;
-            if (isSaving())
-                propertyCount = type->getProperties().size();
-            serialize(&propertyCount);
-            for (Property* prop : type->getProperties())
-                serializeProperty(prop, data);
-        }
+            for (Property* prop : structure->getProperties())
+                serializeType(prop->getDeclaredType(), prop->getValuePtr(data));
     }
 
-    void AssetSerializer::serializeClass(Class* type, void* data, size_t count)
+    void AssetSerializer::serializeClass(Class* clazz, void* data, size_t count)
     {
 
     }
 
-    void AssetSerializer::serializeSpecial(Special* type, void* data, size_t count)
+    void AssetSerializer::serializeSpecial(Special* special, void* data, size_t count)
     {
-        switch (type->getSpecialType())
+        switch (special->getSpecialType())
         {
         case SpecialType::Std_String:
         {
@@ -219,174 +241,242 @@ namespace xxx
         }
         case SpecialType::Std_Array:
         {
-            StdArray* stdArray = dynamic_cast<StdArray*>(type);
-            for (size_t i = 0; i < count; ++i)
-            {
-                void* stdArrayData = static_cast<uint8_t*>(data) + stdArray->getSize() * i;
-                serializeType(stdArray->getElementType(), stdArray->getElementPtrByIndex(stdArrayData, 0), stdArray->getElementCount());
-            }
+            serializeStdArray(dynamic_cast<StdArray*>(special), data, count);
             break;
         }
         case SpecialType::Std_Map:
         {
-            StdMap* stdMap = dynamic_cast<StdMap*>(type);
-            Type* keyType = stdMap->getKeyType();
-            Type* valueType = stdMap->getValueType();
-            if (isSaving())
-            {
-                for (size_t i = 0; i < count; ++i)
-                {
-                    void* stdMapData = static_cast<uint8_t*>(data) + stdMap->getSize() * i;
-                    std::vector<std::pair<const void*, void*>> keyValuePtrs = stdMap->getKeyValuePtrs(stdMapData);
-                    size_t keyValuePairCount = keyValuePtrs.size();
-                    serialize(&keyValuePairCount);
-                    for (size_t j = 0; j < keyValuePairCount; ++j)
-                    {
-                        serializeType(keyType, const_cast<void*>(keyValuePtrs[j].first));
-                        serializeType(valueType, keyValuePtrs[j].second);
-                    }
-                }
-            }
-            else
-            {
-                for (size_t i = 0; i < count; ++i)
-                {
-                    void* stdMapData = static_cast<uint8_t*>(data) + stdMap->getSize() * i;
-                    size_t keyValuePairCount;
-                    serialize(&keyValuePairCount);
-                    for (size_t j = 0; j < keyValuePairCount; ++j)
-                    {
-                        void* keyPtr = keyType->newInstance();
-                        void* valuePtr = valueType->newInstance();
-                        serializeType(keyType, keyPtr);
-                        serializeType(valueType, valuePtr);
-                        stdMap->insertKeyValuePair(stdMapData, keyPtr, valuePtr);
-                        keyType->deleteInstance(keyPtr);
-                        valueType->deleteInstance(valuePtr);
-                    }
-                }
-            }
+            serializeStdMap(dynamic_cast<StdMap*>(special), data, count);
             break;
         }
         case SpecialType::Std_Pair:
         {
-            StdPair* stdPair = dynamic_cast<StdPair*>(type);
-            for (size_t i = 0; i < count; ++i)
-            {
-                void* stdPairData = static_cast<uint8_t*>(data) + stdPair->getSize() * i;
-                serializeType(stdPair->getFirstType(), stdPair->getFirstPtr(stdPairData));
-                serializeType(stdPair->getSecondType(), stdPair->getSecondPtr(stdPairData));
-            }
+            serializeStdPair(dynamic_cast<StdPair*>(special), data, count);
             break;
         }
         case SpecialType::Std_Set:
         {
-            StdSet* stdSet = dynamic_cast<StdSet*>(type);
-            Type* elementType = stdSet->getElementType();
-            for (size_t i = 0; i < count; ++i)
-            {
-                void* stdSetData = static_cast<uint8_t*>(data) + stdSet->getSize() * i;
-                if (isSaving())
-                {
-                    std::vector<const void*> elementPtrs = stdSet->getElementPtrs(stdSetData);
-                    size_t elementCount = elementPtrs.size();
-                    serialize(&elementCount);
-                    for (size_t j = 0; j < elementCount; ++j)
-                        serializeType(elementType, const_cast<void*>(elementPtrs[j]));
-                }
-                else
-                {
-                    size_t elementCount;
-                    serialize(&elementCount);
-                    for (size_t j = 0; j < elementCount; ++j)
-                    {
-                        void* elementPtr = elementType->newInstance();
-                        serializeType(elementType, elementPtr);
-                        stdSet->insertElement(stdSetData, elementPtr);
-                        elementType->deleteInstance(elementPtr);
-                    }
-                }
-            }
+            serializeStdSet(dynamic_cast<StdSet*>(special), data, count);
             break;
         }
         case SpecialType::Std_Tuple:
         {
-            StdTuple* stdTuple = dynamic_cast<StdTuple*>(type);
-            for (size_t i = 0; i < count; ++i)
-            {
-                void* stdTupleData = static_cast<uint8_t*>(data) + stdTuple->getSize() * i;
-                std::vector<Type*> tupleTypes = stdTuple->getTypes();
-                std::vector<void*> tupleElementPtrs = stdTuple->getElementPtrs(stdTupleData);
-                size_t tupleElementCount = stdTuple->getElementCount();
-                for (size_t i = 0; i < tupleElementCount; ++i)
-                    serializeType(tupleTypes[i], tupleElementPtrs[i]);
-            }
+            serializeStdTuple(dynamic_cast<StdTuple*>(special), data, count);
             break;
         }
         case SpecialType::Std_Variant:
         {
-            StdVariant* stdVariant = dynamic_cast<StdVariant*>(type);
+            serializeStdVariant(dynamic_cast<StdVariant*>(special), data, count);
+            break;
+        }
+        case SpecialType::Std_Vector:
+        {
+            serializeStdVector(dynamic_cast<StdVector*>(special), data, count);
+            break;
+        }
+        default:
+            break;
+        }
+    }
+
+    void AssetSerializer::serializeStdArray(refl::StdArray* stdArray, void* data, size_t count)
+    {
+        const size_t stdArraySize = stdArray->getSize();
+        for (size_t i = 0; i < count; ++i)
+        {
+            void* stdArrayData = static_cast<uint8_t*>(data) + stdArraySize * i;
+            serializeType(stdArray->getElementType(), stdArray->getElementPtrByIndex(stdArrayData, 0), stdArray->getElementCount());
+        }
+    }
+
+    void AssetSerializer::serializeStdMap(refl::StdMap* stdMap, void* data, size_t count)
+    {
+        Type* keyType = stdMap->getKeyType();
+        Type* valueType = stdMap->getValueType();
+        if (isSaving())
+        {
+            for (size_t i = 0; i < count; ++i)
+            {
+                void* stdMapData = static_cast<uint8_t*>(data) + stdMap->getSize() * i;
+                std::vector<std::pair<const void*, void*>> keyValuePtrs = stdMap->getKeyValuePtrs(stdMapData);
+                size_t keyValuePairCount = keyValuePtrs.size();
+                serialize(&keyValuePairCount);
+                for (size_t j = 0; j < keyValuePairCount; ++j)
+                    serializeType(keyType, const_cast<void*>(keyValuePtrs[j].first));
+                for (size_t j = 0; j < keyValuePairCount; ++j)
+                    serializeType(valueType, keyValuePtrs[j].second);
+            }
+        }
+        else
+        {
+            for (size_t i = 0; i < count; ++i)
+            {
+                void* stdMapData = static_cast<uint8_t*>(data) + stdMap->getSize() * i;
+                size_t keyValuePairCount;
+                serialize(&keyValuePairCount);
+
+                const bool keyTypeIsClass = keyType->getKind() == Type::Kind::Class;
+                const bool valueTypeIsClass = valueType->getKind() == Type::Kind::Class;
+                void* keys = keyTypeIsClass ?
+                    new Object * [keyValuePairCount] :
+                    keyType->newInstances(keyValuePairCount);
+                void* values = valueTypeIsClass ?
+                    new Object * [keyValuePairCount] :
+                    valueType->newInstances(keyValuePairCount);
+                serializeType(keyType, keys, keyValuePairCount);
+                serializeType(valueType, values, keyValuePairCount);
+
+                const size_t keySize = keyTypeIsClass ? sizeof(Object*) : keyType->getSize();
+                const size_t valueSize = valueTypeIsClass ? sizeof(Object*) : valueType->getSize();
+                for (size_t j = 0; j < keyValuePairCount; ++j)
+                {
+                    void* key = static_cast<uint8_t*>(keys) + j * keySize;
+                    void* value = static_cast<uint8_t*>(values) + j * valueSize;
+                    stdMap->insertKeyValuePair(stdMapData, key, value);
+                }
+
+                if (keyTypeIsClass)
+                    delete[] static_cast<Object**>(keys);
+                else
+                    keyType->deleteInstances(keys);
+                if (valueTypeIsClass)
+                    delete[] static_cast<Object**>(values);
+                else
+                    valueType->deleteInstances(values);
+            }
+        }
+    }
+
+    void AssetSerializer::serializeStdPair(refl::StdPair* stdPair, void* data, size_t count)
+    {
+        for (size_t i = 0; i < count; ++i)
+        {
+            void* stdPairData = static_cast<uint8_t*>(data) + stdPair->getSize() * i;
+            serializeType(stdPair->getFirstType(), stdPair->getFirstPtr(stdPairData));
+            serializeType(stdPair->getSecondType(), stdPair->getSecondPtr(stdPairData));
+        }
+    }
+
+    void AssetSerializer::serializeStdSet(refl::StdSet* stdSet, void* data, size_t count)
+    {
+        Type* elementType = stdSet->getElementType();
+        const size_t stdSetSize = stdSet->getSize();
+        for (size_t i = 0; i < count; ++i)
+        {
+            void* stdSetData = static_cast<uint8_t*>(data) + stdSetSize * i;
             if (isSaving())
             {
-                for (size_t i = 0; i < count; ++i)
-                {
-                    void* stdVariantData = static_cast<uint8_t*>(data) + stdVariant->getSize() * i;
-                    uint32_t typeIndex = stdVariant->getTypeIndex(stdVariantData);
-                    serialize(&typeIndex);
-                    Type* variantType = stdVariant->getTypes().at(typeIndex);
-                    void* valuePtr = stdVariant->getValuePtr(stdVariantData);
-                    serializeType(variantType, valuePtr);
-                }
+                std::vector<const void*> elementPtrs = stdSet->getElementPtrs(stdSetData);
+                size_t elementCount = elementPtrs.size();
+                serialize(&elementCount);
+                for (size_t j = 0; j < elementCount; ++j)
+                    serializeType(elementType, const_cast<void*>(elementPtrs[j]));
             }
             else
             {
-                for (size_t i = 0; i < count; ++i)
+                size_t elementCount;
+                serialize(&elementCount);
+
+                const bool elementTypeIsClass = elementType->getKind() == Type::Kind::Class;
+                void* elements = elementTypeIsClass ?
+                    new Object * [elementCount] :
+                    elementType->newInstances(elementCount);
+                serializeType(elementType, elements, elementCount);
+
+                const size_t elementSize = elementTypeIsClass ? sizeof(Object*) : elementType->getSize();
+                for (size_t j = 0; j < elementCount; ++j)
                 {
-                    void* stdVariantData = static_cast<uint8_t*>(data) + stdVariant->getSize() * i;
-                    uint32_t typeIndex;
-                    serialize(&typeIndex);
-                    Type* variantType = stdVariant->getTypes().at(typeIndex);
+                    void* element = static_cast<uint8_t*>(elements) + j * elementSize;
+                    stdSet->insertElement(stdSetData, element);
+                }
+
+                if (elementTypeIsClass)
+                    delete[] static_cast<Object**>(elements);
+                else
+                    elementType->deleteInstances(elements);
+            }
+        }
+    }
+
+    void AssetSerializer::serializeStdTuple(refl::StdTuple* stdTuple, void* data, size_t count)
+    {
+        for (size_t i = 0; i < count; ++i)
+        {
+            void* stdTupleData = static_cast<uint8_t*>(data) + stdTuple->getSize() * i;
+            std::vector<Type*> tupleTypes = stdTuple->getTypes();
+            std::vector<void*> tupleElementPtrs = stdTuple->getElementPtrs(stdTupleData);
+            size_t tupleElementCount = stdTuple->getElementCount();
+            for (size_t i = 0; i < tupleElementCount; ++i)
+                serializeType(tupleTypes[i], tupleElementPtrs[i]);
+        }
+    }
+
+    void AssetSerializer::serializeStdVariant(refl::StdVariant* stdVariant, void* data, size_t count)
+    {
+        if (isSaving())
+        {
+            for (size_t i = 0; i < count; ++i)
+            {
+                void* stdVariantData = static_cast<uint8_t*>(data) + stdVariant->getSize() * i;
+                uint32_t typeIndex = stdVariant->getTypeIndex(stdVariantData);
+                serialize(&typeIndex);
+                Type* variantType = stdVariant->getTypes().at(typeIndex);
+                void* valuePtr = stdVariant->getValuePtr(stdVariantData);
+                serializeType(variantType, valuePtr);
+            }
+        }
+        else
+        {
+            for (size_t i = 0; i < count; ++i)
+            {
+                void* stdVariantData = static_cast<uint8_t*>(data) + stdVariant->getSize() * i;
+                uint32_t typeIndex;
+                serialize(&typeIndex);
+                Type* variantType = stdVariant->getTypes().at(typeIndex);
+                if (variantType->getKind() == Type::Kind::Class)
+                {
+                    Object* object;
+                    serializeType(variantType, &object);
+                    stdVariant->setValueByTypeIndex(stdVariantData, typeIndex, &object);
+                }
+                else
+                {
                     void* valuePtr = variantType->newInstance();
                     serializeType(variantType, valuePtr);
                     stdVariant->setValueByTypeIndex(stdVariantData, typeIndex, valuePtr);
                     variantType->deleteInstance(valuePtr);
                 }
             }
-            break;
         }
-        case SpecialType::Std_Vector:
+    }
+
+    void AssetSerializer::serializeStdVector(refl::StdVector* stdVector, void* data, size_t count)
+    {
+        Type* elementType = stdVector->getElementType();
+        if (isSaving())
         {
-            StdVector* stdVector = dynamic_cast<StdVector*>(type);
-            Type* elementType = stdVector->getElementType();
-            if (isSaving())
+            for (size_t i = 0; i < count; ++i)
             {
-                for (size_t i = 0; i < count; ++i)
-                {
-                    void* stdVectorData = static_cast<uint8_t*>(data) + stdVector->getSize() * i;
-                    size_t elementCount = stdVector->getElementCount(stdVectorData);
-                    serialize(&elementCount);
-                    if (elementCount > 0)
-                        serializeType(elementType, stdVector->getElementPtrByIndex(stdVectorData, 0), elementCount);
-                }
+                void* stdVectorData = static_cast<uint8_t*>(data) + stdVector->getSize() * i;
+                size_t elementCount = stdVector->getElementCount(stdVectorData);
+                serialize(&elementCount);
+                if (elementCount > 0)
+                    serializeType(elementType, stdVector->getElementPtrByIndex(stdVectorData, 0), elementCount);
             }
-            else
-            {
-                for (size_t i = 0; i < count; ++i)
-                {
-                    void* stdVectorData = static_cast<uint8_t*>(data) + stdVector->getSize() * i;
-                    size_t elementCount;
-                    serialize(&elementCount);
-                    if (elementCount > 0)
-                    {
-                        stdVector->resize(stdVectorData, elementCount);
-                        serializeType(elementType, stdVector->getElementPtrByIndex(stdVectorData, 0), elementCount);
-                    }
-                }
-            }
-            break;
         }
-        default:
-            break;
+        else
+        {
+            for (size_t i = 0; i < count; ++i)
+            {
+                void* stdVectorData = static_cast<uint8_t*>(data) + stdVector->getSize() * i;
+                size_t elementCount;
+                serialize(&elementCount);
+                if (elementCount > 0)
+                {
+                    stdVector->resize(stdVectorData, elementCount);
+                    serializeType(elementType, stdVector->getElementPtrByIndex(stdVectorData, 0), elementCount);
+                }
+            }
         }
     }
 }

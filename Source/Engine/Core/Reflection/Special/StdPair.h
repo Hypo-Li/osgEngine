@@ -30,47 +30,62 @@ namespace xxx::refl
     class StdPairInstance : public StdPair
     {
         friend class Reflection;
-        using FirstType = container_traits_t1<T>;
-        using SecondType = container_traits_t2<T>;
+        using First = container_traits_t1<T>;
+        using Second = container_traits_t2<T>;
     public:
         virtual void* newInstance() const override
         {
-            return new std::pair<FirstType, SecondType>;
+            return new std::pair<First, Second>;
         }
 
         virtual void deleteInstance(void* instance) const override
         {
-            delete static_cast<std::pair<FirstType, SecondType>*>(instance);
+            delete static_cast<std::pair<First, Second>*>(instance);
+        }
+
+        virtual void* newInstances(size_t count) const override
+        {
+            return new std::pair<First, Second>[count];
+        }
+
+        virtual void deleteInstances(void* instances) const override
+        {
+            delete[] static_cast<std::pair<First, Second>*>(instances);
+        }
+
+        virtual bool compare(const void* instance1, const void* instance2) const override
+        {
+            return false;
         }
 
         virtual Type* getFirstType() const override
         {
-            return Type::getType<FirstType>();
+            return Type::getType<First>();
         }
 
         virtual Type* getSecondType() const override
         {
-            return Type::getType<SecondType>();
+            return Type::getType<Second>();
         }
 
         virtual void* getFirstPtr(void* instance) const override
         {
-            std::pair<FirstType, SecondType>* pair = static_cast<std::pair<FirstType, SecondType>*>(instance);
+            std::pair<First, Second>* pair = static_cast<std::pair<First, Second>*>(instance);
             return &pair->first;
         }
 
         virtual void* getSecondPtr(void* instance) const override
         {
-            std::pair<FirstType, SecondType>* pair = static_cast<std::pair<FirstType, SecondType>*>(instance);
+            std::pair<First, Second>* pair = static_cast<std::pair<First, Second>*>(instance);
             return &pair->second;
         }
 
     protected:
         StdPairInstance()
         {
-            static std::string name = "std::pair<" + std::string(Reflection::getType<FirstType>()->getName()) + ", " + std::string(Reflection::getType<SecondType>()->getName()) + ">";
-            mName = name; // typeid(std::pair<FirstType, SecondType>).name();
-            mSize = sizeof(std::pair<FirstType, SecondType>);
+            static std::string name = "std::pair<" + std::string(Reflection::getType<First>()->getName()) + ", " + std::string(Reflection::getType<Second>()->getName()) + ">";
+            mName = name;
+            mSize = sizeof(std::pair<First, Second>);
         }
     };
 }

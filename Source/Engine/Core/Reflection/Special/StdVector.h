@@ -32,56 +32,70 @@ namespace xxx::refl
     class StdVectorInstance : public StdVector
     {
         friend class Reflection;
-        using ElementType = container_traits_t<T>;
+        using Element = container_traits_t<T>;
     public:
         virtual void* newInstance() const override
         {
-            return new std::vector<ElementType>;
+            return new std::vector<Element>;
         }
 
         virtual void deleteInstance(void* instance) const override
         {
-            delete static_cast<std::vector<ElementType>*>(instance);
+            delete static_cast<std::vector<Element>*>(instance);
+        }
+
+        virtual void* newInstances(size_t count) const override
+        {
+            return new std::vector<Element>[count];
+        }
+
+        virtual void deleteInstances(void* instances) const override
+        {
+            delete[] static_cast<std::vector<Element>*>(instances);
+        }
+
+        virtual bool compare(const void* instance1, const void* instance2) const override
+        {
+            return false;
         }
 
         virtual Type* getElementType() const override
         {
-            return Type::getType<ElementType>();
+            return Type::getType<Element>();
         }
 
         virtual size_t getElementCount(void* vector) const override
         {
-            return static_cast<std::vector<ElementType>*>(vector)->size();
+            return static_cast<std::vector<Element>*>(vector)->size();
         }
 
         virtual void* getElementPtrByIndex(void* vector, size_t index) const override
         {
-            return &(static_cast<std::vector<ElementType>*>(vector)->at(index));
+            return &(static_cast<std::vector<Element>*>(vector)->at(index));
         }
 
         virtual void appendElement(void* vector, void* element) const override
         {
-            static_cast<std::vector<ElementType>*>(vector)->emplace_back(*(ElementType*)(element));
+            static_cast<std::vector<Element>*>(vector)->emplace_back(*(Element*)(element));
         }
 
         virtual void removeElementByIndex(void* vector, size_t index) const override
         {
-            std::vector<ElementType>* vec = static_cast<std::vector<ElementType>*>(vector);
+            std::vector<Element>* vec = static_cast<std::vector<Element>*>(vector);
             vec->erase(vec->begin() + index);
         }
 
         virtual void resize(void* vector, size_t size) const override
         {
-            static_cast<std::vector<ElementType>*>(vector)->resize(size);
+            static_cast<std::vector<Element>*>(vector)->resize(size);
         }
-
 
     protected:
         StdVectorInstance()
         {
-            static std::string name = "std::vector<" + std::string(Reflection::getType<ElementType>()->getName()) + ">";
-            mName = name; // typeid(std::vector<ElementType>).name();
-            mSize = sizeof(std::vector<ElementType>);
+            static std::string name = "std::vector<" + std::string(Reflection::getType<Element>()->getName()) + ">";
+            mName = name;
+            mSize = sizeof(std::vector<Element>);
         }
     };
 }

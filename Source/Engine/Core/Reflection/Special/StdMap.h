@@ -35,38 +35,53 @@ namespace xxx::refl
     class StdMapInstance : public StdMap
     {
         friend class Reflection;
-        using KeyType = container_traits_t1<T>;
-        using ValueType = container_traits_t2<T>;
+        using Key = container_traits_t1<T>;
+        using Value = container_traits_t2<T>;
     public:
         virtual void* newInstance() const override
         {
-            return new std::map<KeyType, ValueType>;
+            return new std::map<Key, Value>;
         }
 
         virtual void deleteInstance(void* instance) const override
         {
-            delete static_cast<std::map<KeyType, ValueType>*>(instance);
+            delete static_cast<std::map<Key, Value>*>(instance);
+        }
+
+        virtual void* newInstances(size_t count) const override
+        {
+            return new std::map<Key, Value>[count];
+        }
+
+        virtual void deleteInstances(void* instances) const override
+        {
+            delete[] static_cast<std::map<Key, Value>*>(instances);
+        }
+
+        virtual bool compare(const void* instance1, const void* instance2) const override
+        {
+            return false;
         }
 
         virtual Type* getKeyType() const override
         {
-            return Type::getType<KeyType>();
+            return Type::getType<Key>();
         }
 
         virtual Type* getValueType() const override
         {
-            return Type::getType<ValueType>();
+            return Type::getType<Value>();
         }
 
         virtual size_t getKeyValuePairCount(void* instance) const override
         {
-            return static_cast<std::map<KeyType, ValueType>*>(instance)->size();
+            return static_cast<std::map<Key, Value>*>(instance)->size();
         }
 
         virtual void* getValuePtrByKey(void* instance, void* key) const override
         {
-            std::map<KeyType, ValueType>* map = static_cast<std::map<KeyType, ValueType>*>(instance);
-            auto findResult = map->find(*(KeyType*)(key));
+            std::map<Key, Value>* map = static_cast<std::map<Key, Value>*>(instance);
+            auto findResult = map->find(*(Key*)(key));
             if (findResult != map->end())
                 return &findResult->second;
             return nullptr;
@@ -75,7 +90,7 @@ namespace xxx::refl
         virtual std::vector<std::pair<const void*, void*>> getKeyValuePtrs(void* instance) const override
         {
             std::vector<std::pair<const void*, void*>> result;
-            std::map<KeyType, ValueType>* map = static_cast<std::map<KeyType, ValueType>*>(instance);
+            std::map<Key, Value>* map = static_cast<std::map<Key, Value>*>(instance);
             for (auto it = map->begin(); it != map->end(); ++it)
             {
                 result.emplace_back(&it->first, &it->second);
@@ -85,14 +100,14 @@ namespace xxx::refl
 
         virtual void insertKeyValuePair(void* instance, void* key, void* value) const override
         {
-            std::map<KeyType, ValueType>* map = static_cast<std::map<KeyType, ValueType>*>(instance);
-            map->emplace(*(KeyType*)(key), *(ValueType*)(value));
+            std::map<Key, Value>* map = static_cast<std::map<Key, Value>*>(instance);
+            map->emplace(*(Key*)(key), *(Value*)(value));
         }
 
         virtual void removeKeyValuePairByKey(void* instance, void* key) const override
         {
-            std::map<KeyType, ValueType>* map = static_cast<std::map<KeyType, ValueType>*>(instance);
-            auto findResult = map->find(*(KeyType*)(key));
+            std::map<Key, Value>* map = static_cast<std::map<Key, Value>*>(instance);
+            auto findResult = map->find(*(Key*)(key));
             if (findResult != map->end())
                 map->erase(findResult);
         }
@@ -100,9 +115,9 @@ namespace xxx::refl
     protected:
         StdMapInstance()
         {
-            static std::string name = "std::map<" + std::string(Reflection::getType<KeyType>()->getName()) + ", " + std::string(Reflection::getType<ValueType>()->getName()) + ">";
-            mName = name; // typeid(std::map<KeyType, ValueType>).name();
-            mSize = sizeof(std::map<KeyType, ValueType>);
+            static std::string name = "std::map<" + std::string(Reflection::getType<Key>()->getName()) + ", " + std::string(Reflection::getType<Value>()->getName()) + ">";
+            mName = name;
+            mSize = sizeof(std::map<Key, Value>);
         }
     };
 }

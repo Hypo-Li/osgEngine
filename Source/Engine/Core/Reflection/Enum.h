@@ -12,16 +12,6 @@ namespace xxx::refl
     public:
         virtual Kind getKind() const override { return Kind::Enum; }
 
-        virtual void* newInstance() const override
-        {
-            return malloc(mSize);
-        }
-
-        virtual void deleteInstance(void* instance) const override
-        {
-            free(instance);
-        }
-
         static constexpr size_t INDEX_NONE = std::numeric_limits<size_t>::max();
         static constexpr std::string_view NAME_NONE = std::string_view("");
 
@@ -90,18 +80,52 @@ namespace xxx::refl
             return INDEX_NONE;
         }
 
-    private:
-        template <typename E, std::enable_if_t<std::is_enum_v<E>, int> = 0>
-        Enum(std::string_view name, std::initializer_list<std::pair<std::string_view, E>> values) :
-            Type(name, sizeof(E)),
-            mUnderlyingType(Type::getType<std::underlying_type_t<E>>())
-        {
-            for (std::pair<std::string_view, E> value : values)
-                mValues.emplace_back(value.first, static_cast<int64_t>(value.second));
-        }
-        virtual ~Enum() = default;
+    protected:
+        Enum(std::string_view name, size_t size) :
+            Type(name, size)
+        {}
 
         std::vector<std::pair<std::string_view, int64_t>> mValues;
-        Type* mUnderlyingType;
+        Fundamental* mUnderlyingType;
+    };
+
+    template <typename T, typename = std::enable_if_t<std::is_enum_v<T>>>
+    class EnumInstance : public Enum
+    {
+        friend class Reflection;
+    public:
+        virtual void* newInstance() const override
+        {
+            return new T;
+        }
+
+        virtual void deleteInstance(void* instance) const override
+        {
+            delete static_cast<T*>(instance);
+        }
+
+        virtual void* newInstances(size_t count) const override
+        {
+            return new T[count];
+        }
+
+        virtual void deleteInstances(void* instances) const override
+        {
+            delete[] static_cast<T*>(instances);
+        }
+
+        virtual bool compare(const void* instance1, const void* instance2) const override
+        {
+            return *static_cast<const T*>(instance1) == *static_cast<const T*>(instance2);
+        }
+
+    protected:
+        EnumInstance(std::string_view name, std::initializer_list<std::pair<std::string_view, T>> values) :
+            Enum(name, sizeof(T))
+        {
+            mUnderlyingType = dynamic_cast<Fundamental*>(Type::getType<std::underlying_type_t<T>>());
+            for (std::pair<std::string_view, T> value : values)
+                mValues.emplace_back(value.first, static_cast<int64_t>(value.second));
+        }
     };
 }

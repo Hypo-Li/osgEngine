@@ -49,6 +49,21 @@ namespace xxx::refl
             delete static_cast<T*>(instance);
         }
 
+        virtual void* newInstances(size_t count) const override
+        {
+            return new T[count];
+        }
+
+        virtual void deleteInstances(void* instances) const override
+        {
+            delete[] static_cast<T*>(instances);
+        }
+
+        virtual bool compare(const void* instance1, const void* instance2) const override
+        {
+            return false;
+        }
+
         virtual std::vector<Type*> getTypes() const override
         {
             return getTypesImpl(std::make_index_sequence<ElementCount>());
@@ -82,7 +97,7 @@ namespace xxx::refl
         StdTupleInstance()
         {
             static std::string name = "std::tuple<" + createTupleArgsString(std::make_index_sequence<std::tuple_size_v<T>>{}) + ">";
-            mName = name; // typeid(T).name();
+            mName = name;
             mSize = sizeof(T);
         }
     };

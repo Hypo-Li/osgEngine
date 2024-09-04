@@ -32,32 +32,47 @@ namespace xxx::refl
     class StdSetInstance : public StdSet
     {
         friend class Reflection;
-        using ElementType = container_traits_t<T>;
+        using Element = container_traits_t<T>;
     public:
         virtual void* newInstance() const override
         {
-            return new std::set<ElementType>;
+            return new std::set<Element>;
         }
 
         virtual void deleteInstance(void* instance) const override
         {
-            delete static_cast<std::set<ElementType>*>(instance);
+            delete static_cast<std::set<Element>*>(instance);
+        }
+
+        virtual void* newInstances(size_t count) const override
+        {
+            return new std::set<Element>[count];
+        }
+
+        virtual void deleteInstances(void* instances) const override
+        {
+            delete[] static_cast<std::set<Element>*>(instances);
+        }
+
+        virtual bool compare(const void* instance1, const void* instance2) const override
+        {
+            return false;
         }
 
         virtual Type* getElementType() const override
         {
-            return Type::getType<ElementType>();
+            return Type::getType<Element>();
         }
 
         virtual size_t getElementCount(void* instance) const override
         {
-            return static_cast<std::set<ElementType>*>(instance)->size();
+            return static_cast<std::set<Element>*>(instance)->size();
         }
 
         virtual std::vector<const void*> getElementPtrs(void* instance) const override
         {
             std::vector<const void*> result;
-            std::set<ElementType>* set = static_cast<std::set<ElementType>*>(instance);
+            std::set<Element>* set = static_cast<std::set<Element>*>(instance);
             for (auto it = set->begin(); it != set->end(); ++it)
             {
                 result.emplace_back(&(*it));
@@ -67,14 +82,14 @@ namespace xxx::refl
 
         virtual void insertElement(void* instance, void* element) const override
         {
-            std::set<ElementType>* set = static_cast<std::set<ElementType>*>(instance);
-            set->insert(*(ElementType*)(element));
+            std::set<Element>* set = static_cast<std::set<Element>*>(instance);
+            set->insert(*(Element*)(element));
         }
 
         virtual void removeElement(void* instance, void* element) const override
         {
-            std::set<ElementType>* set = static_cast<std::set<ElementType>*>(instance);
-            auto findResult = set->find(*(ElementType*)(element));
+            std::set<Element>* set = static_cast<std::set<Element>*>(instance);
+            auto findResult = set->find(*(Element*)(element));
             if (findResult != set->end())
                 set->erase(findResult);
         }
@@ -82,9 +97,9 @@ namespace xxx::refl
     protected:
         StdSetInstance()
         {
-            static std::string name = "std::set<" + std::string(Reflection::getType<ElementType>()->getName()) + ">";
-            mName = name; // typeid(std::set<ElementType>).name();
-            mSize = sizeof(std::set<ElementType>);
+            static std::string name = "std::set<" + std::string(Reflection::getType<Element>()->getName()) + ">";
+            mName = name;
+            mSize = sizeof(std::set<Element>);
         }
     };
 }

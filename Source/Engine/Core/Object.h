@@ -7,34 +7,6 @@
 
 namespace xxx
 {
-    template <typename T>
-    static void* newInstance()
-    {
-        return new T;
-    }
-
-    template <typename T>
-    static void deleteInstance(void* instance)
-    {
-        delete (T*)(instance);
-    }
-
-    template <typename T, std::enable_if_t<std::is_base_of_v<Object, T>, int> = 0>
-    static Object* newObject()
-    {
-        if constexpr (!std::is_abstract_v<T>)
-            return new T;
-        else
-            return nullptr;
-    }
-
-    template <typename T, std::enable_if_t<std::is_base_of_v<Object, T>, int> = 0>
-    static void deleteObject(Object* object)
-    {
-        if constexpr (!std::is_abstract_v<T>)
-            delete (T*)(object);
-    }
-
     struct Guid
     {
         uint32_t A = 0;
@@ -42,11 +14,11 @@ namespace xxx
         uint32_t C = 0;
         uint32_t D = 0;
 
-        bool operator==(const Guid& rhs)
+        bool operator==(const Guid& rhs) const
         {
             return A == rhs.A && B == rhs.B && C == rhs.C && D == rhs.D;
         }
-        bool operator!=(const Guid& rhs)
+        bool operator!=(const Guid& rhs) const
         {
             return A != rhs.A || B != rhs.B || C != rhs.C || D != rhs.D;
         }
@@ -88,7 +60,7 @@ namespace xxx
         template <>
         inline Type* Reflection::createType<Guid>()
         {
-            Struct* structGuid = new Struct("Guid", sizeof(Guid), newInstance<Guid>, deleteInstance<Guid>);
+            Struct* structGuid = new StructInstance<Guid>("Guid");
             Property* propA = structGuid->addProperty("A", &Guid::A);
             Property* propB = structGuid->addProperty("B", &Guid::B);
             Property* propC = structGuid->addProperty("C", &Guid::C);
@@ -99,7 +71,7 @@ namespace xxx
         template <>
         inline Type* Reflection::createType<Object>()
         {
-            Class* clazz = new Class("Object", sizeof(Object), newObject<Object>, deleteObject<Object>);
+            Class* clazz = new ClassInstance<Object>("Object");
             // Guid is a special property, cannot serialize directly.
             //Property* propGuid = clazz->addProperty("Guid", &Object::mGuid);
             sRegisteredClassMap.emplace("Object", clazz);

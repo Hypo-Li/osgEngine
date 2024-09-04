@@ -5,6 +5,7 @@ uniform sampler2D uColorTexture;
 uniform sampler2D uDepthTexture;
 uniform sampler2DMS uColorMsTexture;
 uniform sampler2DMS uDepthMsTexture;
+uniform sampler2D uEarthDepthTexture;
 
 layout(std140, binding = 0) uniform ViewData
 {
@@ -54,6 +55,7 @@ void main()
     float depthMs2 = texelFetch(uDepthMsTexture, iTexcoord, 2).r;
     float depthMs3 = texelFetch(uDepthMsTexture, iTexcoord, 3).r;
     float minDepth = min(min(depthMs0, depthMs1), min(depthMs2, depthMs3));
+    float earthDepth = texelFetch(uEarthDepthTexture, iTexcoord, 0).r;
     if (depth == 1.0 && minDepth == 1.0)
     {
         fragData = color;
@@ -82,6 +84,10 @@ void main()
     outColor += mix(combinedColor3, color, bvec4(depthMs3 == 1.0));
     outColor *= 0.25;
     float outDist = min(min(distMs.x, distMs.y), min(distMs.z, distMs.w));
+
+    float earthDist = convertDepthToDistance(earthDepth, uEarthNearFar.x, uEarthNearFar.y);
+    if (outDist >= earthDist)
+        outColor = color;
 
     float outNear = min(uGbufferNearFar.x, uForwardOpaqueNearFar.x);
     float outFar = max(uGbufferNearFar.y, uForwardOpaqueNearFar.y);

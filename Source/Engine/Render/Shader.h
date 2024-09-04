@@ -29,7 +29,7 @@ namespace xxx
         template <>
         inline Type* Reflection::createType<osg::Vec2f>()
         {
-            Struct* structure = new Struct("osg::Vec2f", sizeof(osg::Vec2f), newInstance<osg::Vec2f>, deleteInstance<osg::Vec2f>);
+            Struct* structure = new StructInstance<osg::Vec2f>("osg::Vec2f");
             structure->addProperty<0>("x", &osg::Vec2f::_v);
             structure->addProperty<1>("y", &osg::Vec2f::_v);
             return structure;
@@ -38,7 +38,7 @@ namespace xxx
         template <>
         inline Type* Reflection::createType<osg::Vec3f>()
         {
-            Struct* structure = new Struct("osg::Vec3f", sizeof(osg::Vec3f), newInstance<osg::Vec3f>, deleteInstance<osg::Vec3f>);
+            Struct* structure = new StructInstance<osg::Vec3f>("osg::Vec3f");
             structure->addProperty<0>("x", &osg::Vec2f::_v);
             structure->addProperty<1>("y", &osg::Vec2f::_v);
             structure->addProperty<2>("z", &osg::Vec2f::_v);
@@ -48,7 +48,7 @@ namespace xxx
         template <>
         inline Type* Reflection::createType<osg::Vec4f>()
         {
-            Struct* structure = new Struct("osg::Vec4f", sizeof(osg::Vec4f), newInstance<osg::Vec4f>, deleteInstance<osg::Vec4f>);
+            Struct* structure = new StructInstance<osg::Vec4f>("osg::Vec4f");
             structure->addProperty<0>("x", &osg::Vec2f::_v);
             structure->addProperty<1>("y", &osg::Vec2f::_v);
             structure->addProperty<2>("z", &osg::Vec2f::_v);
@@ -59,8 +59,7 @@ namespace xxx
         template <>
         inline Type* Reflection::createType<Shader>()
         {
-            Class* clazz = new Class("Shader", sizeof(Shader), newObject<Shader>, deleteObject<Shader>);
-            clazz->setBaseClass(dynamic_cast<Class*>(Reflection::getType<Object>()));
+            Class* clazz = new ClassInstance<Shader>("Shader");
             Property* propParameters = clazz->addProperty("Parameters", &Shader::mParameters);
             Property* propSource = clazz->addProperty("Source", &Shader::mSource);
             sRegisteredClassMap.emplace("Shader", clazz);

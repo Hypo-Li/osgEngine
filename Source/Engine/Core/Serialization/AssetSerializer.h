@@ -7,6 +7,8 @@ namespace xxx
     class AssetSerializer : public Serializer
     {
     public:
+        AssetSerializer(Asset* asset) : mAsset(asset) {}
+        virtual ~AssetSerializer() = 0;
         virtual bool isLoading() const = 0;
         virtual bool isSaving() const = 0;
 
@@ -30,11 +32,19 @@ namespace xxx
 
         void serializeProperty(refl::Property* property, void* object);
         void serializeType(refl::Type* type, void* data, size_t count = 1);
-        void serializeFundamental(refl::Fundamental* type, void* data, size_t count = 1);
-        void serializeEnum(refl::Enum* type, void* data, size_t count = 1);
-        void serializeStruct(refl::Struct* type, void* data, size_t count = 1);
-        void serializeClass(refl::Class* type, void* data, size_t count = 1);
-        void serializeSpecial(refl::Special* type, void* data, size_t count = 1);
+        void serializeFundamental(refl::Fundamental* fundamental, void* data, size_t count = 1);
+        void serializeEnum(refl::Enum* enumerate, void* data, size_t count = 1);
+        void serializeStruct(refl::Struct* structure, void* data, size_t count = 1);
+        void serializeClass(refl::Class* clazz, void* data, size_t count = 1);
+        void serializeSpecial(refl::Special* special, void* data, size_t count = 1);
+
+        void serializeStdArray(refl::StdArray* stdArray, void* data, size_t count = 1);
+        void serializeStdMap(refl::StdMap* stdMap, void* data, size_t count = 1);
+        void serializeStdPair(refl::StdPair* stdPair, void* data, size_t count = 1);
+        void serializeStdSet(refl::StdSet* stdSet, void* data, size_t count = 1);
+        void serializeStdTuple(refl::StdTuple* stdTuple, void* data, size_t count = 1);
+        void serializeStdVariant(refl::StdVariant* stdVariant, void* data, size_t count = 1);
+        void serializeStdVector(refl::StdVector* stdVector, void* data, size_t count = 1);
 
     protected:
         Asset* mAsset;

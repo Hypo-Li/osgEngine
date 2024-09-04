@@ -16,16 +16,6 @@ namespace xxx::refl
 	public:
         virtual Kind getKind() const override { return Kind::Class; }
 
-        virtual void* newInstance() const override
-        {
-            return mConstructor();
-        }
-
-        virtual void deleteInstance(void* instance) const override
-        {
-            mDestructor(static_cast<xxx::Object*>(instance));
-        }
-
         Class* getBaseClass() const
         {
             return mBaseClass;
@@ -63,16 +53,11 @@ namespace xxx::refl
         }
 
     protected:
-        void setBaseClass(Class* baseClass)
+        template <std::size_t Index = 0, typename Owner, typename Declared>
+        Property* addProperty(std::string_view name, Declared Owner::* member)
         {
-            mBaseClass = baseClass;
-        }
-
-        template <std::size_t Index = 0, typename ClassType, typename ObjectType>
-        Property* addProperty(std::string_view name, ObjectType ClassType::* member)
-        {
-            Property* newProperty = new PropertyValueInstance<ClassType, ObjectType, Index>(name, member);
-            mProperties.push_back(newProperty);
+            Property* newProperty = new PropertyMemberInstance<Owner, Declared, Index>(name, member);
+            mProperties.emplace_back(newProperty);
             return newProperty;
         }
 
@@ -81,7 +66,7 @@ namespace xxx::refl
         Property* addProperty(std::string_view name, Getter getter, Setter setter)
         {
             Property* newProperty = new PropertyAccessorInstance(name, getter, setter);
-            mProperties.push_back(newProperty);
+            mProperties.emplace_back(newProperty);
             return newProperty;
         }
 
@@ -89,27 +74,88 @@ namespace xxx::refl
         Method* addMethod(std::string_view name, T member, std::initializer_list<std::string_view> paramNames)
         {
             Method* newMethod = new MethodInstance(name, member, paramNames);
-            mMethods.push_back(newMethod);
+            mMethods.emplace_back(newMethod);
             return newMethod;
         }
 
-    private:
-        using Constructor = std::function<xxx::Object* (void)>;
-        using Destructor = std::function<void(xxx::Object*)>;
-        Class(std::string_view name, size_t size, Constructor constructor, Destructor destructor) :
-            Type(name, size),
-            mBaseClass(nullptr),
-            mConstructor(constructor),
-            mDestructor(destructor),
-            mDefaultObject(constructor())
+    protected:
+        Class(std::string_view name, size_t size) :
+            Type(name, size)
         {}
-        virtual ~Class() = default;
 
         Class* mBaseClass;
         std::vector<Property*> mProperties;
         std::vector<Method*> mMethods;
-        Constructor mConstructor;
-        Destructor mDestructor;
-        const xxx::Object* mDefaultObject;
+        xxx::Object* mDefaultObject;
 	};
+
+    template <typename T, typename Base = Object, typename = std::enable_if_t<std::is_base_of_v<Object, Base> && std::is_base_of_v<Base, T>>>
+    class ClassInstance : public Class
+    {
+        friend class Reflection;
+    public:
+        virtual void* newInstance() const override
+        {
+            if constexpr (std::is_abstract_v<T>)
+                return nullptr;
+            else
+                return new T;
+        }
+
+        virtual void deleteInstance(void* instance) const override
+        {
+            if constexpr (!std::is_abstract_v<T>)
+                delete static_cast<T*>(instance);
+        }
+
+        virtual void* newInstances(size_t count) const override
+        {
+            if constexpr (std::is_abstract_v<T>)
+                return nullptr;
+            else
+                return new T[count];
+        }
+
+        virtual void deleteInstances(void* instances) const override
+        {
+            if constexpr (!std::is_abstract_v<T>)
+                delete[] static_cast<T*>(instances);
+        }
+
+        virtual bool compare(const void* instance1, const void* instance2) const override
+        {
+            if constexpr (is_comparable_v<T>)
+                return *static_cast<const T*>(instance1) == *static_cast<const T*>(instance2);
+            else
+            {
+                Class* clazz = const_cast<Class*>(dynamic_cast<const Class*>(this));
+                while (clazz)
+                {
+                    const std::vector<Property*>& properties = clazz->getProperties();
+                    for (Property* prop : properties)
+                    {
+                        if (!prop->compare(instance1, instance2))
+                            return false;
+                    }
+                    clazz = clazz->getBaseClass();
+                }
+                return true;
+            }
+        }
+
+    protected:
+        ClassInstance(std::string_view name) :
+            Class(name, sizeof(T))
+        {
+            if constexpr (std::is_same_v<T, Object>)
+                mBaseClass = nullptr;
+            else
+                mBaseClass = dynamic_cast<Class*>(Type::getType<Base>());
+
+            if constexpr (std::is_abstract_v<T>)
+                mDefaultObject = nullptr;
+            else
+                mDefaultObject = new T;
+        }
+    };
 }

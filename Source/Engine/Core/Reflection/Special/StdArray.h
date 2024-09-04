@@ -28,40 +28,55 @@ namespace xxx::refl
     class StdArrayInstance : public StdArray
     {
         friend class Reflection;
-        using ElementType = container_traits_t<T>;
-        static constexpr size_t ElementCount = container_traits<T>::Count;
+        using Element = container_traits_t<T>;
+        static constexpr size_t Count = container_traits<T>::Count;
     public:
         virtual void* newInstance() const override
         {
-            return new std::array<ElementType, ElementCount>;
+            return new std::array<Element, Count>;
         }
 
         virtual void deleteInstance(void* instance) const override
         {
-            delete static_cast<std::array<ElementType, ElementCount>*>(instance);
+            delete static_cast<std::array<Element, Count>*>(instance);
+        }
+
+        virtual void* newInstances(size_t count) const override
+        {
+            return new std::array<Element, Count>[count];
+        }
+
+        virtual void deleteInstances(void* instances) const override
+        {
+            delete[] static_cast<std::array<Element, Count>*>(instances);
+        }
+
+        virtual bool compare(const void* instance1, const void* instance2) const override
+        {
+            return false;
         }
 
         virtual Type* getElementType() const override
         {
-            return Type::getType<ElementType>();
+            return Type::getType<Element>();
         }
 
         virtual size_t getElementCount() const override
         {
-            return ElementCount;
+            return Count;
         }
 
         virtual void* getElementPtrByIndex(void* array, uint32_t index) const override
         {
-            return &(static_cast<std::array<ElementType, ElementCount>*>(array)->at(index));
+            return &(static_cast<std::array<Element, Count>*>(array)->at(index));
         }
 
     protected:
         StdArrayInstance()
         {
-            static std::string name = "std::array<" + std::string(Reflection::getType<ElementType>()->getName()) + ", " + std::to_string(ElementCount) + ">";
-            mName = name; // typeid(std::array<ElementType, ElementCount>).name();
-            mSize = sizeof(std::array<ElementType, ElementCount>);
+            static std::string name = "std::array<" + std::string(Reflection::getType<Element>()->getName()) + ", " + std::to_string(Count) + ">";
+            mName = name;
+            mSize = sizeof(std::array<Element, Count>);
         }
         virtual ~StdArrayInstance() = default;
     };

@@ -183,8 +183,7 @@ namespace xxx
         template <>
         inline Type* Reflection::createType<Entity>()
         {
-            Class* clazz = new Class("Entity", sizeof(Entity), newObject<Entity>, deleteObject<Entity>);
-            clazz->setBaseClass(dynamic_cast<Class*>(Reflection::getType<Object>()));
+            Class* clazz = new ClassInstance<Entity>("Entity");
             Property* propName = clazz->addProperty("Name", &Entity::mName);
             Property* propParent = clazz->addProperty("Parent", &Entity::mParent);
             Property* propChildren = clazz->addProperty("Children", &Entity::mChildren);

@@ -5,29 +5,43 @@
 
 #include <functional>
 
+#include <osg/ref_ptr>
+
+template <typename, typename = std::void_t<>>
+struct is_comparable : std::false_type {};
+
+template <typename T>
+struct is_comparable<T, std::void_t<decltype(std::declval<const T>() == std::declval<const T>())>> : std::true_type {};
+
+template <typename T>
+static constexpr bool is_comparable_v = is_comparable<T>::value;
+
+template <typename T>
+struct array_element;
+
+template <typename T, std::size_t Size>
+struct array_element<T[Size]> {
+    using type = T;
+};
+
+template <typename T>
+using array_element_t = typename array_element<T>::type;
+
+template <typename T>
+struct remove_osg_ref_ptr {
+    using type = T;
+};
+
+template <typename T>
+struct remove_osg_ref_ptr<osg::ref_ptr<T>> {
+    using type = T;
+};
+
+template <typename T>
+using remove_osg_ref_ptr_t = typename remove_osg_ref_ptr<T>::type;
+
 namespace xxx::refl
 {
-    // member object traits
-    template <typename T>
-    struct member_object_traits;
-
-    template < typename Class, typename Object>
-    struct member_object_traits<Object Class::*> {
-        using class_type = Class;
-        using object_type = Object;
-    };
-
-    template <typename T>
-    struct array_element;
-
-    template <typename T, std::size_t Size>
-    struct array_element<T[Size]> {
-        using type = T;
-    };
-
-    template <typename T>
-    using array_element_t = typename array_element<T>::type;
-
 	class Property : public MetadataBase
 	{
 	public:
@@ -39,137 +53,155 @@ namespace xxx::refl
             return mName;
         }
 
-        virtual bool isValueProperty() const = 0;
-        virtual Type* getType() const = 0;
+        virtual size_t getSize() const = 0;
+        virtual bool isMemberProperty() const = 0;
+        virtual bool isAccessorProperty() const = 0;
+        virtual Type* getDeclaredType() const = 0;
         virtual Type* getOwnerType() const = 0;
-        virtual void getValue(void* instance, void* value) const = 0;
+        virtual void getValue(const void* instance, void* value) const = 0;
         virtual void setValue(void* instance, Argument value) const = 0;
         virtual void* getValuePtr(void* instance) const = 0;
         virtual const void* getValuePtr(const void* instance) const = 0;
+        virtual bool compare(const void* instance1, const void* instance2) const = 0;
 
     protected:
         std::string_view mName;
 	};
 
-    //template <typename T, std::enable_if_t<std::is_member_object_pointer_v<T>, int> = 0>
-    template <typename ClassType, typename ObjectType, std::size_t Index = 0>
-    class PropertyValueInstance : public Property
+    template <typename Owner, typename Declared, std::size_t Index = 0>
+    class PropertyMemberInstance : public Property
     {
-        //using ClassType = typename member_object_traits<T>::class_type;
-        //using ObjectType = typename member_object_traits<T>::object_type;
-        using PropertyType = ObjectType ClassType::*;
-        static constexpr bool IsArrayMember = std::is_array_v<ObjectType>;
+        using MemberType = Declared Owner::*;
+        static constexpr bool IsArrayMember = std::is_array_v<Declared>;
+        static constexpr bool IsObjectProperty = std::is_base_of_v<Object, std::remove_pointer_t<remove_osg_ref_ptr_t<Declared>>>;
     public:
-        PropertyValueInstance(std::string_view name, PropertyType property) :
+        PropertyMemberInstance(std::string_view name, MemberType member) :
             Property(name),
-            mProperty(property)
-        {
-#ifdef _DEBUG
-            if constexpr (IsArrayMember)
-                mType = Type::getType<array_element_t<ObjectType>>();
-            else
-                mType = Type::getType<ObjectType>();
-#endif
-        }
+            mMember(member)
+        {}
         
-        virtual ~PropertyValueInstance() = default;
+        virtual ~PropertyMemberInstance() = default;
 
-        virtual bool isValueProperty() const override
+        virtual size_t getSize() const override
+        {
+            return sizeof(Declared);
+        }
+
+        virtual bool isMemberProperty() const override
         {
             return true;
         }
 
-        virtual Type* getType() const override
-        {
-            if constexpr (IsArrayMember)
-                return Type::getType<array_element_t<ObjectType>>();
-            else
-                return Type::getType<ObjectType>();
-        }
-
-        virtual Type* getOwnerType() const override
-        {
-            return Type::getType<ClassType>();
-        }
-
-        virtual void setValue(void* instance, Argument value) const override
-        {
-            if constexpr (IsArrayMember)
-                (static_cast<ClassType*>(instance)->*mProperty)[Index] = value.getValue<array_element_t<ObjectType>>();
-            else
-                static_cast<ClassType*>(instance)->*mProperty = value.getValue<ObjectType>();
-        }
-
-        virtual void getValue(void* instance, void* value) const override
-        {
-            if constexpr (IsArrayMember)
-                *static_cast<array_element_t<ObjectType>*>(value) = (static_cast<ClassType*>(instance)->*mProperty)[Index];
-            else
-                *static_cast<ObjectType*>(value) = static_cast<ClassType*>(instance)->*mProperty;
-        }
-
-        virtual void* getValuePtr(void* instance) const override
-        {
-            if constexpr (IsArrayMember)
-                return &((static_cast<ClassType*>(instance)->*mProperty)[Index]);
-            else
-                return &(static_cast<ClassType*>(instance)->*mProperty);
-        }
-
-        virtual const void* getValuePtr(const void* instance) const override
-        {
-            if constexpr (IsArrayMember)
-                return &((static_cast<const ClassType*>(instance)->*mProperty)[Index]);
-            else
-                return &(static_cast<const ClassType*>(instance)->*mProperty);
-        }
-
-    private:
-        PropertyType mProperty;
-#ifdef _DEBUG
-        Type* mType;
-#endif
-    };
-
-    template <typename ClassType, typename ObjectType>
-    class PropertyAccessorInstance : public Property
-    {
-        using GetterType = std::function<void(const ClassType&, ObjectType&)>;
-        using SetterType = std::function<void(ClassType&, const ObjectType&)>;
-    public:
-        PropertyAccessorInstance(std::string_view name, GetterType getter, SetterType setter) :
-#ifdef _DEBUG
-            mType(Type::getType<ObjectType>()),
-#endif
-            Property(name),
-            mGetter(getter),
-            mSetter(setter) {}
-
-        virtual ~PropertyAccessorInstance() = default;
-
-        virtual bool isValueProperty() const override
+        virtual bool isAccessorProperty() const override
         {
             return false;
         }
 
-        virtual Type* getType() const override
+        virtual Type* getDeclaredType() const override
         {
-            return Type::getType<ObjectType>();
+            if constexpr (IsArrayMember)
+                return Type::getType<array_element_t<Declared>>();
+            else
+                return Type::getType<Declared>();
         }
 
         virtual Type* getOwnerType() const override
         {
-            return Type::getType<ClassType>();
+            return Type::getType<Owner>();
         }
 
         virtual void setValue(void* instance, Argument value) const override
         {
-            mSetter(*static_cast<ClassType*>(instance), value.getValue<ObjectType>());
+            if constexpr (IsArrayMember)
+                (static_cast<Owner*>(instance)->*mMember)[Index] = value.getValue<array_element_t<Declared>>();
+            else
+                static_cast<Owner*>(instance)->*mMember = value.getValue<Declared>();
         }
 
-        virtual void getValue(void* instance, void* value) const override
+        virtual void getValue(const void* instance, void* value) const override
         {
-            mGetter(*static_cast<ClassType*>(instance), *static_cast<ObjectType*>(value));
+            if constexpr (IsArrayMember)
+                *static_cast<array_element_t<Declared>*>(value) = (static_cast<const Owner*>(instance)->*mMember)[Index];
+            else
+                *static_cast<Declared*>(value) = static_cast<const Owner*>(instance)->*mMember;
+        }
+
+        virtual void* getValuePtr(void* instance) const override
+        {
+            if constexpr (IsArrayMember)
+                return &((static_cast<Owner*>(instance)->*mMember)[Index]);
+            else
+                return &(static_cast<Owner*>(instance)->*mMember);
+        }
+
+        virtual const void* getValuePtr(const void* instance) const override
+        {
+            if constexpr (IsArrayMember)
+                return &((static_cast<const Owner*>(instance)->*mMember)[Index]);
+            else
+                return &(static_cast<const Owner*>(instance)->*mMember);
+        }
+
+        virtual bool compare(const void* instance1, const void* instance2) const
+        {
+            if constexpr (is_comparable_v<Declared>)
+                return *static_cast<const Declared*>(getValuePtr(instance1)) == *static_cast<const Declared*>(getValuePtr(instance2));
+            else
+                return mType->compare(getValuePtr(instance1), getValuePtr(instance2));
+        }
+
+    private:
+        MemberType mMember;
+    };
+
+    template <typename Owner, typename Declared>
+    class PropertyAccessorInstance : public Property
+    {
+        using GetterType = std::function<void(const Owner&, Declared&)>;
+        using SetterType = std::function<void(Owner&, const Declared&)>;
+        static constexpr bool IsObjectProperty = std::is_base_of_v<Object, std::remove_pointer_t<remove_osg_ref_ptr_t<Declared>>>;
+    public:
+        PropertyAccessorInstance(std::string_view name, GetterType getter, SetterType setter) :
+            Property(name),
+            mGetter(getter),
+            mSetter(setter)
+        {}
+
+        virtual ~PropertyAccessorInstance() = default;
+
+        virtual size_t getSize() const override
+        {
+            return sizeof(Declared);
+        }
+
+        virtual bool isMemberProperty() const override
+        {
+            return false;
+        }
+
+        virtual bool isAccessorProperty() const override
+        {
+            return true;
+        }
+
+        virtual Type* getDeclaredType() const override
+        {
+            return Type::getType<Declared>();
+        }
+
+        virtual Type* getOwnerType() const override
+        {
+            return Type::getType<Owner>();
+        }
+
+        virtual void setValue(void* instance, Argument value) const override
+        {
+            mSetter(*static_cast<Owner*>(instance), value.getValue<Declared>());
+        }
+
+        virtual void getValue(const void* instance, void* value) const override
+        {
+            mGetter(*static_cast<const Owner*>(instance), *static_cast<Declared*>(value));
         }
 
         virtual void* getValuePtr(void* instance) const override
@@ -179,14 +211,24 @@ namespace xxx::refl
 
         virtual const void* getValuePtr(const void* instance) const override
         {
+            mGetter(*static_cast<const Owner*>(instance), &mTemp);
             return nullptr;
+        }
+
+        virtual bool compare(const void* instance1, const void* instance2) const
+        {
+            Declared objects[2];
+            getValue(instance1, &objects[0]);
+            getValue(instance2, &objects[1]);
+            if constexpr (is_comparable_v<Declared>)
+                return objects[0] == objects[1];
+            else
+                return mType->compare(&objects[0], &objects[1]);
         }
 
     private:
         GetterType mGetter;
         SetterType mSetter;
-#ifdef _DEBUG
-        Type* mType;
-#endif
+        Declared mTemp;
     };
 }

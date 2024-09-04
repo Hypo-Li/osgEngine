@@ -23,7 +23,7 @@ namespace xxx::refl
         friend class Reflection;
 
         template <typename T>
-        static constexpr bool is_metavalue_v =
+        static constexpr bool is_meta_value_v =
             std::is_same_v<T, bool> ||
             std::is_same_v<T, int64_t> ||
             std::is_same_v<T, uint64_t> ||
@@ -31,7 +31,7 @@ namespace xxx::refl
             std::is_same_v<T, double> ||
             std::is_same_v<T, std::string_view>;
     public:
-        template <typename T, std::enable_if_t<is_metavalue_v<T>, int> = 0>
+        template <typename T, std::enable_if_t<is_meta_value_v<T>, int> = 0>
         std::optional<T> getMetadata(MetaKey key)
         {
             auto findResult = mMetadatas.find(key);

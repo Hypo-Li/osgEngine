@@ -38,8 +38,7 @@ namespace xxx
         template <>
         inline Type* Reflection::createType<Component>()
         {
-            Class* clazz = new Class("Component", sizeof(Component), newObject<Component>, deleteObject<Component>);
-            clazz->setBaseClass(dynamic_cast<Class*>(Reflection::getType<Object>()));
+            Class* clazz = new ClassInstance<Component>("Component");
             Property* propOwner = clazz->addProperty("Owner", &Component::mOwner);
             sRegisteredClassMap.emplace("Component", clazz);
             return clazz;

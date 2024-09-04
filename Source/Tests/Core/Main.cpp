@@ -9,6 +9,13 @@
 using namespace xxx;
 using namespace xxx::refl;
 
+enum class Color
+{
+    Red,
+    Green,
+    Blue,
+};
+
 class Test : public Object
 {
     friend class Reflection;
@@ -22,6 +29,10 @@ public:
     osg::Vec2f mVec2;
     std::set<int> mIntSet;
     std::map<std::string, double> mStringDoubleMap;
+    Color mColor = Color::Red;
+    int mInt = 0;
+    float mFloat = 1.f;
+    osg::ref_ptr<Test> mTest;
 
     void setP(float newP) { p = newP; }
     float getP() const { return p; }
@@ -31,25 +42,17 @@ private:
 
 };
 
-enum class Color
-{
-    Red,
-    Green,
-    Blue,
-};
-
 namespace xxx::refl
 {
     template <>
     inline Type* Reflection::createType<Color>()
     {
-        using EnumValue = std::pair<std::string_view, Color>;
-        Enum* enumerate = new Enum(
+        Enum* enumerate = new EnumInstance<Color>(
             "Color",
             {
-                EnumValue("Red", Color::Red),
-                EnumValue("Green", Color::Green),
-                EnumValue("Blue", Color::Blue),
+                {"Red", Color::Red},
+                {"Green", Color::Green},
+                {"Blue", Color::Blue},
             }
         );
         return enumerate;
@@ -58,8 +61,7 @@ namespace xxx::refl
     template <>
     inline Type* Reflection::createType<Test>()
     {
-        Class* clazz = new Class("Test", sizeof(Test), newObject<Test>, deleteObject<Test>);
-        clazz->setBaseClass(dynamic_cast<Class*>(Reflection::getType<Object>()));
+        Class* clazz = new ClassInstance<Test>("Test");
         Property* propObjects = clazz->addProperty("Objects", &Test::mObjects);
         Property* propVec2 = clazz->addProperty("Vec2", &Test::mVec2);
         propVec2->addMetadata(MetaKey::ClampMin, 0);
@@ -72,6 +74,10 @@ namespace xxx::refl
         );
         Property* propIntSet = clazz->addProperty("IntSet", &Test::mIntSet);
         Property* propStringDoubleMap = clazz->addProperty("StringDoubleMap", &Test::mStringDoubleMap);
+        clazz->addProperty("Color", &Test::mColor);
+        clazz->addProperty("Int", &Test::mInt);
+        clazz->addProperty("Float", &Test::mFloat);
+        clazz->addProperty("Test", &Test::mTest);
         sRegisteredClassMap.emplace("Test", clazz);
         return clazz;
     }
@@ -84,18 +90,103 @@ void outputPropertiesInfo(Class* clazz)
         outputPropertiesInfo(clazz->getBaseClass());
     for (Property* prop : clazz->getProperties())
     {
-        std::cout << prop->getType()->getName() << " " << prop->getName() << std::endl;
+        std::cout << prop->getDeclaredType()->getName() << " " << prop->getName() << std::endl;
     }
+}
+
+struct StructWithoutEqualOperator
+{
+    float a;
+    int b;
+};
+
+struct StructWithEqualOperator
+{
+    float a;
+    int b;
+
+    bool operator==(const StructWithEqualOperator& rhs) const
+    {
+        return a == rhs.a && b == rhs.b;
+    }
+};
+
+namespace xxx::refl
+{
+    template <>
+    inline Type* Reflection::createType<StructWithoutEqualOperator>()
+    {
+        Struct* structure = new StructInstance<StructWithoutEqualOperator>("StructWithoutEqualOperator");
+        structure->addProperty("a", &StructWithoutEqualOperator::a);
+        structure->addProperty("b", &StructWithoutEqualOperator::b);
+        return structure;
+    }
+
+    template <>
+    inline Type* Reflection::createType<StructWithEqualOperator>()
+    {
+        Struct* structure = new StructInstance<StructWithEqualOperator>("StructWithEqualOperator");
+        structure->addProperty("a", &StructWithEqualOperator::a);
+        structure->addProperty("b", &StructWithEqualOperator::b);
+        return structure;
+    }
+}
+
+void serialize_test(Object* object)
+{
+    Class* clazz = object->getClass();
+    const Object* defaultObject = clazz->getDefaultObject();
+    std::vector<Property*> serializedProperties;
+    Class* baseClass = clazz;
+    while (baseClass)
+    {
+        for (Property* prop : baseClass->getProperties())
+        {
+            if (!prop->compare(defaultObject, object))
+                serializedProperties.emplace_back(prop);
+        }
+        baseClass = baseClass->getBaseClass();
+    }
+    size_t propertyCount = serializedProperties.size();
+    return;
+}
+
+void compare_test()
+{
+    StructWithoutEqualOperator a1 = { 1.0f, 2 }, a2 = {2.0f, 3};
+    StructWithEqualOperator b1 = { 1.0f, 2 }, b2 = { 2.0f, 3 };
+    Type* tA = Reflection::getType<decltype(a1)>();
+    Type* tB = Reflection::getType<decltype(b1)>();
+    bool retA1 = tA->compare(&a1, &a2);
+    bool retA2 = tA->compare(&a1, &a1);
+    bool retB1 = tB->compare(&b1, &b2);
+    bool retB2 = tB->compare(&b1, &b1);
+
+    Test* t0 = new Test;
+
+    Type* testType = Reflection::getType<Test>();
+    Test* t1 = static_cast<Test*>(testType->newInstance());
+    
+    t1->mIntSet.insert(5);
+    t1->mVec2.x() = 1.0f;
+    t1->mColor = Color::Green;
+    t1->mInt = 2;
+    t1->mFloat = 4.5f;
+    //t1->mTest = t0;
+    serialize_test(t1);
+
+    return;
 }
 
 int main()
 {
-    Class* testClass = dynamic_cast<Class*>(Reflection::getType<Test>());
+    compare_test();
+    /*Class* testClass = dynamic_cast<Class*>(Reflection::getType<Test>());
     Property* propObjects = testClass->getProperty("Objects");
     Property* propVec2 = testClass->getProperty("Vec2");
     std::optional<std::string_view> displayName = propVec2->getMetadata<std::string_view>(MetaKey::DisplayName);
     std::optional<std::string_view> category = propVec2->getMetadata<std::string_view>(MetaKey::Category);
-    StdVector* stdVectorObjects = dynamic_cast<StdVector*>(propObjects->getType());
+    StdVector* stdVectorObjects = dynamic_cast<StdVector*>(propObjects->getDeclaredType());
 
     const Object* testDefaultObject = testClass->getDefaultObject();
     Object* obj = new Object;
@@ -103,7 +194,7 @@ int main()
     t.mIntSet.insert(2);
     t.mIntSet.insert(3);
     t.mIntSet.insert(8);
-    StdSet* stdSet = dynamic_cast<StdSet*>(testClass->getProperty("IntSet")->getType());
+    StdSet* stdSet = dynamic_cast<StdSet*>(testClass->getProperty("IntSet")->getDeclaredType());
     auto ptrs = stdSet->getElementPtrs(&(t.mIntSet));
     t.mIntSet.insert(5);
     for (auto ptr : ptrs)
@@ -137,7 +228,7 @@ int main()
     const Object* shaderDefaultObject = classShader->getDefaultObject();
     const Object* textureDefaultObject = classTexture->getDefaultObject();
 
-    outputPropertiesInfo(testClass);
+    outputPropertiesInfo(testClass);*/
 
     return 0;
 }

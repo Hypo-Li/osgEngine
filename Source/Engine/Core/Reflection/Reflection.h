@@ -24,11 +24,6 @@ namespace xxx::refl
     using remove_cvrefp_t = typename std::remove_pointer_t<std::remove_reference_t<std::remove_cv_t<T>>>;
 
     template <typename T>
-    struct container_traits<osg::ref_ptr<T>> {
-        using type = T;
-    };
-
-    template <typename T>
     static constexpr bool is_special_v =
         std::is_same_v<T, std::string> ||
         is_std_array_v<T> ||
@@ -83,19 +78,19 @@ namespace xxx::refl
         }
 
     public:
-        static const refl::Type* BoolType;
-        static const refl::Type* CharType;
-        static const refl::Type* WCharType;
-        static const refl::Type* Int8Type;
-        static const refl::Type* Int16Type;
-        static const refl::Type* Int32Type;
-        static const refl::Type* Int64Type;
-        static const refl::Type* Uint8Type;
-        static const refl::Type* Uint16Type;
-        static const refl::Type* Uint32Type;
-        static const refl::Type* Uint64Type;
-        static const refl::Type* FloatType;
-        static const refl::Type* DoubleType;
+        static const refl::Fundamental* BoolType;
+        static const refl::Fundamental* CharType;
+        static const refl::Fundamental* WCharType;
+        static const refl::Fundamental* Int8Type;
+        static const refl::Fundamental* Int16Type;
+        static const refl::Fundamental* Int32Type;
+        static const refl::Fundamental* Int64Type;
+        static const refl::Fundamental* Uint8Type;
+        static const refl::Fundamental* Uint16Type;
+        static const refl::Fundamental* Uint32Type;
+        static const refl::Fundamental* Uint64Type;
+        static const refl::Fundamental* FloatType;
+        static const refl::Fundamental* DoubleType;
 
     private:
         template <typename T, std::enable_if_t<!(is_special_v<T> || is_instance_of_v<T, osg::ref_ptr>), int> = 0>
@@ -124,7 +119,7 @@ namespace xxx::refl
             else if constexpr (is_instance_of_v<T, std::vector>)
                 return new StdVectorInstance<T>;
             else if constexpr (is_instance_of_v<T, osg::ref_ptr>)
-                return createType<container_traits_t<T>>();
+                return createType<remove_osg_ref_ptr_t<T>>();
         }
 
         template <typename T>
@@ -147,11 +142,7 @@ namespace xxx::refl
     template <> \
     inline Type* Reflection::createType<type>() \
     { \
-        return new Fundamental(#type, sizeof(type)); \
-    }
-
-    template <> inline Type* Reflection::createType<void>() {
-        return new Fundamental("void", 0);
+        return new FundamentalInstance<type>(#type); \
     }
 
     REFLECT_FUNDAMENTAL(nullptr_t)

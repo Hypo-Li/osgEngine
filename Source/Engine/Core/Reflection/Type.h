@@ -28,9 +28,9 @@ namespace xxx::refl
 {
     template <typename T>
     class AnyWrapperInstance;
-    template <typename ClassType, typename ObjectType, std::size_t Index>
-    class PropertyValueInstance;
-    template <typename ClassType, typename ObjectType>
+    template <typename Owner, typename Declared, std::size_t Index>
+    class PropertyMemberInstance;
+    template <typename Owner, typename Declared>
     class PropertyAccessorInstance;
     template <typename T, std::enable_if_t<std::is_member_function_pointer_v<T>, int>>
     class MethodInstance;
@@ -38,9 +38,9 @@ namespace xxx::refl
 	{
         template <typename T>
         friend class AnyWrapperInstance;
-        template <typename ClassType, typename ObjectType, std::size_t Index>
-        friend class PropertyValueInstance;
-        template <typename ClassType, typename ObjectType>
+        template <typename Owner, typename Declared, std::size_t Index>
+        friend class PropertyMemberInstance;
+        template <typename Owner, typename Declared>
         friend class PropertyAccessorInstance;
         template <typename T, std::enable_if_t<std::is_member_function_pointer_v<T>, int>>
         friend class MethodInstance;
@@ -61,7 +61,10 @@ namespace xxx::refl
 
 		virtual Kind getKind() const = 0;
         virtual void* newInstance() const = 0;
+        virtual void* newInstances(size_t count) const = 0;
         virtual void deleteInstance(void* instance) const = 0;
+        virtual void deleteInstances(void* instances) const = 0;
+        virtual bool compare(const void* instance1, const void* instance2) const = 0;
 
     protected:
         Type() = default;
