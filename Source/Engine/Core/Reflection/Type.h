@@ -26,19 +26,19 @@ using container_traits_t2 = typename container_traits<T>::type2;
 
 namespace xxx::refl
 {
-    template <typename T>
+    template <typename>
     class AnyWrapperInstance;
-    template <typename Owner, typename FakeDeclared, std::size_t Index>
+    template <typename, typename, std::size_t>
     class PropertyInstance;
-    template <typename T, std::enable_if_t<std::is_member_function_pointer_v<T>, int>>
+    template <typename, typename>
     class MethodInstance;
 	class Type
 	{
-        template <typename T>
+        template <typename>
         friend class AnyWrapperInstance;
-        template <typename Owner, typename FakeDeclared, std::size_t Index>
+        template <typename, typename, std::size_t>
         friend class PropertyInstance;
-        template <typename T, std::enable_if_t<std::is_member_function_pointer_v<T>, int>>
+        template <typename, typename>
         friend class MethodInstance;
     public:
         Type(const Type&) = delete;

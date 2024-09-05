@@ -1,8 +1,60 @@
 #include "AssetSerializer.h"
+#include "../Asset.h"
 
 namespace xxx
 {
     using namespace refl;
+
+    // StdArray StdMap StdSet StdVector Struct(Maybe include special)
+
+    static size_t calcTypeSize(Type* type, void* data, size_t count = 1)
+    {
+        switch (type->getKind())
+        {
+        case Type::Kind::Fundamental:
+            return type->getSize() * count;
+        case Type::Kind::Enum:
+            return type->getSize() * count;
+        case Type::Kind::Struct:
+        {
+            size_t structSize = 0;
+            for (Property* prop : dynamic_cast<Struct*>(type)->getProperties())
+                structSize += calcTypeSize(prop->getDeclaredType(), prop->getValuePtr(data));
+            return structSize;
+        }
+        case Type::Kind::Class:
+            return sizeof(uint32_t) * count; // Import/Export Table Index
+        case Type::Kind::Special:
+        {
+            Special* special = dynamic_cast<Special*>(type);
+            switch (special->getSpecialType())
+            {
+            case SpecialType::Std_Array:
+            {
+                size_t arraySize = 0;
+                StdArray* stdArray = dynamic_cast<StdArray*>(special);
+                size_t elementCount = stdArray->getElementCount();
+                for (size_t i = 0; i < elementCount; ++i)
+                {
+                    void* element = stdArray->getElementPtrByIndex(stdArray, i);
+                }
+            }
+            default:
+                break;
+            }
+        }
+        default:
+            return 0;
+        }
+    }
+
+    static size_t calcObjectSerializedSize(const std::vector<Property*>& properties, Object* object)
+    {
+        size_t totalSize = sizeof(uint32_t); // Property count
+        for (Property* prop : properties)
+            totalSize += calcTypeSize(prop->getDeclaredType(), prop->getValuePtr(object));
+        return totalSize;
+    }
 
     void AssetSerializer::serialize(Object*& object)
     {
@@ -10,6 +62,7 @@ namespace xxx
         Class* clazz = object->getClass();
         if (isSaving())
         {
+            
             const Object* defaultObject = clazz->getDefaultObject();
             std::vector<Property*> serializedProperties;
             Class* baseClass = clazz;
@@ -22,7 +75,7 @@ namespace xxx
                 }
                 baseClass = baseClass->getBaseClass();
             }
-            size_t propertyCount = serializedProperties.size();
+            uint32_t propertyCount = serializedProperties.size();
             serialize(&propertyCount);
 
             for (Property* prop : serializedProperties)
@@ -60,6 +113,10 @@ namespace xxx
                     
                     void* valuePtr = prop->getValuePtr(object);
                     serializeType(prop->getDeclaredType(), valuePtr);
+                }
+                else
+                {
+                    // skip this property
                 }
             }
         }
@@ -200,7 +257,55 @@ namespace xxx
 
     void AssetSerializer::serializeClass(Class* clazz, void* data, size_t count)
     {
+        for (size_t i = 0; i < count; ++i)
+        {
+            Object* object = (static_cast<Object**>(data))[i];
+            if (isSaving())
+            {
+                int32_t index = -static_cast<int32_t>(mExportTable.size() + 1);
+                serialize(&index);
+                mExportTable.push_back(object->getGuid());
 
+                auto tempBuffer = mBuffer;
+                auto tempBufferOffset = mBufferOffset;
+
+                auto findResult = mBufferTable.find(object->getGuid());
+                if (findResult == mBufferTable.end())
+                {
+                    findResult = mBufferTable.emplace(object->getGuid(), std::make_pair<std::vector<uint8_t>, size_t>({}, 0)).first;
+                }
+                mBuffer = &findResult->second.first;
+                mBufferOffset = findResult->second.second;
+
+                serialize(object);
+
+                mBuffer = tempBuffer;
+                mBufferOffset = tempBufferOffset;
+            }
+            else
+            {
+                int32_t index;
+                serialize(&index);
+                if (index < 0)
+                {
+                    Guid loadObjectGuid = mExportTable[index - 1];
+
+                    auto tempBuffer = mBuffer;
+                    auto tempBufferOffset = mBufferOffset;
+
+                    auto findResult = mBufferTable.find(loadObjectGuid);
+
+                    serialize(object);
+
+                    mBuffer = tempBuffer;
+                    mBufferOffset = tempBufferOffset;
+                }
+                else
+                {
+
+                }
+            }
+        }
     }
 
     void AssetSerializer::serializeSpecial(Special* special, void* data, size_t count)
@@ -252,7 +357,7 @@ namespace xxx
         }
     }
 
-    void AssetSerializer::serializeStdArray(refl::StdArray* stdArray, void* data, size_t count)
+    void AssetSerializer::serializeStdArray(StdArray* stdArray, void* data, size_t count)
     {
         const size_t stdArraySize = stdArray->getSize();
         for (size_t i = 0; i < count; ++i)
@@ -262,7 +367,7 @@ namespace xxx
         }
     }
 
-    void AssetSerializer::serializeStdMap(refl::StdMap* stdMap, void* data, size_t count)
+    void AssetSerializer::serializeStdMap(StdMap* stdMap, void* data, size_t count)
     {
         Type* keyType = stdMap->getKeyType();
         Type* valueType = stdMap->getValueType();
@@ -320,7 +425,7 @@ namespace xxx
         }
     }
 
-    void AssetSerializer::serializeStdPair(refl::StdPair* stdPair, void* data, size_t count)
+    void AssetSerializer::serializeStdPair(StdPair* stdPair, void* data, size_t count)
     {
         for (size_t i = 0; i < count; ++i)
         {
@@ -330,7 +435,7 @@ namespace xxx
         }
     }
 
-    void AssetSerializer::serializeStdSet(refl::StdSet* stdSet, void* data, size_t count)
+    void AssetSerializer::serializeStdSet(StdSet* stdSet, void* data, size_t count)
     {
         Type* elementType = stdSet->getElementType();
         const size_t stdSetSize = stdSet->getSize();
@@ -371,7 +476,7 @@ namespace xxx
         }
     }
 
-    void AssetSerializer::serializeStdTuple(refl::StdTuple* stdTuple, void* data, size_t count)
+    void AssetSerializer::serializeStdTuple(StdTuple* stdTuple, void* data, size_t count)
     {
         for (size_t i = 0; i < count; ++i)
         {
@@ -384,7 +489,7 @@ namespace xxx
         }
     }
 
-    void AssetSerializer::serializeStdVariant(refl::StdVariant* stdVariant, void* data, size_t count)
+    void AssetSerializer::serializeStdVariant(StdVariant* stdVariant, void* data, size_t count)
     {
         if (isSaving())
         {
@@ -423,7 +528,7 @@ namespace xxx
         }
     }
 
-    void AssetSerializer::serializeStdVector(refl::StdVector* stdVector, void* data, size_t count)
+    void AssetSerializer::serializeStdVector(StdVector* stdVector, void* data, size_t count)
     {
         Type* elementType = stdVector->getElementType();
         if (isSaving())

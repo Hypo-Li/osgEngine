@@ -62,7 +62,7 @@ namespace xxx::refl
         }
 
         template <typename T>
-        Method* addMethod(std::string_view name, T member, std::initializer_list<std::string_view> paramNames)
+        Method* addMethod(std::string_view name, T member, std::initializer_list<std::string_view> paramNames = {})
         {
             Method* newMethod = new MethodInstance(name, member, paramNames);
             mMethods.emplace_back(newMethod);

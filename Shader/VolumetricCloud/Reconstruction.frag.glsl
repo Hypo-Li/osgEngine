@@ -32,7 +32,7 @@ void main()
     if (isValidUV)
     {
         if (needUpdate)
-            fragData = mix(history, color, vec4(0.8));
+            fragData = mix(history, color, vec4(0.5));
         else
             fragData = history;//mix(history, color, vec4(0.05));
     }

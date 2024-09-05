@@ -6,6 +6,10 @@ namespace xxx
     class AssetLoader : public AssetSerializer
     {
     public:
+        AssetLoader(Asset* asset) : AssetSerializer(asset)
+        {
+
+        }
         virtual ~AssetLoader() = default;
 
         virtual bool isLoading() const override

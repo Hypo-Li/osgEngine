@@ -89,7 +89,7 @@ namespace xxx::refl
         std::string_view mName;
     };
 
-    template <typename T, std::enable_if_t<std::is_member_function_pointer_v<T>, int> = 0>
+    template <typename T, typename = std::enable_if_t<std::is_member_function_pointer_v<T>>>
     class MethodInstance : public Method
     {
         using ClassType = typename member_function_traits<T>::class_type;
@@ -110,7 +110,8 @@ namespace xxx::refl
             }
         }
     public:
-        MethodInstance(std::string_view name, T method, std::initializer_list<std::string_view> paramNames) : Method(name), mMethod(method)
+        MethodInstance(std::string_view name, T method, std::initializer_list<std::string_view> paramNames) :
+            Method(name), mMethod(method)
         {
             setParameterType<ArgsCount - 1, ArgsType>();
             size_t i = 0;

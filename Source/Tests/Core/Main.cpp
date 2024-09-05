@@ -34,8 +34,10 @@ public:
     float mFloat = 1.f;
     osg::ref_ptr<Test> mTest;
 
-    void setP(float newP) { p = newP; }
-    float getP() const { return p; }
+    void printVec2()
+    {
+        std::cout << mVec2.x() << ", " << mVec2.y() << std::endl;
+    }
 
 private:
     float p;
@@ -75,6 +77,7 @@ namespace xxx::refl
         clazz->addProperty("Int", &Test::mInt);
         clazz->addProperty("Float", &Test::mFloat);
         clazz->addProperty("Test", &Test::mTest);
+        clazz->addMethod("PrintVec2", &Test::printVec2);
         sRegisteredClassMap.emplace("Test", clazz);
         return clazz;
     }
@@ -187,7 +190,7 @@ void compare_test()
 int main()
 {
     compare_test();
-    /*Class* testClass = dynamic_cast<Class*>(Reflection::getType<Test>());
+    Class* testClass = dynamic_cast<Class*>(Reflection::getType<Test>());
     Property* propObjects = testClass->getProperty("Objects");
     Property* propVec2 = testClass->getProperty("Vec2");
     std::optional<std::string_view> displayName = propVec2->getMetadata<std::string_view>(MetaKey::DisplayName);
@@ -203,12 +206,10 @@ int main()
     StdSet* stdSet = dynamic_cast<StdSet*>(testClass->getProperty("IntSet")->getDeclaredType());
     auto ptrs = stdSet->getElementPtrs(&(t.mIntSet));
     t.mIntSet.insert(5);
-    for (auto ptr : ptrs)
-    {
-        *(int*)ptr = 1;
 
-    }
     stdVectorObjects->appendElement(propObjects->getValuePtr(&t), obj);
+
+    testClass->getMethod("PrintVec2")->invoke(&t);
 
     Entity* entity0 = new Entity;
     Entity* entity1 = new Entity;
@@ -221,7 +222,8 @@ int main()
     osg::Vec2f v(1.0f, 2.0f);
     float x;
     propX->getValue(&v, &x);
-    propX->setValue(&v, x + 1.0f);
+    x += 1;
+    propX->setValue(&v, &x);
     void* ptr = propX->getValuePtr(&v);
 
     Enum* colorEnum = dynamic_cast<Enum*>(Reflection::getType<Color>());
@@ -234,7 +236,7 @@ int main()
     const Object* shaderDefaultObject = classShader->getDefaultObject();
     const Object* textureDefaultObject = classTexture->getDefaultObject();
 
-    outputPropertiesInfo(testClass);*/
+    outputPropertiesInfo(testClass);
 
     return 0;
 }

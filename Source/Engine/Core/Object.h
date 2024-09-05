@@ -9,18 +9,28 @@ namespace xxx
 {
     struct Guid
     {
-        uint32_t A = 0;
-        uint32_t B = 0;
-        uint32_t C = 0;
-        uint32_t D = 0;
+        union
+        {
+            struct
+            {
+                uint32_t A;
+                uint32_t B;
+                uint32_t C;
+                uint32_t D;
+            };
+            struct
+            {
+                uint64_t data[2];
+            };
+        };
 
         bool operator==(const Guid& rhs) const
         {
-            return A == rhs.A && B == rhs.B && C == rhs.C && D == rhs.D;
+            return data[0] == rhs.data[0] && data[1] == rhs.data[1];
         }
         bool operator!=(const Guid& rhs) const
         {
-            return A != rhs.A || B != rhs.B || C != rhs.C || D != rhs.D;
+            return data[0] != rhs.data[0] || data[1] != rhs.data[1];
         }
 
         static Guid newGuid();
@@ -52,7 +62,7 @@ namespace xxx
 
     private:
         Guid mGuid;
-        //osg::ref_ptr<Asset> mOwnerAsset;
+        Asset* mOwnerAsset;
     };
 
     namespace refl
@@ -78,4 +88,16 @@ namespace xxx
             return clazz;
         }
     }
+}
+
+namespace std
+{
+    template <>
+    struct hash<xxx::Guid>
+    {
+        std::size_t operator()(const xxx::Guid& guid) const
+        {
+            return std::hash<uint64_t>()(guid.data[0]) ^ std::hash<uint64_t>()(guid.data[1]);
+        }
+    };
 }

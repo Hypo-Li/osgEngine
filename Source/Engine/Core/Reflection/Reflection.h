@@ -158,6 +158,7 @@ namespace xxx::refl
         return new FundamentalInstance<type>(#type); \
     }
 
+    REFLECT_FUNDAMENTAL(void)
     REFLECT_FUNDAMENTAL(nullptr_t)
     REFLECT_FUNDAMENTAL(bool)
     REFLECT_FUNDAMENTAL(char)

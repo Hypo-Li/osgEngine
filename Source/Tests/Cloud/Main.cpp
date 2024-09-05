@@ -277,7 +277,7 @@ int main()
     const int width = 1920, height = 1080;
     osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits();
     traits->width = width; traits->height = height;
-    traits->windowDecoration = true;
+    traits->windowDecoration = false;
     traits->doubleBuffer = true;
     traits->glContextVersion = "4.6";
     traits->readDISPLAY();

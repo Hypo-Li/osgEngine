@@ -64,6 +64,25 @@ bool rayIntersectSphereSolution(in vec3 ro, in vec3 rd, in vec4 sphere, out vec2
 	return false;
 }
 
+vec2 rayIntersectSphere(vec3 rayOrigin, vec3 rayDir, vec4 sphere)
+{
+    vec3 localPos = rayOrigin - sphere.xyz;
+    float localPosSqr = dot(localPos, localPos);
+    vec3 QuadraticCoef = vec3(
+        dot(rayDir, rayDir),
+        2 * dot(rayDir, localPos),
+        localPosSqr - sphere.w * sphere.w
+    );
+    float discriminant = QuadraticCoef.y * QuadraticCoef.y - 4 * QuadraticCoef.x * QuadraticCoef.z;
+    vec2 intersections = vec2(-1);
+    if (discriminant >= 0)
+    {
+        float sqrtDiscriminant = sqrt(discriminant);
+        intersections = (-QuadraticCoef.y + vec2(-1, 1) * sqrtDiscriminant) / (2 * QuadraticCoef.x);
+    }
+    return intersections;
+}
+
 float saturate(float x) { return clamp(x, 0.0, 1.0); }
 vec3 saturate(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }
 
