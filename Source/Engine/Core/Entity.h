@@ -1,8 +1,7 @@
 #pragma once
-#include "Object.h"
+#include "Component.h"
 
 #include <osg/MatrixTransform>
-#include <osg/ref_ptr>
 
 namespace xxx
 {
@@ -19,9 +18,12 @@ namespace xxx
         Entity* mEntity;
     };
 
-	class Component;
+    class Prefab;
+
 	class Entity : public Object
 	{
+        friend class Prefab;
+
         friend class refl::Reflection;
     public:
         virtual refl::Class* getClass() const
@@ -29,20 +31,61 @@ namespace xxx
             return static_cast<refl::Class*>(refl::Reflection::getType<Entity>());
         }
 
+        virtual Entity* clone() const override
+        {
+            return new Entity(*this);
+        }
+
 	public:
-		Entity(std::string&& name = "");
+		Entity(const std::string& name = "");
+        Entity(const Entity& other);
+        Entity& operator=(const Entity& other);
 		virtual ~Entity() = default;
 
-        const std::string& getName() const { return mName; }
-		Entity* getParent() const { return mParent; }
+        void setName(const std::string& name)
+        {
+            mName = name;
+        }
+
+        const std::string& getName() const
+        {
+            return mName;
+        }
+
+		Entity* getParent() const
+        {
+            return mParent;
+        }
+
+        const std::vector<osg::ref_ptr<Entity>>& getChildren() const
+        {
+            return mChildren;
+        }
+
+        uint32_t getChildrenCount() const
+        {
+            return mChildren.size();
+        }
+
 		void appendChild(Entity* child);
+
 		void removeChild(Entity* child);
-		Entity* getChildByIndex(uint32_t index);
-        uint32_t getChildrenCount() { return mChildren.size(); }
-		void appendComponent(Component* component);
-		void removeComponent(Component* component);
-        uint32_t getComponentsCount() { return mComponents.size(); }
-        Component* getComponentByIndex(uint32_t index);
+
+        void removeChild(uint32_t index);
+
+        Entity* getChildByIndex(uint32_t index);
+
+        void clearChildren();
+
+        const std::vector<osg::ref_ptr<Component>>& getComponents() const
+        {
+            return mComponents;
+        }
+
+        uint32_t getComponentsCount() const
+        {
+            return mComponents.size();
+        }
         
 		template<typename T, std::enable_if_t<std::is_base_of_v<Component, T>, int> = 0>
 		T* getComponent(uint32_t index)
@@ -57,6 +100,16 @@ namespace xxx
 			}
 			return nullptr;
 		}
+
+		void appendComponent(Component* component);
+
+		void removeComponent(Component* component);
+
+        void removeComponent(uint32_t index);
+
+        Component* getComponentByIndex(uint32_t index);
+
+        void clearComponents();
 
         /*void setPosition(osg::Vec3d position)
         {
@@ -167,7 +220,7 @@ namespace xxx
         //    }
         //}
 
-	private:
+	protected:
         std::string mName;
 		Entity* mParent;
 		std::vector<osg::ref_ptr<Entity>> mChildren;
@@ -177,19 +230,9 @@ namespace xxx
         osg::ref_ptr<osg::Group> mOsgChildrenGroup;
         osg::ref_ptr<osg::Group> mOsgComponentsGroup;
 	};
+}
 
-    namespace refl
-    {
-        template <>
-        inline Type* Reflection::createType<Entity>()
-        {
-            Class* clazz = new ClassInstance<Entity>("Entity");
-            Property* propName = clazz->addProperty("Name", &Entity::mName);
-            Property* propParent = clazz->addProperty("Parent", &Entity::mParent);
-            Property* propChildren = clazz->addProperty("Children", &Entity::mChildren);
-            Property* propComponents = clazz->addProperty("Components", &Entity::mComponents);
-            sRegisteredClassMap.emplace("Entity", clazz);
-            return clazz;
-        }
-    }
+namespace xxx::refl
+{
+    template <> Type* Reflection::createType<Entity>();
 }

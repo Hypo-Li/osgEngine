@@ -8,8 +8,7 @@ namespace xxx
     enum AssetSerialFlag : uint32_t
     {
         Big_Endian_Byte_Order               = 1,
-        Object_Serialize_All_Properties     = 1 << 2,
-        Enum_Serialize_By_Name              = 1 << 3,
+        Enum_Serialize_By_Name              = 1 << 2,
     };
 
     class AssetSerializer : public Serializer
@@ -56,11 +55,6 @@ namespace xxx
 
     protected:
         Asset* mAsset;
-        uint32_t mFlags;
-        std::vector<std::pair<std::string, Guid>> mImportTable;
-        std::vector<Guid> mExportTable;
-        std::unordered_map<std::string, uint32_t> mStringTable;
-        uint32_t mStringOffset = 0;
         std::unordered_map<Guid, std::pair<std::vector<uint8_t>, size_t>> mBufferTable; // Key: Guid; Value: Pair<Buffer, Offset>
         std::vector<uint8_t>* mBuffer;
         size_t mBufferOffset;

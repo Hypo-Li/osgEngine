@@ -1,10 +1,15 @@
 #pragma once
-#include "Entity.h"
+#include "Object.h"
+
+#include <osg/ref_ptr>
+#include <osg/Group>
 
 namespace xxx
 {
+    class Entity;
     class Component : public Object
     {
+        friend class Entity;
         friend class refl::Reflection;
     public:
         virtual refl::Class* getClass() const
@@ -12,8 +17,11 @@ namespace xxx
             return static_cast<refl::Class*>(refl::Reflection::getType<Component>());
         }
 
-    private:
-        friend class Entity;
+        virtual Component* clone() const override
+        {
+            return nullptr;
+        }
+
     public:
         enum class Type
         {
@@ -22,12 +30,17 @@ namespace xxx
         };
 
         Component();
+        Component(const Component& other);
         virtual ~Component() = default;
 
         virtual Type getType() const = 0;
 
-        inline Entity* getOwner() const { return mOwner; }
-    private:
+        inline Entity* getOwner() const
+        {
+            return mOwner;
+        }
+
+    protected:
         Entity* mOwner;
 
         osg::ref_ptr<osg::Group> mOsgComponentGroup;

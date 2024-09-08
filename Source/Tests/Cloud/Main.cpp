@@ -26,8 +26,8 @@ struct AtmosphereParameters
     float solarAzimuth = 0.0f;
     osg::Vec3 sunColor = osg::Vec3(1.0, 1.0, 1.0);
     float sunIntensity = 6.0f;
-    float groundRadius = 6360.0f;
-    float atmosphereRadius = 6420.0f;
+    float groundRadius = 6370.0f;
+    float atmosphereRadius = 6430.0f;
     osg::Vec3 groundAlbedo = osg::Vec3(0.4, 0.4, 0.4);
     osg::Vec3 rayleighScatteringCoeff = osg::Vec3(0.175287, 0.409607, 1.0);
     float rayleighScatteringScale = 0.0331f;
@@ -45,17 +45,23 @@ struct AtmosphereParametersBuffer
 {
     osg::Vec3 rayleighScatteringBase;
     float mieScatteringBase;
+
     osg::Vec3 ozoneAbsorptionBase;
     float mieAbsorptionBase;
+
     float rayleighDensityH;
     float mieDensityH;
     float ozoneCenterHeight;
     float ozoneThickness;
+
     osg::Vec3 groundAlbedo;
     float groundRadius;
+
     osg::Vec3 sunDirection;
     float atmosphereRadius;
+
     osg::Vec3 sunIntensity;
+
 }gAtmosphereParametersBuffer;
 osg::ref_ptr<osg::UniformBufferBinding> gAtmosphereParametersUBB;
 
@@ -87,7 +93,7 @@ struct VolumetricCloudParameters
     osg::Vec3 albedo = osg::Vec3(1, 1, 1);
     osg::Vec3 extinction = osg::Vec3(0.005, 0.005, 0.005);
     float windSpeed = 0.0f;
-    float cloudLayerBottomRadius = 6365.0f;
+    float cloudLayerBottomRadius = 6371.0f;
     float cloudLayerThickness = 10.0f;
     float phaseG0 = 0.5;
     float phaseG1 = -0.5;
@@ -95,21 +101,31 @@ struct VolumetricCloudParameters
     float msScatteringFactor = 0.2;
     float msExtinctionFactor = 0.2;
     float msPhaseFactor = 0.2;
+    float cloudMapScaleFactor = 0.006;
+    float basicNoiseScaleFactor = 0.04;
+    float detailNoiseScaleFactor = 0.2;
 }gVolumetricCloudParameters;
 
 struct VolumetricCloudParametersBuffer
 {
     osg::Vec3 albedo;
     float cloudLayerBottomRadius;
+
     osg::Vec3 extinction;
     float cloudLayerThickness;
+
     float windSpeed;
     float phaseG0;
     float phaseG1;
     float phaseBlend;
+
     float msScatteringFactor;
     float msExtinctionFactor;
     float msPhaseFactor;
+    float cloudMapScaleFactor;
+
+    float basicNoiseScaleFactor;
+    float detailNoiseScaleFactor;
 }gVolumetricCloudParametersBuffer;
 osg::ref_ptr<osg::UniformBufferBinding> gVolumetricCloudParametersUBB;
 
@@ -126,6 +142,9 @@ void calcVolumetricCloudParametersBuffer(const VolumetricCloudParameters& parame
     buffer.msScatteringFactor = parameter.msScatteringFactor;
     buffer.msExtinctionFactor = parameter.msExtinctionFactor;
     buffer.msPhaseFactor = parameter.msPhaseFactor;
+    buffer.cloudMapScaleFactor = parameter.cloudMapScaleFactor;
+    buffer.basicNoiseScaleFactor = parameter.basicNoiseScaleFactor;
+    buffer.detailNoiseScaleFactor = parameter.detailNoiseScaleFactor;
 }
 
 namespace xxx
@@ -154,7 +173,7 @@ namespace xxx
             volumetricCloudNeedUpdate = true;
         if (ImGui::SliderFloat("Cloud Layer Bottom Radius", &gVolumetricCloudParameters.cloudLayerBottomRadius, 6360.0f, 6420.0f))
             volumetricCloudNeedUpdate = true;
-        if (ImGui::SliderFloat("Cloud Layer Thickness", &gVolumetricCloudParameters.cloudLayerThickness, 0.0f, 60.0f))
+        if (ImGui::SliderFloat("Cloud Layer Thickness", &gVolumetricCloudParameters.cloudLayerThickness, 0.0f, 30.0f))
             volumetricCloudNeedUpdate = true;
         if (ImGui::SliderFloat("Wind Speed", &gVolumetricCloudParameters.windSpeed, 0.0f, 10.0f))
             volumetricCloudNeedUpdate = true;
@@ -169,6 +188,13 @@ namespace xxx
         if (ImGui::SliderFloat("MS Extinction Factor", &gVolumetricCloudParameters.msExtinctionFactor, 0.0f, 1.0f))
             volumetricCloudNeedUpdate = true;
         if (ImGui::SliderFloat("MS Phase Factor", &gVolumetricCloudParameters.msPhaseFactor, 0.0f, 1.0f))
+            volumetricCloudNeedUpdate = true;
+
+        if (ImGui::SliderFloat("CloudMap Scale Factor", &gVolumetricCloudParameters.cloudMapScaleFactor, 0.0f, 1.0f, "%.6f", ImGuiSliderFlags_Logarithmic))
+            volumetricCloudNeedUpdate = true;
+        if (ImGui::SliderFloat("BasicNoise Scale Factor", &gVolumetricCloudParameters.basicNoiseScaleFactor, 0.0f, 1.0f, "%.6f", ImGuiSliderFlags_Logarithmic))
+            volumetricCloudNeedUpdate = true;
+        if (ImGui::SliderFloat("DetailNoise Scale Factor", &gVolumetricCloudParameters.detailNoiseScaleFactor, 0.0f, 1.0f, "%.6f", ImGuiSliderFlags_Logarithmic))
             volumetricCloudNeedUpdate = true;
 
         if (atmosphereNeedUpdate)
@@ -255,6 +281,8 @@ public:
     }
 };
 
+#define FAST_RENDER 0
+
 int main()
 {
     osg::ref_ptr<osg::FloatArray> viewDataBuffer = new osg::FloatArray((float*)&gViewData, (float*)(&gViewData + 1));
@@ -277,7 +305,7 @@ int main()
     const int width = 1920, height = 1080;
     osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits();
     traits->width = width; traits->height = height;
-    traits->windowDecoration = false;
+    traits->windowDecoration = true;
     traits->doubleBuffer = true;
     traits->glContextVersion = "4.6";
     traits->readDISPLAY();
@@ -296,8 +324,15 @@ int main()
     camera->setViewport(0, 0, width, height);
     camera->setProjectionMatrixAsPerspective(60.0, double(width) / double(height), 0.1, 1000.0);
 
+#if 0
+    osg::ref_ptr<osg::Texture2D> cloudMapTexture = new osg::Texture2D(osgDB::readImageFile(TEMP_DIR "CloudMap.png"));
+    cloudMapTexture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR);
+    cloudMapTexture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::LINEAR);
+    cloudMapTexture->setWrap(osg::Texture::WRAP_S, osg::Texture::REPEAT);
+    cloudMapTexture->setWrap(osg::Texture::WRAP_T, osg::Texture::REPEAT);
+#else
     osg::ref_ptr<osg::Texture2D> cloudMapTexture = new osg::Texture2D;
-    cloudMapTexture->setTextureSize(256, 256);
+    cloudMapTexture->setTextureSize(512, 512);
     cloudMapTexture->setInternalFormat(GL_RGBA8);
     cloudMapTexture->setSourceFormat(GL_RGBA);
     cloudMapTexture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR);
@@ -307,12 +342,13 @@ int main()
     osg::ref_ptr<osg::BindImageTexture> cloudMapImage = new osg::BindImageTexture(0, cloudMapTexture, osg::BindImageTexture::WRITE_ONLY, GL_RGBA8);
     osg::ref_ptr<osg::Program> cloudMapProgram = new osg::Program;
     cloudMapProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "VolumetricCloud/CloudMap.comp.glsl"));
-    osg::ref_ptr<osg::DispatchCompute> cloudMapDispatch = new osg::DispatchCompute(8, 8, 1);
+    osg::ref_ptr<osg::DispatchCompute> cloudMapDispatch = new osg::DispatchCompute(16, 16, 1);
     cloudMapDispatch->setCullingActive(false);
     cloudMapDispatch->getOrCreateStateSet()->setAttribute(cloudMapProgram, osg::StateAttribute::ON);
     cloudMapDispatch->getOrCreateStateSet()->setAttribute(cloudMapImage, osg::StateAttribute::ON);
     //cloudMapDispatch->setCullCallback(new DrawTimesCullCallback(1));
     rootGroup->addChild(cloudMapDispatch);
+#endif
 
     osg::ref_ptr<osg::Texture3D> basicNoiseTexture = new osg::Texture3D;
     basicNoiseTexture->setTextureSize(128, 128, 128);
@@ -349,7 +385,7 @@ int main()
     detailNoiseDispatch->setCullingActive(false);
     detailNoiseDispatch->getOrCreateStateSet()->setAttribute(detailNoiseProgram, osg::StateAttribute::ON);
     detailNoiseDispatch->getOrCreateStateSet()->setAttribute(detailNoiseImage, osg::StateAttribute::ON);
-    detailNoiseDispatch->setCullCallback(new DrawTimesCullCallback(1));
+    //detailNoiseDispatch->setCullCallback(new DrawTimesCullCallback(1));
     rootGroup->addChild(detailNoiseDispatch);
 
     osg::ref_ptr<osg::Texture2D> transmittanceLutTexture = new osg::Texture2D;
@@ -498,10 +534,15 @@ int main()
     blueNoiseTexture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::NEAREST);
     blueNoiseTexture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::NEAREST);
 
+#if FAST_RENDER
+    osg::Vec2f cloudRenderScale = osg::Vec2(0.25, 0.25);
+#else
+    osg::Vec2f cloudRenderScale = osg::Vec2(1.0, 1.0);
+#endif
     osg::ref_ptr<osg::Program> volumetricCloudProgram = new osg::Program;
     volumetricCloudProgram->addShader(screenQuadVertexShader);
     volumetricCloudProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "VolumetricCloud/RayMarching3.frag.glsl"));
-    osg::ref_ptr<xxx::Pipeline::Pass> volumetricCloudPass = pipeline->addWorkPass("VolumetricCloud", volumetricCloudProgram, GL_COLOR_BUFFER_BIT, false, osg::Vec2(0.25, 0.25));
+    osg::ref_ptr<xxx::Pipeline::Pass> volumetricCloudPass = pipeline->addWorkPass("VolumetricCloud", volumetricCloudProgram, GL_COLOR_BUFFER_BIT, false, cloudRenderScale);
     volumetricCloudPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA32F);
     volumetricCloudPass->attach(BufferType::COLOR_BUFFER1, GL_R16F);
     volumetricCloudPass->applyTexture(inputPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uDepthTexture", 0);
@@ -515,6 +556,11 @@ int main()
     volumetricCloudPass->setAttribute(gViewDataUBB);
     volumetricCloudPass->setAttribute(gAtmosphereParametersUBB);
     volumetricCloudPass->setAttribute(gVolumetricCloudParametersUBB);
+#if FAST_RENDER
+    volumetricCloudPass->getCamera()->getOrCreateStateSet()->setDefine("FAST_RENDER", "1");
+#else
+    volumetricCloudPass->getCamera()->getOrCreateStateSet()->setDefine("FAST_RENDER", "0");
+#endif
 
     osg::Viewport* viewport = pipeline->getView()->getCamera()->getViewport();
     osg::ref_ptr<osg::Texture2D> historyCloudColorTexture = new osg::Texture2D;
@@ -525,6 +571,7 @@ int main()
     historyCloudDepthTexture->setTextureSize(viewport->x(), viewport->y());
     historyCloudDepthTexture->setInternalFormat(GL_R16F);
 
+#if FAST_RENDER
     osg::ref_ptr<osg::Program> cloudReconstructionProgram = new osg::Program;
     cloudReconstructionProgram->addShader(screenQuadVertexShader);
     cloudReconstructionProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "VolumetricCloud/Reconstruction.frag.glsl"));
@@ -542,13 +589,18 @@ int main()
     osg::ref_ptr<xxx::Pipeline::Pass> copyCloudPass = pipeline->addWorkPass("CopyCloud", copyColorProgram, GL_COLOR_BUFFER_BIT);
     copyCloudPass->attach(BufferType::COLOR_BUFFER0, historyCloudColorTexture);
     copyCloudPass->applyTexture(cloudReconstructionPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorTexture", 0);
+#endif
 
     osg::ref_ptr<osg::Program> colorGradingProgram = new osg::Program;
     colorGradingProgram->addShader(screenQuadVertexShader);
     colorGradingProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CombineAtmosphereAndCloud.frag.glsl"));
     osg::ref_ptr<xxx::Pipeline::Pass> displayPass = pipeline->addDisplayPass("Display", colorGradingProgram);
     displayPass->applyTexture(atmospherePass->getBufferTexture(BufferType::COLOR_BUFFER0), "uAtmosphereColorTexture", 0);
+#if FAST_RENDER
     displayPass->applyTexture(cloudReconstructionPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uCloudColorTexture", 1);
+#else
+    displayPass->applyTexture(volumetricCloudPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uCloudColorTexture", 1);
+#endif
 
     viewer->setCameraManipulator(new ControllerManipulator(50));
     viewer->addEventHandler(new xxx::ImGuiHandler(viewer, displayPass->getCamera()));

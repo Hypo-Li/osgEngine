@@ -1,5 +1,9 @@
 #version 460 core
 #extension GL_GOOGLE_include_directive : enable
+#pragma import_defines(FAST_RENDER)
+#ifndef FAST_RENDER
+#define FAST_RENDER 0
+#endif
 in vec2 uv;
 out vec4 fragData[2];
 
@@ -152,6 +156,9 @@ layout (std140, binding = 2) uniform VolumetricCloudParameters
     float uMsScattFactor;
     float uMsExtinFactor;
     float uMsPhaseFactor;
+    float cloudMapScaleFactor;
+    float basicNoiseScaleFactor;
+    float detailNoiseScaleFactor;
 };
 
 //const vec3 uAlbedo = vec3(1.0);
@@ -162,7 +169,7 @@ const vec3 uWindDirection = vec3(0.8728715181, 0.2182178795, 0.4364357591);
 //const float uCloudLayerThicknessKm = 10.0;
 float uCloudLayerTopRadiusKm = uCloudLayerBottomRadiusKm + uCloudLayerThicknessKm;
 const float uTracingStartMaxDistanceKm = 350.0;
-const float uTracingMaxDistanceKm = 50.0;
+const float uTracingMaxDistanceKm = 100.0;
 const vec3 uStopTracingTransmittanceThreshold = vec3(0.005);
 const uint uCloudSampleCountMin = 2;
 const uint uCloudSampleCountMax = 96;
@@ -244,7 +251,8 @@ float aerialPerspectiveDepthToSlice(float depth) { return depth * (1.0 / KM_PER_
 
 vec3 sampleWeather(vec3 worldPos)
 {
-    return textureLod(uCloudMapTexture, worldPos.xy * 0.006, 0.0).rgb;
+    vec3 weatherData = textureLod(uCloudMapTexture, worldPos.xy * cloudMapScaleFactor, 0.0).rgb;
+    return vec3(remap(weatherData.r, 0.7, 1.0, 0.0, 1.0));
 }
 
 float sampleGradient(vec4 gradient, float normalizedHeight)
@@ -263,9 +271,6 @@ float getDensityHeightGradient(float normalizedHeight, float cloudType)
 
 float sampleCloudDensity(vec3 worldPos, float normalizedHeight)
 {
-    const float basicNoiseScale = 0.007;
-    const float detailNoiseScale = 0.1;
-
     vec3 weatherData = sampleWeather(worldPos);
 
     // cloud_top offset ，用于偏移高处受风力影响的程度
@@ -276,27 +281,35 @@ float sampleCloudDensity(vec3 worldPos, float normalizedHeight)
     // 增加一些沿着风向的时间偏移
     worldPos += (uWindDirection + vec3(0.0, 0.1, 0.0)) * osg_FrameTime * uWindSpeed;
 
-    vec3 basicUVW = worldPos * basicNoiseScale;
+    vec3 basicUVW = worldPos * basicNoiseScaleFactor;
     vec4 low_frequency_noises = textureLod(uBasicNoiseTexture, basicUVW, 0.0);
     float low_freq_FBM = dot(low_frequency_noises.gba, vec3(0.625, 0.25, 0.125));
-    float base_cloud = remap(low_frequency_noises.r, -(1.0 - low_freq_FBM), 1.0, 0.0, 1.0);
+    float base_cloud = remap(low_frequency_noises.r, low_freq_FBM - 1.0, 1.0, 0.0, 1.0);
 
-    float density_height_gradiant = getDensityHeightGradient(normalizedHeight, weatherData.g);
+    // float density_height_gradiant = getDensityHeightGradient(normalizedHeight, weatherData.b);
 
-    base_cloud *= density_height_gradiant;
+    // base_cloud *= density_height_gradiant;
 
-    float cloud_coverage = pow(weatherData.r, remap(normalizedHeight, 0.7, 0.8, 1.0, mix(1.0, 0.5, 0.0)));
-    float base_cloud_with_coverage = remap(base_cloud, cloud_coverage, 1.0, 0.0, 1.0);
+    // const float anvil_bias = 0.5;
+    // float cloud_coverage = pow(weatherData.r, remap(normalizedHeight, 0.7, 0.8, 1.0, mix(1.0, 0.5, anvil_bias)));
+    // float base_cloud_with_coverage = remap(base_cloud, cloud_coverage, 1.0, 0.0, 1.0);
 
-    base_cloud_with_coverage *= cloud_coverage;
+    // base_cloud_with_coverage *= cloud_coverage;
 
-    vec3 detailUVW = worldPos * detailNoiseScale;
+    vec3 detailUVW = worldPos * detailNoiseScaleFactor;
     vec3 high_frequency_noise = textureLod(uDetailNoiseTexture, detailUVW, 0.0).rgb;
     float high_freq_FBM = dot(high_frequency_noise, vec3(0.625, 0.25, 0.125));
-    float high_freq_noise_modiffer = mix(high_freq_FBM, 1.0 - high_freq_FBM, clamp(normalizedHeight * 10.0, 0.0, 1.0));
-    float final_cloud = remap(base_cloud_with_coverage, high_freq_noise_modiffer, 1.0, 0.0, 1.0);
-    
-    return final_cloud;
+    //float high_freq_noise_modiffer = mix(high_freq_FBM, 1.0 - high_freq_FBM, clamp(normalizedHeight * 10.0, 0.0, 1.0));
+    //float final_cloud = remap(base_cloud_with_coverage, high_freq_noise_modiffer, 1.0, 0.0, 1.0);
+    float dn = 0.35 * pow(2.718281828459045, -weatherData.r * 0.75) * mix(high_freq_FBM, 1.0 - high_freq_FBM, clamp(normalizedHeight * 5.0, 0.0, 1.0));
+
+    float srb = clamp(remap(normalizedHeight, 0, 0.07, 0.0, 1.0), 0.0, 1.0);
+    float srt = clamp(remap(normalizedHeight, 0.2, 1.0, 1.0, 0.0), 0.0, 1.0);
+    float sa = srb * srt;
+    sa = pow(sa, clamp(remap(normalizedHeight, 0.65, 0.95, 1.0, 1.0-0.5), 0, 1));
+    float sn = clamp(remap(base_cloud * sa, 1 - weatherData.r, 1.0, 0.0, 1.0), 0.0, 1.0);
+    float d = clamp(remap(sn, dn, 1.0, 0.0, 1.0), 0, 1);
+    return d;
 }
 
 vec4 rayMarchCloud(in vec3 worldPos, in vec3 worldDir, inout float tDepth)
@@ -472,7 +485,7 @@ void main()
 {
     gDistantSkyLight = texelFetch(uDistantSkyLightLutTexture, ivec2(0, 0), 0).rgb;
 
-#if 1
+#if FAST_RENDER
     uint bayerIndex = osg_FrameNumber % 16;
     ivec2 bayerOffset = ivec2(bayerFilter4x4[bayerIndex] % 4, bayerFilter4x4[bayerIndex] / 4);
     ivec2 iFullResCoord = ivec2(gl_FragCoord.xy) * 4 + bayerOffset;

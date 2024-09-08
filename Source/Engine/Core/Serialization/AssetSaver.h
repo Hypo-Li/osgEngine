@@ -1,11 +1,13 @@
 #pragma once
 #include "AssetSerializer.h"
+#include "../Asset.h"
 
 namespace xxx
 {
     class AssetSaver : public AssetSerializer
     {
     public:
+        AssetSaver();
         virtual ~AssetSaver() = default;
 
         virtual bool isLoading() const override
@@ -33,23 +35,21 @@ namespace xxx
         virtual void serialize(double* value, size_t count = 1);
         virtual void serialize(std::string* value, size_t count = 1) override
         {
-            uint32_t* stringOffsets = new uint32_t[count];
+            std::vector<uint32_t> stringIndices(count);
             for (size_t i = 0; i < count; ++i)
             {
-                auto findResult = mStringTable.find(value[i]);
-                if (findResult == mStringTable.end())
+                auto findResult = std::find(mAsset->mStringTable.begin(), mAsset->mStringTable.end(), value[i]);
+                if (findResult == mAsset->mStringTable.end())
                 {
-                    mStringTable.emplace(value[i], mStringOffset);
-                    stringOffsets[i] = mStringOffset;
-                    mStringOffset += sizeof(uint32_t) + value[i].size();
+                    mAsset->mStringTable.emplace_back(value[i]);
+                    stringIndices[i] = mAsset->mStringTable.size() - 1;
                 }
                 else
                 {
-                    stringOffsets[i] = findResult->second;
+                    stringIndices[i] = findResult - mAsset->mStringTable.begin();
                 }
             }
-            serialize(stringOffsets, count);
-            delete[] stringOffsets;
+            serialize(stringIndices.data(), count);
         }
 
     };

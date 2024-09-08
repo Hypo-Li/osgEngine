@@ -45,8 +45,17 @@ namespace xxx
             return static_cast<refl::Class*>(refl::Reflection::getType<Object>());
         }
 
+        virtual Object* clone() const
+        {
+            return new Object(*this);
+        }
+
     public:
-        Object() : mGuid(Guid::newGuid()) {}
+        Object();
+        Object(const Object& other);
+        Object(Object&& other) noexcept;
+        Object& operator=(const Object& other);
+        Object& operator=(Object&& other) noexcept;
         virtual ~Object() = default;
 
         Guid getGuid() const
@@ -61,33 +70,14 @@ namespace xxx
         virtual void postSerialize() {}
 
     private:
-        Guid mGuid;
-        Asset* mOwnerAsset;
+        const Guid mGuid;
     };
+}
 
-    namespace refl
-    {
-        template <>
-        inline Type* Reflection::createType<Guid>()
-        {
-            Struct* structGuid = new StructInstance<Guid>("Guid");
-            Property* propA = structGuid->addProperty("A", &Guid::A);
-            Property* propB = structGuid->addProperty("B", &Guid::B);
-            Property* propC = structGuid->addProperty("C", &Guid::C);
-            Property* propD = structGuid->addProperty("D", &Guid::D);
-            return structGuid;
-        }
-
-        template <>
-        inline Type* Reflection::createType<Object>()
-        {
-            Class* clazz = new ClassInstance<Object>("Object");
-            // Guid is a special property, cannot serialize directly.
-            //Property* propGuid = clazz->addProperty("Guid", &Object::mGuid);
-            sRegisteredClassMap.emplace("Object", clazz);
-            return clazz;
-        }
-    }
+namespace xxx::refl
+{
+    template <> Type* Reflection::createType<Guid>();
+    template <> Type* Reflection::createType<Object>();
 }
 
 namespace std
