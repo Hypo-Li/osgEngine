@@ -4,7 +4,7 @@ layout (local_size_x = 32, local_size_y = 27) in;
 layout (r11f_g11f_b10f, binding = 0) uniform image2D uSkyViewLutImage;
 uniform sampler2D uTransmittanceLutTexture;
 uniform sampler2D uMultiScatteringLutTexture;
-#define PLANET_TOP_AT_ABSOLUTE_WORLD_ORIGIN
+//#define PLANET_TOP_AT_ABSOLUTE_WORLD_ORIGIN
 layout(std140, binding = 0) uniform ViewData
 {
     mat4 uViewMatrix;

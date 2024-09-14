@@ -56,11 +56,11 @@ namespace xxx::refl
     template <typename Owner, typename FakeDeclared, std::size_t Index = 0>
     class PropertyInstance : public Property
     {
-        using MemberObjectPointer = FakeDeclared Owner::*;
+        using MemberObject = FakeDeclared Owner::*;
         static constexpr bool IsArrayMember = std::is_array_v<FakeDeclared>;
         using Declared = std::conditional_t<IsArrayMember, array_element_t<FakeDeclared>, FakeDeclared>;
     public:
-        PropertyInstance(std::string_view name, MemberObjectPointer memberObject) :
+        PropertyInstance(std::string_view name, MemberObject memberObject) :
             Property(name),
             mMemberObject(memberObject)
         {}
@@ -116,6 +116,6 @@ namespace xxx::refl
         }
 
     protected:
-        MemberObjectPointer mMemberObject;
+        MemberObject mMemberObject;
     };
 }

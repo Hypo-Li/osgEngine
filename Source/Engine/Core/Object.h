@@ -37,8 +37,11 @@ namespace xxx
     };
 
     class Asset;
+    class AssetManager;
+
     class Object : public osg::Referenced
     {
+        friend class AssetManager;
     public:
         virtual refl::Class* getClass() const
         {
@@ -54,13 +57,16 @@ namespace xxx
         Object();
         Object(const Object& other);
         Object(Object&& other) noexcept;
-        Object& operator=(const Object& other);
-        Object& operator=(Object&& other) noexcept;
         virtual ~Object() = default;
 
         Guid getGuid() const
         {
             return mGuid;
+        }
+
+        Asset* getAsset() const
+        {
+            return mAsset;
         }
 
         // load something from osg object when serialization
@@ -70,7 +76,8 @@ namespace xxx
         virtual void postSerialize() {}
 
     private:
-        const Guid mGuid;
+        Guid mGuid;
+        Asset* mAsset;
     };
 }
 

@@ -11,6 +11,10 @@ namespace xxx
         Enum_Serialize_By_Name              = 1 << 2,
     };
 
+    using RawStringTable = std::vector<std::string>;
+    using RawImportTable = std::vector<std::pair<uint32_t, Guid>>;
+    using RawExportTable = std::vector<std::pair<Guid, osg::ref_ptr<Object>>>;
+
     class AssetSerializer : public Serializer
     {
         friend class Asset;
@@ -53,10 +57,15 @@ namespace xxx
         void serializeStdVariant(refl::StdVariant* stdVariant, void* data, size_t count = 1);
         void serializeStdVector(refl::StdVector* stdVector, void* data, size_t count = 1);
 
-    protected:
+    private:
         Asset* mAsset;
-        std::unordered_map<Guid, std::pair<std::vector<uint8_t>, size_t>> mBufferTable; // Key: Guid; Value: Pair<Buffer, Offset>
-        std::vector<uint8_t>* mBuffer;
-        size_t mBufferOffset;
+        std::vector<std::vector<uint8_t>> mObjectBufferTable;
+        uint32_t mObjectBufferIndex;
+        size_t mObjectBufferPointer;
+
+        //AssetHeader mAssetHeader;
+        RawStringTable mRawStringTable;
+        RawImportTable mRawImportTable;
+        RawExportTable mRawExportTable;
     };
 }

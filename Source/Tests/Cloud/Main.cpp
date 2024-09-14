@@ -11,6 +11,13 @@
 #include <osg/BlendFunc>
 #include <osgViewer/ViewerEventHandlers>
 
+#include <osgEarth/MapNode>
+#include <osgEarth/GDAL>
+#include <osgEarth/TMS>
+#include <osgEarth/GeoTransform>
+#include <osgEarth/EarthManipulator>
+#include <osgEarth/AutoClipPlaneHandler>
+
 struct ViewData
 {
     osg::Matrixf viewMatrix;
@@ -26,8 +33,8 @@ struct AtmosphereParameters
     float solarAzimuth = 0.0f;
     osg::Vec3 sunColor = osg::Vec3(1.0, 1.0, 1.0);
     float sunIntensity = 6.0f;
-    float groundRadius = 6370.0f;
-    float atmosphereRadius = 6430.0f;
+    float groundRadius = 6371.0f;
+    float atmosphereRadius = 6471.0f;
     osg::Vec3 groundAlbedo = osg::Vec3(0.4, 0.4, 0.4);
     osg::Vec3 rayleighScatteringCoeff = osg::Vec3(0.175287, 0.409607, 1.0);
     float rayleighScatteringScale = 0.0331f;
@@ -93,7 +100,7 @@ struct VolumetricCloudParameters
     osg::Vec3 albedo = osg::Vec3(1, 1, 1);
     osg::Vec3 extinction = osg::Vec3(0.005, 0.005, 0.005);
     float windSpeed = 0.0f;
-    float cloudLayerBottomRadius = 6371.0f;
+    float cloudLayerBottomHeight = 5.0f;
     float cloudLayerThickness = 10.0f;
     float phaseG0 = 0.5;
     float phaseG1 = -0.5;
@@ -102,8 +109,8 @@ struct VolumetricCloudParameters
     float msExtinctionFactor = 0.2;
     float msPhaseFactor = 0.2;
     float cloudMapScaleFactor = 0.006;
-    float basicNoiseScaleFactor = 0.04;
-    float detailNoiseScaleFactor = 0.2;
+    float basicNoiseScaleFactor = 0.08;
+    float detailNoiseScaleFactor = 0.3;
 }gVolumetricCloudParameters;
 
 struct VolumetricCloudParametersBuffer
@@ -132,7 +139,7 @@ osg::ref_ptr<osg::UniformBufferBinding> gVolumetricCloudParametersUBB;
 void calcVolumetricCloudParametersBuffer(const VolumetricCloudParameters& parameter, VolumetricCloudParametersBuffer& buffer)
 {
     buffer.albedo = parameter.albedo;
-    buffer.cloudLayerBottomRadius = parameter.cloudLayerBottomRadius;
+    buffer.cloudLayerBottomRadius = parameter.cloudLayerBottomHeight + 6371.0;
     buffer.extinction = parameter.extinction;
     buffer.cloudLayerThickness = parameter.cloudLayerThickness;
     buffer.windSpeed = parameter.windSpeed;
@@ -169,9 +176,13 @@ namespace xxx
         bool volumetricCloudNeedUpdate = false;
         if (ImGui::ColorEdit3("Albedo", &gVolumetricCloudParameters.albedo.x()))
             volumetricCloudNeedUpdate = true;
-        if (ImGui::DragFloat3("Extinction", &gVolumetricCloudParameters.extinction.x(), 0.0005, 0.0f, 1.0f, "%.6f", ImGuiSliderFlags_Logarithmic))
+        if (ImGui::DragFloat("Extinction", &gVolumetricCloudParameters.extinction.x(), 0.0005, 0.0f, 1.0f, "%.6f", ImGuiSliderFlags_Logarithmic))
+        {
+            gVolumetricCloudParameters.extinction.y() = gVolumetricCloudParameters.extinction.x();
+            gVolumetricCloudParameters.extinction.z() = gVolumetricCloudParameters.extinction.x();
             volumetricCloudNeedUpdate = true;
-        if (ImGui::SliderFloat("Cloud Layer Bottom Radius", &gVolumetricCloudParameters.cloudLayerBottomRadius, 6360.0f, 6420.0f))
+        }
+        if (ImGui::SliderFloat("Cloud Layer Bottom Height", &gVolumetricCloudParameters.cloudLayerBottomHeight, 0.0f, 10.0f))
             volumetricCloudNeedUpdate = true;
         if (ImGui::SliderFloat("Cloud Layer Thickness", &gVolumetricCloudParameters.cloudLayerThickness, 0.0f, 30.0f))
             volumetricCloudNeedUpdate = true;
@@ -281,10 +292,12 @@ public:
     }
 };
 
-#define FAST_RENDER 0
+#define FAST_RENDER 1
+#define CUSTOM_CLOUD_MAP 0
 
 int main()
 {
+    osgEarth::initialize();
     osg::ref_ptr<osg::FloatArray> viewDataBuffer = new osg::FloatArray((float*)&gViewData, (float*)(&gViewData + 1));
     osg::ref_ptr<osg::UniformBufferObject> viewDataUBO = new osg::UniformBufferObject;
     viewDataBuffer->setBufferObject(viewDataUBO);
@@ -324,7 +337,7 @@ int main()
     camera->setViewport(0, 0, width, height);
     camera->setProjectionMatrixAsPerspective(60.0, double(width) / double(height), 0.1, 1000.0);
 
-#if 0
+#if CUSTOM_CLOUD_MAP
     osg::ref_ptr<osg::Texture2D> cloudMapTexture = new osg::Texture2D(osgDB::readImageFile(TEMP_DIR "CloudMap.png"));
     cloudMapTexture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR);
     cloudMapTexture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::LINEAR);
@@ -333,22 +346,31 @@ int main()
 #else
     osg::ref_ptr<osg::Texture2D> cloudMapTexture = new osg::Texture2D;
     cloudMapTexture->setTextureSize(512, 512);
-    cloudMapTexture->setInternalFormat(GL_RGBA8);
+    cloudMapTexture->setInternalFormat(GL_RGBA16F);
     cloudMapTexture->setSourceFormat(GL_RGBA);
     cloudMapTexture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR);
     cloudMapTexture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::LINEAR);
     cloudMapTexture->setWrap(osg::Texture::WRAP_S, osg::Texture::REPEAT);
     cloudMapTexture->setWrap(osg::Texture::WRAP_T, osg::Texture::REPEAT);
-    osg::ref_ptr<osg::BindImageTexture> cloudMapImage = new osg::BindImageTexture(0, cloudMapTexture, osg::BindImageTexture::WRITE_ONLY, GL_RGBA8);
+    osg::ref_ptr<osg::BindImageTexture> cloudMapImage = new osg::BindImageTexture(0, cloudMapTexture, osg::BindImageTexture::WRITE_ONLY, GL_RGBA16F);
     osg::ref_ptr<osg::Program> cloudMapProgram = new osg::Program;
     cloudMapProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "VolumetricCloud/CloudMap.comp.glsl"));
     osg::ref_ptr<osg::DispatchCompute> cloudMapDispatch = new osg::DispatchCompute(16, 16, 1);
     cloudMapDispatch->setCullingActive(false);
     cloudMapDispatch->getOrCreateStateSet()->setAttribute(cloudMapProgram, osg::StateAttribute::ON);
     cloudMapDispatch->getOrCreateStateSet()->setAttribute(cloudMapImage, osg::StateAttribute::ON);
-    //cloudMapDispatch->setCullCallback(new DrawTimesCullCallback(1));
+    cloudMapDispatch->setCullCallback(new DrawTimesCullCallback(1));
     rootGroup->addChild(cloudMapDispatch);
 #endif
+
+    osg::ref_ptr<osg::Program> cloudMapSDFProgram = new osg::Program;
+    cloudMapSDFProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "VolumetricCloud/CloudMapSDF.comp.glsl"));
+    osg::ref_ptr<osg::DispatchCompute> cloudMapSDFDispatch = new osg::DispatchCompute(16, 16, 1);
+    cloudMapSDFDispatch->setCullingActive(false);
+    cloudMapSDFDispatch->getOrCreateStateSet()->setAttribute(cloudMapSDFProgram, osg::StateAttribute::ON);
+    cloudMapSDFDispatch->getOrCreateStateSet()->setAttribute(cloudMapImage, osg::StateAttribute::ON);
+    cloudMapSDFDispatch->setCullCallback(new DrawTimesCullCallback(1));
+    rootGroup->addChild(cloudMapSDFDispatch);
 
     osg::ref_ptr<osg::Texture3D> basicNoiseTexture = new osg::Texture3D;
     basicNoiseTexture->setTextureSize(128, 128, 128);
@@ -385,7 +407,7 @@ int main()
     detailNoiseDispatch->setCullingActive(false);
     detailNoiseDispatch->getOrCreateStateSet()->setAttribute(detailNoiseProgram, osg::StateAttribute::ON);
     detailNoiseDispatch->getOrCreateStateSet()->setAttribute(detailNoiseImage, osg::StateAttribute::ON);
-    //detailNoiseDispatch->setCullCallback(new DrawTimesCullCallback(1));
+    detailNoiseDispatch->setCullCallback(new DrawTimesCullCallback(1));
     rootGroup->addChild(detailNoiseDispatch);
 
     osg::ref_ptr<osg::Texture2D> transmittanceLutTexture = new osg::Texture2D;
@@ -505,20 +527,65 @@ int main()
     meshNode->getOrCreateStateSet()->setAttribute(inputProgram, osg::StateAttribute::ON);
     rootGroup->addChild(meshNode);
 
+    osgEarth::Map* map = new osgEarth::Map;
+    osgEarth::TMSImageLayer* tmsImagery = new osgEarth::TMSImageLayer;
+
+    tmsImagery->setURL(R"(C:\Users\admin\Downloads\wenhualou\tms.xml)");
+    map->addLayer(tmsImagery);
+    osgEarth::ProfileOptions po;
+    po.srsString() = "+proj=latlong +a=6371000 +b=6371000 +towgs84=0,0,0,0,0,0,0";
+    map->setProfile(osgEarth::Profile::create(po));
+    osgEarth::MapNode* mapNode = new osgEarth::MapNode(map);
+    mapNode->getTerrainOptions().setMinTileRangeFactor(3.0);
+    rootGroup->addChild(mapNode);
+
+    mapNode->getOrCreateStateSet()->setAttributeAndModes(gAtmosphereParametersUBB);
+    osgEarth::VirtualProgram* vp = osgEarth::VirtualProgram::getOrCreate(mapNode->getOrCreateStateSet());
+    static const char* fragSource = R"(
+		#version 430
+		vec4 vp_Vertex;
+		layout(location = 0) out vec4 gColor;
+        layout (std140, binding = 1) uniform AtmosphereParameters
+        {
+            vec3 uRayleighScatteringBase;
+            float uMieScatteringBase;
+            vec3 uOzoneAbsorptionBase;
+            float uMieAbsorptionBase;
+            float uRayleighDensityH;
+            float uMieDensityH;
+            float uOzoneHeight;
+            float uOzoneThickness;
+            vec3 uGroundAlbedo;
+            float uGroundRadius;
+            vec3 uSunDirection;
+            float uAtmosphereRadius;
+            vec3 uSunIntensity;
+        };
+		uniform mat4 osg_ViewMatrixInverse;
+		void oe_custom_fragment(inout vec4 color)
+		{
+			vec3 normal = normalize((osg_ViewMatrixInverse * vp_Vertex).xyz);
+			float ndl = clamp(max(dot(normal, uSunDirection), 0.0) + 0.1, 0.0, 1.0);
+			gColor = vec4(pow(color.rgb, vec3(2.2)) * ndl, color.a);
+		}
+	)";
+    vp->setFunction("oe_custom_fragment", fragSource, osgEarth::ShaderComp::LOCATION_FRAGMENT_OUTPUT);
+
     using BufferType = xxx::Pipeline::Pass::BufferType;
     osg::ref_ptr<xxx::Pipeline> pipeline = new xxx::Pipeline(viewer, gc);
     osg::ref_ptr<xxx::Pipeline::Pass> inputPass = pipeline->addInputPass("Input", 0xFFFFFFFF, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    inputPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA8);
+    inputPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA32F);
     inputPass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT, false, osg::Texture::NEAREST, osg::Texture::NEAREST);
     inputPass->getCamera()->setPreDrawCallback(new InputPassCameraPreDrawCallback);
+    inputPass->getCamera()->setCullCallback(new osgEarth::AutoClipPlaneCullCallback(mapNode));
 
     osg::ref_ptr<osg::Shader> screenQuadVertexShader = osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Common/ScreenQuad.vert.glsl");
 
     osg::ref_ptr<osg::Program> atmosphereProgram = new osg::Program;
     atmosphereProgram->addShader(screenQuadVertexShader);
     atmosphereProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Atmosphere/RayMarching.frag.glsl"));
-    osg::ref_ptr<xxx::Pipeline::Pass> atmospherePass = pipeline->addWorkPass("Atmosphere", atmosphereProgram, GL_COLOR_BUFFER_BIT);
-    atmospherePass->attach(BufferType::COLOR_BUFFER0, GL_RGBA32F);
+    osg::ref_ptr<xxx::Pipeline::Pass> atmospherePass = pipeline->addWorkPass("Atmosphere", atmosphereProgram, 0);
+    atmospherePass->attach(BufferType::COLOR_BUFFER0, inputPass->getBufferTexture(BufferType::COLOR_BUFFER0));
     atmospherePass->applyTexture(transmittanceLutTexture, "uTransmittanceLutTexture", 0);
     atmospherePass->applyTexture(multiScatteringLutTexture, "uMultiScatteringLutTexture", 1);
     atmospherePass->applyTexture(skyViewLutTexture, "uSkyViewLutTexture", 2);
@@ -567,9 +634,9 @@ int main()
     historyCloudColorTexture->setTextureSize(viewport->x(), viewport->y());
     historyCloudColorTexture->setInternalFormat(GL_RGBA16F);
 
-    osg::ref_ptr<osg::Texture2D> historyCloudDepthTexture = new osg::Texture2D;
-    historyCloudDepthTexture->setTextureSize(viewport->x(), viewport->y());
-    historyCloudDepthTexture->setInternalFormat(GL_R16F);
+    osg::ref_ptr<osg::Texture2D> historyCloudDistanceTexture = new osg::Texture2D;
+    historyCloudDistanceTexture->setTextureSize(viewport->x(), viewport->y());
+    historyCloudDistanceTexture->setInternalFormat(GL_R16F);
 
 #if FAST_RENDER
     osg::ref_ptr<osg::Program> cloudReconstructionProgram = new osg::Program;
@@ -577,18 +644,38 @@ int main()
     cloudReconstructionProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "VolumetricCloud/Reconstruction.frag.glsl"));
     osg::ref_ptr<xxx::Pipeline::Pass> cloudReconstructionPass = pipeline->addWorkPass("CloudReconstruction", cloudReconstructionProgram, GL_COLOR_BUFFER_BIT);
     cloudReconstructionPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F);
+    cloudReconstructionPass->attach(BufferType::COLOR_BUFFER1, GL_R16F);
+    cloudReconstructionPass->setAttribute(gViewDataUBB);
     cloudReconstructionPass->applyTexture(volumetricCloudPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uCurrentCloudColorTexture", 0);
-    cloudReconstructionPass->applyTexture(volumetricCloudPass->getBufferTexture(BufferType::COLOR_BUFFER1), "uCurrentCloudDepthTexture", 1);
+    cloudReconstructionPass->applyTexture(volumetricCloudPass->getBufferTexture(BufferType::COLOR_BUFFER1), "uCurrentCloudDistanceTexture", 1);
     cloudReconstructionPass->applyTexture(historyCloudColorTexture, "uHistoryCloudColorTexture", 2);
-    cloudReconstructionPass->applyTexture(historyCloudColorTexture, "uHistoryCloudDepthTexture", 3);
+    cloudReconstructionPass->applyTexture(historyCloudDistanceTexture, "uHistoryCloudDistanceTexture", 3);
     cloudReconstructionPass->getCamera()->setPreDrawCallback(new ReconstructionPassCallback(cloudReconstructionPass->getCamera()));
 
     osg::ref_ptr<osg::Program> copyColorProgram = new osg::Program;
     copyColorProgram->addShader(screenQuadVertexShader);
-    copyColorProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CopyColor.frag.glsl"));
+    copyColorProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CopyColor2.frag.glsl"));
     osg::ref_ptr<xxx::Pipeline::Pass> copyCloudPass = pipeline->addWorkPass("CopyCloud", copyColorProgram, GL_COLOR_BUFFER_BIT);
     copyCloudPass->attach(BufferType::COLOR_BUFFER0, historyCloudColorTexture);
+    copyCloudPass->attach(BufferType::COLOR_BUFFER1, historyCloudDistanceTexture);
     copyCloudPass->applyTexture(cloudReconstructionPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorTexture", 0);
+    copyCloudPass->applyTexture(cloudReconstructionPass->getBufferTexture(BufferType::COLOR_BUFFER1), "uColor1Texture", 1);
+
+    osg::ref_ptr<osg::Texture2D> historyColorTexture = new osg::Texture2D;
+    historyColorTexture->setTextureSize(viewport->x(), viewport->y());
+    historyColorTexture->setInternalFormat(GL_RGBA16F);
+
+    osg::ref_ptr<osg::Program> taaProgram = new osg::Program;
+    taaProgram->addShader(screenQuadVertexShader);
+    taaProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/TAA.frag.glsl"));
+    osg::ref_ptr<xxx::Pipeline::Pass> taaPass = pipeline->addWorkPass("TAA", taaProgram, 0);
+    taaPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F);
+    taaPass->applyTexture(cloudReconstructionPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uCurrentColorTexture", 0);
+    taaPass->applyTexture(historyColorTexture, "uHistoryColorTexture", 1);
+
+    osg::ref_ptr<xxx::Pipeline::Pass> copyColorPass = pipeline->addWorkPass("CopyColor", copyColorProgram, GL_COLOR_BUFFER_BIT);
+    copyColorPass->attach(BufferType::COLOR_BUFFER0, historyColorTexture);
+    copyColorPass->applyTexture(taaPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorTexture", 0);
 #endif
 
     osg::ref_ptr<osg::Program> colorGradingProgram = new osg::Program;
@@ -597,12 +684,13 @@ int main()
     osg::ref_ptr<xxx::Pipeline::Pass> displayPass = pipeline->addDisplayPass("Display", colorGradingProgram);
     displayPass->applyTexture(atmospherePass->getBufferTexture(BufferType::COLOR_BUFFER0), "uAtmosphereColorTexture", 0);
 #if FAST_RENDER
-    displayPass->applyTexture(cloudReconstructionPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uCloudColorTexture", 1);
+    displayPass->applyTexture(taaPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uCloudColorTexture", 1);
 #else
     displayPass->applyTexture(volumetricCloudPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uCloudColorTexture", 1);
 #endif
 
-    viewer->setCameraManipulator(new ControllerManipulator(50));
+    //viewer->setCameraManipulator(new ControllerManipulator(1000));
+    viewer->setCameraManipulator(new osgEarth::EarthManipulator);
     viewer->addEventHandler(new xxx::ImGuiHandler(viewer, displayPass->getCamera()));
     viewer->addEventHandler(new osgViewer::StatsHandler);
 

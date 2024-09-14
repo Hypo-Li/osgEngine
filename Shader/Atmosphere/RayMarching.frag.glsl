@@ -9,7 +9,7 @@ uniform sampler3D uAerialPerspectiveLutTexture;
 uniform sampler2D uSceneDepthTexture;
 uniform uint osg_FrameNumber;
 
-#define PLANET_TOP_AT_ABSOLUTE_WORLD_ORIGIN
+//#define PLANET_TOP_AT_ABSOLUTE_WORLD_ORIGIN
 layout(std140, binding = 0) uniform ViewData
 {
     mat4 uViewMatrix;
@@ -53,7 +53,7 @@ void main()
             transmittanceLutParametersToUV(viewHeight, viewZenithCos, transmittanceLutUV);
             vec3 trans = texture(uTransmittanceLutTexture, transmittanceLutUV).rgb;
             float softEdge = clamp(2.0 * (vdl - cosHalfApex) / (1.0 - cosHalfApex), 0.0, 1.0);
-            outLuminance += trans * uSunIntensity * 1000.0 * softEdge;
+            outLuminance += trans * uSunIntensity * softEdge;
         }
 
         if (viewHeight < uAtmosphereRadius)
@@ -100,7 +100,7 @@ void main()
     else
     {
         vec3 lum, fms, trans;
-        rayMarchAtmosphere(interleavedGradientNoise(gl_FragCoord.xy, osg_FrameNumber % 8), worldPos, worldDir, uSunDirection, 0.0, 9000000, sceneDepth, tDepth, lum, fms, trans);
+        rayMarchAtmosphere(interleavedGradientNoise(gl_FragCoord.xy, osg_FrameNumber % 8), worldPos, worldDir, uSunDirection, 0.0, 9000000, lum, fms, trans);
         fragData = vec4(lum, dot(trans, vec3(0.3333333)));
     }
 }

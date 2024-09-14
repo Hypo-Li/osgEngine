@@ -31,27 +31,21 @@ namespace xxx::refl
             std::is_same_v<T, double> ||
             std::is_same_v<T, std::string_view>;
     public:
-        template <typename T, std::enable_if_t<is_meta_value_v<T>, int> = 0>
+        template <typename T, typename = std::enable_if_t<is_meta_value_v<T>>>
         std::optional<T> getMetadata(MetaKey key)
         {
             auto findResult = mMetadatas.find(key);
             if (findResult != mMetadatas.end())
             {
-                try
-                {
-                    T result = std::get<T>(findResult->second);
-                    return result;
-                }
-                catch (std::bad_variant_access const& ex)
-                {
-                    return std::optional<T>{};
-                }
+                T* result = std::get_if<T>(findResult->second);
+                if (result)
+                    return std::optional<T>(*result);
             }
             return std::optional<T>{};
         }
 
     protected:
-        template <typename T, std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T> || std::is_same_v<T, const char*>, int> = 0>
+        template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T> || std::is_same_v<T, const char*>>>
         void addMetadata(MetaKey key, T value)
         {
             if constexpr (std::is_arithmetic_v<T>)

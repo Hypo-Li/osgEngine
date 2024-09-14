@@ -39,7 +39,6 @@ namespace xxx
 	public:
 		Entity(const std::string& name = "");
         Entity(const Entity& other);
-        Entity& operator=(const Entity& other);
 		virtual ~Entity() = default;
 
         void setName(const std::string& name)
@@ -52,10 +51,22 @@ namespace xxx
             return mName;
         }
 
+        void setParent(Entity* entity);
+
 		Entity* getParent() const
         {
             return mParent;
         }
+
+		void addChild(Entity* child);
+
+		void removeChild(Entity* child);
+
+        void removeChild(uint32_t index);
+
+        void removeChildren(uint32_t beginIndex, uint32_t count);
+
+        Entity* getChild(uint32_t index);
 
         const std::vector<osg::ref_ptr<Entity>>& getChildren() const
         {
@@ -67,27 +78,23 @@ namespace xxx
             return mChildren.size();
         }
 
-		void appendChild(Entity* child);
-
-		void removeChild(Entity* child);
-
-        void removeChild(uint32_t index);
-
-        Entity* getChildByIndex(uint32_t index);
-
         void clearChildren();
 
-        const std::vector<osg::ref_ptr<Component>>& getComponents() const
+		void addComponent(Component* component);
+
+        template <typename T, typename = std::enable_if_t<std::is_base_of_v<Component, T>>>
+        T* addComponent()
         {
-            return mComponents;
+            T* component = new T;
+            appendComponent(component);
+            return component;
         }
 
-        uint32_t getComponentsCount() const
-        {
-            return mComponents.size();
-        }
+		void removeComponent(Component* component);
+
+        void removeComponent(uint32_t index);
         
-		template<typename T, std::enable_if_t<std::is_base_of_v<Component, T>, int> = 0>
+		template<typename T, typename = std::enable_if_t<std::is_base_of_v<Component, T>>>
 		T* getComponent(uint32_t index)
 		{
 			uint32_t count = 0;
@@ -101,13 +108,18 @@ namespace xxx
 			return nullptr;
 		}
 
-		void appendComponent(Component* component);
+        template <>
+        Component* getComponent(uint32_t index);
 
-		void removeComponent(Component* component);
+        const std::vector<osg::ref_ptr<Component>>& getComponents() const
+        {
+            return mComponents;
+        }
 
-        void removeComponent(uint32_t index);
-
-        Component* getComponentByIndex(uint32_t index);
+        uint32_t getComponentsCount() const
+        {
+            return mComponents.size();
+        }
 
         void clearComponents();
 
@@ -222,6 +234,7 @@ namespace xxx
 
 	protected:
         std::string mName;
+        uint32_t mFlags;
 		Entity* mParent;
 		std::vector<osg::ref_ptr<Entity>> mChildren;
         std::vector<osg::ref_ptr<Component>> mComponents;

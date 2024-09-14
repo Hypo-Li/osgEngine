@@ -17,8 +17,8 @@ vec3 aces(vec3 x)
 
 void main()
 {
-    vec3 atmoColor = textureLod(uAtmosphereColorTexture, uv, 0.0).rgb;
-    vec4 cloudColor = textureLod(uCloudColorTexture, uv, 0.0);
+    vec3 atmoColor = texelFetch(uAtmosphereColorTexture, ivec2(gl_FragCoord.xy), 0).rgb;
+    vec4 cloudColor = texelFetch(uCloudColorTexture, ivec2(gl_FragCoord.xy), 0);
     vec3 color = atmoColor * cloudColor.a + cloudColor.rgb;
     fragData = vec4(pow(aces(color), vec3(0.454545)), 1.0);
 }

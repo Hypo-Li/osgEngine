@@ -25,20 +25,19 @@ namespace xxx
 
         // copy components
         for (Component* component : other.mComponents)
-            appendComponent(component->clone());
+            addComponent(component->clone());
     }
 
-    Entity& Entity::operator=(const Entity& other)
+    void Entity::setParent(Entity* entity)
     {
-        clearComponents();
-
-        // copy components
-        for (Component* component : other.mComponents)
-            appendComponent(component->clone());
-        return *this;
+        if (mParent == entity)
+            return;
+        else if (mParent != nullptr)
+            mParent->removeChild(entity);
+        entity->addChild(this);
     }
 
-	void Entity::appendChild(Entity* child)
+	void Entity::addChild(Entity* child)
 	{
 		if (child->mParent == this)
 			return;
@@ -76,7 +75,21 @@ namespace xxx
         mChildren.erase(mChildren.begin() + index);
     }
 
-	Entity* Entity::getChildByIndex(uint32_t index)
+    void Entity::removeChildren(uint32_t beginIndex, uint32_t count)
+    {
+        uint32_t i;
+        for (i = 0; i < count; ++i)
+        {
+            if (beginIndex + i >= mChildren.size())
+                break;
+            Entity* child = mChildren[beginIndex + i];
+            child->mParent = nullptr;
+        }
+        mOsgChildrenGroup->removeChildren(beginIndex, i);
+        mChildren.erase(mChildren.begin() + beginIndex, mChildren.begin() + beginIndex + i);
+    }
+
+	Entity* Entity::getChild(uint32_t index)
 	{
         if (index >= mChildren.size())
             return nullptr;
@@ -84,7 +97,7 @@ namespace xxx
 
 	}
 
-	void Entity::appendComponent(Component* component)
+	void Entity::addComponent(Component* component)
 	{
 		if (component->mOwner == this)
 			return;
@@ -123,7 +136,8 @@ namespace xxx
         mComponents.erase(mComponents.begin() + index);
     }
 
-    Component* Entity::getComponentByIndex(uint32_t index)
+    template <>
+    Component* Entity::getComponent(uint32_t index)
     {
         if (index >= mComponents.size())
             return nullptr;

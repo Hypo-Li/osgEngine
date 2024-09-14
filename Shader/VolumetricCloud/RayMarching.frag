@@ -1,161 +1,156 @@
-#version 430 core
-in vec2 uv;
-out vec4 fragData;
-uniform sampler3D uNoise1Texture;
-uniform sampler3D uNoise2Texture;
-uniform sampler2D uColorTexture;
-uniform sampler2D uDepthTexture;
-uniform float osg_FrameTime;
-#define PI 3.1415926
-
-layout(std140, binding = 0) uniform ViewData
+vec4 rayMarchCloud(in vec3 worldPos, in vec3 worldDir, inout float tDepth)
 {
-    mat4 uViewMatrix;
-    mat4 uInverseViewMatrix;
-    mat4 uProjectionMatrix;
-    mat4 uInverseProjectionMatrix;
-};
-
-float remap(float x, float a, float b, float c, float d)
-{
-    return (((x - a) / (b - a)) * (d - c)) + c;
-}
-
-float HenyeyGreenstein(float cosTheta, float g)
-{
-    float g2 = g * g;
-    return ((1.0 - g2) / pow((1.0 + g2 - 2.0 * g * cosTheta), 1.5)) / (4.0 * PI);
-}
-
-vec2 intersectAABB(vec3 rayOrigin, vec3 rayDir, vec3 boxMin, vec3 boxMax)
-{
-    vec3 tMin = (boxMin - rayOrigin) / rayDir;
-    vec3 tMax = (boxMax - rayOrigin) / rayDir;
-    vec3 t1 = min(tMin, tMax);
-    vec3 t2 = max(tMin, tMax);
-    float tNear = max(max(t1.x, t1.y), t1.z);
-    float tFar = min(min(t2.x, t2.y), t2.z);
-	if (tNear > tFar)
-		return vec2(-1, -1);
-	tNear = max(tNear, 0.0);
-	return vec2(tNear, tFar);
-}
-
-vec2 rayIntersectSphere(vec3 rayOrigin, vec3 rayDir, vec4 sphere)
-{
-    vec3 localPos = rayOrigin - sphere.xyz;
-    float localPosSqr = dot(localPos, localPos);
-    vec3 QuadraticCoef = vec3(
-        dot(rayDir, rayDir),
-        2 * dot(rayDir, localPos),
-        localPosSqr - sphere.w * sphere.w
-    );
-    float discriminant = QuadraticCoef.y * QuadraticCoef.y - 4 * QuadraticCoef.x * QuadraticCoef.z;
-    vec2 intersections = vec2(-1);
-    if (discriminant >= 0)
+    float viewHeight = length(worldPos);
+    float tMin, tMax;
+    vec2 tTop2 = vec2(-1);
+    vec2 tBottom2 = vec2(-1);
+    vec3 planetCenter = vec3(0);
+    if (rayIntersectSphereSolution(worldPos, worldDir, vec4(planetCenter, uCloudLayerTopRadiusKm), tTop2))
     {
-        float sqrtDiscriminant = sqrt(discriminant);
-        intersections = (-QuadraticCoef.y + vec2(-1, 1) * sqrtDiscriminant) / (2 * QuadraticCoef.x);
-    }
-    return intersections;
-}
+        if (rayIntersectSphereSolution(worldPos, worldDir, vec4(planetCenter, uCloudLayerBottomRadiusKm), tBottom2))
+        {
+            float tempTop = all(greaterThan(tTop2, vec2(0))) ? min(tTop2.x, tTop2.y) : max(tTop2.x, tTop2.y);
+            float tempBottom = all(greaterThan(tBottom2, vec2(0))) ? min(tBottom2.x, tBottom2.y) : max(tBottom2.x, tBottom2.y);
 
-float getDensity(vec3 p)
-{
-    vec3 uvw = p * 0.04;
-    vec4 noise = textureLod(uNoise1Texture, uvw + mod(osg_FrameTime * 0.1, 1.0), 0.0);
-    float wfbm = dot(noise.gba, vec3(0.625, 0.125, 0.25));
-    float density = remap(noise.r, wfbm - 1.0, 1.0, 0.0, 1.0);
-    return clamp(remap(density, 0.85, 1., 0., 1.), 0.0, 1.0);
-}
+            if (all(greaterThan(tBottom2, vec2(0))))
+                tempTop = max(0.0, min(tTop2.x, tTop2.y));
 
-#define CLOUD_STEPS 128
-#define TRANS_STEPS 8
-
-// Scattering and absorption coefficients
-const vec3 sigmaS = vec3(1);
-const vec3 sigmaA = vec3(0.0);
-// Extinction coefficient.
-const vec3 sigmaE = max(sigmaS + sigmaA, vec3(1e-6));
-
-const vec3 sunIntensity = vec3(6.0);
-
-vec3 rayMarchTransmittance(vec3 ro, vec3 rd, float dist)
-{
-    const float dt = dist / TRANS_STEPS;
-    vec3 trans = vec3(1.0);
-    vec3 p = ro;
-    
-    for (uint i = 0; i < TRANS_STEPS; ++i)
-    {
-        float density = getDensity(p);
-        trans *= exp(-dt * density * sigmaE);
-        p += rd * dt;
-    }
-    return trans;
-}
-
-vec4 rayMarchCloud(vec3 ro, vec3 rd, float dist, vec3 ld)
-{
-    const float dt = dist / CLOUD_STEPS;
-    const float cosTheta = dot(rd, ld);
-    const float phase = mix(HenyeyGreenstein(cosTheta, 0.5), HenyeyGreenstein(cosTheta, -0.3), 0.5);
-    vec3 p = ro;
-    vec3 color = vec3(0.0);
-    vec3 trans = vec3(1.0);
-    for (uint i = 0; i < CLOUD_STEPS; ++i)
-    {
-        float density = getDensity(p);
-        vec3 sampleSigmaS = sigmaS * density;
-        vec3 sampleSigmaE = sigmaE * density;
-
-        if (density > 0.0)
-        {   
-            vec2 intersections = rayIntersectSphere(p, ld, vec4(0.0, 0.0, 0.0, 15.0));
-            vec3 transToSun = rayMarchTransmittance(p, ld, intersections.y);
-            vec3 luminance = sunIntensity * sampleSigmaS * phase * transToSun;
-            vec3 sampleTrans = exp(-sampleSigmaE * dt);
-            vec3 Sint = (luminance - luminance * sampleTrans) / sampleSigmaE;
-            color += trans * Sint;
-            trans *= sampleTrans;
-            if (length(trans) <= 0.001)
-                break;
+            tMin = min(tempBottom, tempTop);
+            tMax = max(tempBottom, tempTop);
         }
-        p += dt * rd;
+        else
+        {
+            tMin = tTop2.x;
+            tMax = tTop2.y;
+        }
     }
-    return vec4(color, dot(trans, vec3(0.333333)));
-}
-
-vec3 aces(vec3 x)
-{
-    float a = 2.51;
-    float b = 0.03;
-    float c = 2.43;
-    float d = 0.59;
-    float e = 0.14;
-    return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
-}
-
-void main()
-{
-    vec3 color = pow(textureLod(uColorTexture, uv, 0.0).rgb, vec3(2.2));
-    float depth = 1.0;//textureLod(uDepthTexture, uv, 0.0).r;
-
-    vec4 viewSpace = uInverseProjectionMatrix * vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
-    viewSpace *= 1.0 / viewSpace.w;
-    vec4 worldSpace = uInverseViewMatrix * viewSpace;
-    vec3 cameraPosition = vec3(uInverseViewMatrix[3]);
-    vec3 lookDirection = normalize(worldSpace.xyz - cameraPosition);
-
-    vec2 intersections = rayIntersectSphere(cameraPosition, lookDirection, vec4(0.0, 0.0, 0.0, 15.0));
-    float rayLength = length(worldSpace.xyz - cameraPosition);
-    if (intersections.x < intersections.y && intersections.x < rayLength)
+    else
     {
-		intersections.x = max(intersections.x, 0.0);
-        intersections.y = min(intersections.y, rayLength);
-        vec3 entryPoint = cameraPosition + intersections.x * lookDirection;
-        vec4 cloudColor = rayMarchCloud(entryPoint, lookDirection, intersections.y - intersections.x, normalize(vec3(1.0, -1.0, 1.0)));
-        color = color * cloudColor.a + cloudColor.rgb;
+        return vec4(0.0, 0.0, 0.0, 1.0);
     }
-    fragData = vec4(pow(aces(color), vec3(1.0/2.2)), 1.0);
+    tMin = max(tMin, 0.0);
+    tMax = max(tMax, 0.0);
+
+    if (tMax <= tMin || tMin > uTracingStartMaxDistanceKm || tMin > tDepth)
+        return vec4(0.0, 0.0, 0.0, 1.0);
+
+    float marchingDistance = min(tMax - tMin, uTracingMaxDistanceKm);
+    tMax = min(tMin + uTracingMaxDistanceKm, tDepth);
+
+    const uint stepCountUint = max(uCloudSampleCountMin, uint(uCloudSampleCountMax * saturate((tMax - tMin) * uInvDistanceToSampleCountMax)));
+    const float stepCount = float(stepCountUint);
+    const float stepT = (tMax - tMin) / stepCount;
+    const float dtMeters = stepT * 1000.0;
+
+    const float cosTheta = dot(-worldDir, uSunDirection);
+    const float phase = dualLobPhase(uPhaseG0, uPhaseG1, uPhaseBlend, cosTheta);
+
+    ParticipatingMediaPhaseContext pmpc = setupParticipatingMediaPhaseContext(phase, uMsPhaseFactor);
+
+    float t = tMin + getBlueNoise(ivec2(gFullResCoord), osg_FrameNumber / 16 % 8) * stepT;
+    vec3 luminance = vec3(0.0);
+    vec3 transmittanceToView = vec3(1.0);
+
+    for (uint i = 0; i < stepCountUint; ++i)
+    {
+        const vec3 samplePos = worldPos + worldDir * t;
+        const float sampleHeight = length(samplePos);
+        const float normalizedHeight = saturate((sampleHeight - uCloudLayerBottomRadiusKm) / uCloudLayerThicknessKm);
+        const float density = sampleCloudDensity(samplePos, normalizedHeight);
+        if (density <= 0.01)
+        {
+            t += stepT;
+            continue;
+        }
+
+        vec3 transmittanceToLight0;
+        {
+            const vec3 upVector = samplePos / sampleHeight;
+            const float viewZenithCos = dot(uSunDirection, upVector);
+            vec2 sampleUV;
+            transmittanceLutParametersToUV(sampleHeight, viewZenithCos, sampleUV);
+            transmittanceToLight0 = texture(uTransmittanceLutTexture, sampleUV).rgb;
+        }
+        ParticipatingMediaContext pmc = setupParticipatingMediaContext(uAlbedo, density * uExtinction, uMsScattFactor, uMsExtinFactor, transmittanceToLight0);
+
+        //if (density > 0.0)
+        {
+            if (t < tDepth)
+                tDepth = t;
+            const float maxTransmittanceToView = max(max(transmittanceToView.x, transmittanceToView.y), transmittanceToView.z);
+            vec3 extinctionAcc[MS_COUNT];
+            const float shadowLengthTest = uCloudShadowTracingMaxDistanceKm;
+            const float shadowStepCount = float(uCloudShadowSampleCountMax);
+            const float invShadowStepCount = 1.0 / shadowStepCount;
+            const float shadowJitteringSeed = float(osg_FrameNumber / 16 % 8) + pseudoRandom(gFullResCoord);
+            const float shadowJitterNorm = 0.5; //interleavedGradientNoise(gl_FragCoord.xy, shadowJitteringSeed) - 0.5;
+
+            for (uint ms = 0; ms < MS_COUNT; ++ms)
+                extinctionAcc[ms] = vec3(0.0);
+
+            const float shadowDtMeter = shadowLengthTest * 1000.0;
+            float previousNormT = 0.0;
+            for (float shadowT = invShadowStepCount; shadowT <= 1.00001; shadowT += invShadowStepCount)
+            {
+                float currentNormT = shadowT * shadowT;
+                const float detalNormT = currentNormT - previousNormT;
+                const float extinctionFactor = detalNormT;
+                const float shadowSampleDistance = shadowLengthTest * (previousNormT + detalNormT * shadowJitterNorm);
+                const vec3 shadowSamplePos = samplePos + uSunDirection * shadowSampleDistance;
+                const float shadowSampleNormalizedHeight = saturate((length(shadowSamplePos) - uCloudLayerBottomRadiusKm) / uCloudLayerThicknessKm);
+                float shadowSampleDensity = sampleCloudDensity(shadowSamplePos, shadowSampleNormalizedHeight);
+                previousNormT = currentNormT;
+
+                if (shadowSampleDensity <= 0)
+                    continue;
+                
+                ParticipatingMediaContext shadowPMC = setupParticipatingMediaContext(vec3(0), shadowSampleDensity * uExtinction, uMsScattFactor, uMsExtinFactor, vec3(0));
+
+                for (uint ms = 0; ms < MS_COUNT; ++ms)
+                    extinctionAcc[ms] += shadowPMC.extinctionCoeff[ms] * extinctionFactor;
+            }
+
+            for (uint ms = 0; ms < MS_COUNT; ++ms)
+                pmc.transmittanceToLight0[ms] *= exp(-extinctionAcc[ms] * shadowDtMeter);
+        }
+
+        const vec3 distantLightLuminance = gDistantSkyLight * saturate(0.5 + normalizedHeight);
+        for (uint ms = MS_COUNT - 1; ms >= 0; --ms)
+        {
+            const vec3 scatteringCoeff = pmc.scatteringCoeff[ms];
+            const vec3 extinctionCoeff = pmc.extinctionCoeff[ms];
+            const vec3 transmittanceToLight0 = pmc.transmittanceToLight0[ms];
+            vec3 sunSkyLuminance = transmittanceToLight0 * uSunIntensity * pmpc.phase0[ms];
+            sunSkyLuminance += (ms == 0 ? distantLightLuminance : vec3(0));
+
+            const vec3 scatteredLuminance = sunSkyLuminance * scatteringCoeff;
+            const vec3 safeExtinctionThreshold = vec3(0.000001);
+            const vec3 safeExtinctionCoeff = max(safeExtinctionThreshold, extinctionCoeff);
+            const vec3 safePathSegmentTransmittance = exp(-safeExtinctionCoeff * dtMeters);
+            vec3 luminanceIntegral = (scatteredLuminance - scatteredLuminance * safePathSegmentTransmittance) / safeExtinctionCoeff;
+            luminance += transmittanceToView * luminanceIntegral;
+
+            if (ms == 0)
+                transmittanceToView *= safePathSegmentTransmittance;
+        }
+
+        if (all(lessThan(transmittanceToView, uStopTracingTransmittanceThreshold)))
+            break;
+
+        t += stepT;
+    }
+
+    vec4 outColor = vec4(luminance, dot(transmittanceToView, vec3(1.0 / 3.0)));
+    float slice = aerialPerspectiveDepthToSlice(tMin);
+    float weight = 1.0;
+    if (slice < 0.5)
+    {
+        weight = clamp(slice * 2.0, 0.0, 1.0);
+        slice = 0.5;
+    }
+    float w = sqrt(slice / SLICE_COUNT);
+    vec4 AP = weight * textureLod(uAerialPerspectiveLutTexture, vec3(uv, w), 0.0);
+    AP.a = 1.0 - AP.a;
+    outColor = vec4(AP.rgb * (1.0 - outColor.a) + AP.a * outColor.rgb, outColor.a);
+    return outColor;
 }

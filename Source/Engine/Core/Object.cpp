@@ -1,35 +1,29 @@
 #include "Object.h"
+#include "Asset.h"
 
 #include <objbase.h>
 
 namespace xxx
 {
     Object::Object() :
-        mGuid(Guid::newGuid())
+        mGuid(Guid::newGuid()),
+        mAsset(nullptr)
     {
 
     }
 
     Object::Object(const Object& other) :
-        mGuid(Guid::newGuid())
+        mGuid(Guid::newGuid()),
+        mAsset(other.mAsset)
     {
 
     }
 
     Object::Object(Object&& other) noexcept :
-        mGuid(other.mGuid)
+        mGuid(other.mGuid),
+        mAsset(other.mAsset)
     {
-
-    }
-
-    Object& Object::operator=(const Object& other)
-    {
-        return *this;
-    }
-
-    Object& Object::operator=(Object&& other) noexcept
-    {
-        return *this;
+        other.mAsset->removeObject(&other);
     }
 
     Guid Guid::newGuid()

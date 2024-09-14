@@ -5,5 +5,5 @@ uniform sampler2D uColorTexture;
 
 void main()
 {
-    fragData = textureLod(uColorTexture, uv, 0.0);
+    fragData = texelFetch(uColorTexture, ivec2(gl_FragCoord.xy), 0);
 }

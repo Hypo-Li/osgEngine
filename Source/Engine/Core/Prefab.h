@@ -2,7 +2,7 @@
 #include "Asset.h"
 namespace xxx
 {
-    class Prefab : public Entity, public AssetRoot
+    class Prefab : public Entity
     {
         friend class refl::Reflection;
     public:
@@ -36,7 +36,7 @@ namespace xxx
         {
             Entity* newEntity = entity->clone();
             for (Entity* child : entity->getChildren())
-                newEntity->appendChild(copyEntitiesRecursive(child));
+                newEntity->addChild(copyEntitiesRecursive(child));
 
             Prefab* prefab = dynamic_cast<Prefab*>(newEntity);
             if (prefab)
@@ -50,7 +50,7 @@ namespace xxx
 
         void syncWithAsset()
         {
-            Prefab* prefab = mAsset->getRootObject<Prefab>();
+            Prefab* prefab = getAsset()->getRootObject<Prefab>();
             if (prefab)
             {
                 clearPackedEntities();
@@ -71,12 +71,12 @@ namespace xxx
             for (Entity* packedEntity : prefab->mPackedEntities)
             {
                 prefab->mOsgPackedEntitiesGroup->removeChild(packedEntity->mOsgEntityNode);
-                entity->appendChild(packedEntity);
+                entity->addChild(packedEntity);
             }
             prefab->mPackedEntities.clear();
 
             for (Entity* child : prefab->getChildren())
-                entity->appendChild(child);
+                entity->addChild(child);
 
             return entity;
         }
