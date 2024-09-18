@@ -5,13 +5,12 @@ namespace xxx
 {
     using namespace refl;
 
-    void AssetSerializer::serialize(Object*& object)
+    void AssetSerializer::serializeObject(Object*& object)
     {
         object->preSerialize();
         Class* clazz = object->getClass();
         if (isSaving())
         {
-            
             const Object* defaultObject = clazz->getDefaultObject();
             std::vector<Property*> serializedProperties;
             Class* baseClass = clazz;
@@ -31,8 +30,8 @@ namespace xxx
             {
                 std::string propertyName(prop->getName());
                 std::string typeName(prop->getDeclaredType()->getName());
-                serialize(&propertyName);
-                serialize(&typeName);
+                serializeStdString(&propertyName);
+                serializeStdString(&typeName);
 
                 void* valuePtr = prop->getValuePtr(object);
                 serializeType(prop->getDeclaredType(), valuePtr);
@@ -47,8 +46,8 @@ namespace xxx
             {
                 std::string propertyName;
                 std::string typeName;
-                serialize(&propertyName);
-                serialize(&typeName);
+                serializeStdString(&propertyName);
+                serializeStdString(&typeName);
                 auto findResult = std::find_if(properties.begin(), properties.end(),
                     [propertyName](const Property* prop)->bool
                     {
@@ -173,11 +172,11 @@ namespace xxx
                 getEnumNames<uint32_t>(enumerate, data, enumNames, count);
             else if (underlying == Reflection::Uint64Type)
                 getEnumNames<uint64_t>(enumerate, data, enumNames, count);
-            serialize(enumNames.data(), count);
+            serializeStdString(enumNames.data(), count);
         }
         else
         {
-            serialize(enumNames.data(), count);
+            serializeStdString(enumNames.data(), count);
             if (underlying == Reflection::Int8Type)
                 setEnumValues<int8_t>(enumerate, data, enumNames, count);
             else if (underlying == Reflection::Int16Type)
@@ -311,7 +310,7 @@ namespace xxx
         {
         case SpecialType::Std_String:
         {
-            serialize(static_cast<std::string*>(data), count);
+            serializeStdString(static_cast<std::string*>(data), count);
             break;
         }
         case SpecialType::Std_Array:
@@ -351,6 +350,28 @@ namespace xxx
         }
         default:
             break;
+        }
+    }
+
+    void AssetSerializer::serializeStdString(std::string* data, size_t count)
+    {
+        if (isSaving())
+        {
+            std::vector<uint32_t> stringIndices(count);
+            for (size_t i = 0; i < count; ++i)
+            {
+                stringIndices[i] = getStringTableIndex(data[i]);
+            }
+            serialize(stringIndices.data(), count);
+        }
+        else
+        {
+            std::vector<uint32_t> stringIndices(count);
+            serialize(stringIndices.data(), count);
+            for (size_t i = 0; i < count; ++i)
+            {
+                data[i] = getStringTableStr(stringIndices[i]);
+            }
         }
     }
 

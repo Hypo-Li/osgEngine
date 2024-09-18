@@ -151,7 +151,7 @@ const vec3 uWindDirection = vec3(0.8728715181, 0.2182178795, 0.4364357591);
 //const float uCloudLayerThicknessKm = 10.0;
 float uCloudLayerTopRadiusKm = uCloudLayerBottomRadiusKm + uCloudLayerThicknessKm;
 const float uTracingStartMaxDistanceKm = 350.0;
-const float uTracingMaxDistanceKm = 200.0;
+const float uTracingMaxDistanceKm = 100.0;
 const vec3 uStopTracingTransmittanceThreshold = vec3(0.005);
 const uint uCloudSampleCountMin = 54;
 const uint uCloudSampleCountMax = 96;
@@ -356,7 +356,7 @@ vec4 rayMarchCloud(in vec3 worldPos, in vec3 worldDir, in float tDepth, out floa
 
     ParticipatingMediaPhaseContext pmpc = setupParticipatingMediaPhaseContext(phase, uMsPhaseFactor);
 
-    float t = tMin + getBlueNoise(ivec2(gFullResCoord), osg_FrameNumber / 16 % 8) * stepT;
+    float t = tMin + getBlueNoise(ivec2(gFullResCoord), osg_FrameNumber / 16 % 8) * stepT * 0.5;
     vec3 luminance = vec3(0.0);
     vec3 transmittanceToView = vec3(1.0);
 
@@ -369,7 +369,7 @@ vec4 rayMarchCloud(in vec3 worldPos, in vec3 worldDir, in float tDepth, out floa
         const float h = saturate((sampleHeight - uCloudLayerBottomRadiusKm) / uCloudLayerThicknessKm);
         vec4 weatherData = sampleWeather(samplePos);
         float weatherSDF = weatherData.a;
-        float dt = stepT;//max(stepT, weatherSDF / uCloudMapScaleFactor / sinTheta); // SDF似乎会引入带状条纹, 且对效率优化影响不大
+        float dt = stepT; //max(stepT, weatherSDF / uCloudMapScaleFactor / sinTheta); // SDF似乎会引入带状条纹, 且对效率优化影响不大
         if (weatherData.r == 0.0)
         {
             t += dt;
@@ -392,46 +392,43 @@ vec4 rayMarchCloud(in vec3 worldPos, in vec3 worldDir, in float tDepth, out floa
         }
         ParticipatingMediaContext pmc = setupParticipatingMediaContext(uAlbedo, density * uExtinction, uMsScattFactor, uMsExtinFactor, transmittanceToLight0);
 
-        //if (density > 0.0)
+        if (t < outDepth)
+            outDepth = t;
+        const float maxTransmittanceToView = max(max(transmittanceToView.x, transmittanceToView.y), transmittanceToView.z);
+        vec3 extinctionAcc[MS_COUNT];
+        const float shadowLengthTest = uCloudShadowTracingMaxDistanceKm;
+        const float shadowStepCount = float(uCloudShadowSampleCountMax);
+        const float invShadowStepCount = 1.0 / shadowStepCount;
+        const float shadowJitteringSeed = float(osg_FrameNumber / 16 % 8) + pseudoRandom(gFullResCoord);
+        const float shadowJitterNorm = 0.5; //interleavedGradientNoise(gl_FragCoord.xy, shadowJitteringSeed) - 0.5;
+
+        for (uint ms = 0; ms < MS_COUNT; ++ms)
+            extinctionAcc[ms] = vec3(0.0);
+
+        const float shadowDtMeter = shadowLengthTest * 1000.0;
+        float previousNormT = 0.0;
+        for (float shadowT = invShadowStepCount; shadowT <= 1.00001; shadowT += invShadowStepCount)
         {
-            if (t < outDepth)
-                outDepth = t;
-            const float maxTransmittanceToView = max(max(transmittanceToView.x, transmittanceToView.y), transmittanceToView.z);
-            vec3 extinctionAcc[MS_COUNT];
-            const float shadowLengthTest = uCloudShadowTracingMaxDistanceKm;
-            const float shadowStepCount = float(uCloudShadowSampleCountMax);
-            const float invShadowStepCount = 1.0 / shadowStepCount;
-            const float shadowJitteringSeed = float(osg_FrameNumber / 16 % 8) + pseudoRandom(gFullResCoord);
-            const float shadowJitterNorm = 0.5; //interleavedGradientNoise(gl_FragCoord.xy, shadowJitteringSeed) - 0.5;
+            float currentNormT = shadowT * shadowT;
+            const float detalNormT = currentNormT - previousNormT;
+            const float extinctionFactor = detalNormT;
+            const float shadowSampleDistance = shadowLengthTest * (previousNormT + detalNormT * shadowJitterNorm);
+            const vec3 shadowSamplePos = samplePos + uSunDirection * shadowSampleDistance;
+            const float shadowSampleNormalizedHeight = saturate((length(shadowSamplePos) - uCloudLayerBottomRadiusKm) / uCloudLayerThicknessKm);
+            float shadowSampleDensity = sampleCloudDensity(shadowSamplePos, sampleWeather(shadowSamplePos), shadowSampleNormalizedHeight);
+            previousNormT = currentNormT;
+
+            if (shadowSampleDensity <= 0)
+                continue;
+            
+            ParticipatingMediaContext shadowPMC = setupParticipatingMediaContext(vec3(0), shadowSampleDensity * uExtinction, uMsScattFactor, uMsExtinFactor, vec3(0));
 
             for (uint ms = 0; ms < MS_COUNT; ++ms)
-                extinctionAcc[ms] = vec3(0.0);
-
-            const float shadowDtMeter = shadowLengthTest * 1000.0;
-            float previousNormT = 0.0;
-            for (float shadowT = invShadowStepCount; shadowT <= 1.00001; shadowT += invShadowStepCount)
-            {
-                float currentNormT = shadowT * shadowT;
-                const float detalNormT = currentNormT - previousNormT;
-                const float extinctionFactor = detalNormT;
-                const float shadowSampleDistance = shadowLengthTest * (previousNormT + detalNormT * shadowJitterNorm);
-                const vec3 shadowSamplePos = samplePos + uSunDirection * shadowSampleDistance;
-                const float shadowSampleNormalizedHeight = saturate((length(shadowSamplePos) - uCloudLayerBottomRadiusKm) / uCloudLayerThicknessKm);
-                float shadowSampleDensity = sampleCloudDensity(shadowSamplePos, sampleWeather(shadowSamplePos), shadowSampleNormalizedHeight);
-                previousNormT = currentNormT;
-
-                if (shadowSampleDensity <= 0)
-                    continue;
-                
-                ParticipatingMediaContext shadowPMC = setupParticipatingMediaContext(vec3(0), shadowSampleDensity * uExtinction, uMsScattFactor, uMsExtinFactor, vec3(0));
-
-                for (uint ms = 0; ms < MS_COUNT; ++ms)
-                    extinctionAcc[ms] += shadowPMC.extinctionCoeff[ms] * extinctionFactor;
-            }
-
-            for (uint ms = 0; ms < MS_COUNT; ++ms)
-                pmc.transmittanceToLight0[ms] *= exp(-extinctionAcc[ms] * shadowDtMeter);
+                extinctionAcc[ms] += shadowPMC.extinctionCoeff[ms] * extinctionFactor;
         }
+
+        for (uint ms = 0; ms < MS_COUNT; ++ms)
+            pmc.transmittanceToLight0[ms] *= exp(-extinctionAcc[ms] * shadowDtMeter);
 
         const vec3 distantLightLuminance = gDistantSkyLight * saturate(0.5 + h);
         for (uint ms = MS_COUNT - 1; ms >= 0; --ms)
@@ -477,6 +474,8 @@ vec4 rayMarchCloud(in vec3 worldPos, in vec3 worldDir, in float tDepth, out floa
 #if 1
 vec4 rayMarchCloudFast(in vec3 worldPos, in vec3 worldDir, in float tDepth, out float outDepth)
 {
+    vec3 cloudMapN = vec3(0, 0, 1);
+    float sinTheta = max(length(cross(worldDir, cloudMapN)), 0.01);
     // max half float
     outDepth = 65504.0;
     float viewHeight = length(worldPos);
@@ -517,8 +516,9 @@ vec4 rayMarchCloudFast(in vec3 worldPos, in vec3 worldDir, in float tDepth, out 
     tMax = min(tMin + marchingDistance, tDepth);
 
     //const uint stepCount = max(uCloudSampleCountMin, uint(uCloudSampleCountMax * saturate(marchingDistance / uTracingMaxDistanceKm)));
-    const float stepT = 1.0 / 5.0;
-    const float dtMeters = stepT * 1000.0;
+    const float basicStepT = 1.0 / 8.0;
+    float stepT = basicStepT;
+    float dtMeters = stepT * 1000.0;
 
     const float cosTheta = dot(-worldDir, uSunDirection);
     const float phase = dualLobPhase(uPhaseG0, uPhaseG1, uPhaseBlend, cosTheta);
@@ -529,14 +529,15 @@ vec4 rayMarchCloudFast(in vec3 worldPos, in vec3 worldDir, in float tDepth, out 
     vec3 luminance = vec3(0.0);
     vec3 transmittanceToView = vec3(1.0);
     
-    while (t < tMax)
+    const uint stepCountUint = 96;
+    for (uint i = 0; t < tMax && i < stepCountUint; ++i)
     {
         const vec3 samplePos = worldPos + worldDir * t;
         const float sampleHeight = length(samplePos);
         const float h = saturate((sampleHeight - uCloudLayerBottomRadiusKm) / uCloudLayerThicknessKm);
         vec4 weatherData = sampleWeather(samplePos);
         float weatherSDF = weatherData.a;
-        float dt = max(stepT, weatherSDF / uCloudMapScaleFactor);
+        float dt = max(basicStepT, weatherSDF / (uCloudMapScaleFactor * sinTheta));
         if (weatherData.r == 0.0)
         {
             t += dt;
@@ -549,6 +550,10 @@ vec4 rayMarchCloudFast(in vec3 worldPos, in vec3 worldDir, in float tDepth, out 
             continue;
         }
 
+        stepT *= 1.1;
+        dtMeters = stepT * 1000.0;
+        dt = stepT;
+
         vec3 transmittanceToLight0;
         {
             const vec3 upVector = samplePos / sampleHeight;
@@ -559,46 +564,43 @@ vec4 rayMarchCloudFast(in vec3 worldPos, in vec3 worldDir, in float tDepth, out 
         }
         ParticipatingMediaContext pmc = setupParticipatingMediaContext(uAlbedo, density * uExtinction, uMsScattFactor, uMsExtinFactor, transmittanceToLight0);
 
-        //if (density > 0.0)
+        if (t < outDepth)
+            outDepth = t;
+        const float maxTransmittanceToView = max(max(transmittanceToView.x, transmittanceToView.y), transmittanceToView.z);
+        vec3 extinctionAcc[MS_COUNT];
+        const float shadowLengthTest = uCloudShadowTracingMaxDistanceKm;
+        const float shadowStepCount = float(uCloudShadowSampleCountMax);
+        const float invShadowStepCount = 1.0 / shadowStepCount;
+        const float shadowJitteringSeed = float(osg_FrameNumber / 16 % 8) + pseudoRandom(gFullResCoord);
+        const float shadowJitterNorm = 0.5; //interleavedGradientNoise(gl_FragCoord.xy, shadowJitteringSeed) - 0.5;
+
+        for (uint ms = 0; ms < MS_COUNT; ++ms)
+            extinctionAcc[ms] = vec3(0.0);
+
+        const float shadowDtMeter = shadowLengthTest * 1000.0;
+        float previousNormT = 0.0;
+        for (float shadowT = invShadowStepCount; shadowT <= 1.00001; shadowT += invShadowStepCount)
         {
-            if (t < outDepth)
-                outDepth = t;
-            const float maxTransmittanceToView = max(max(transmittanceToView.x, transmittanceToView.y), transmittanceToView.z);
-            vec3 extinctionAcc[MS_COUNT];
-            const float shadowLengthTest = uCloudShadowTracingMaxDistanceKm;
-            const float shadowStepCount = float(uCloudShadowSampleCountMax);
-            const float invShadowStepCount = 1.0 / shadowStepCount;
-            const float shadowJitteringSeed = float(osg_FrameNumber / 16 % 8) + pseudoRandom(gFullResCoord);
-            const float shadowJitterNorm = 0.5; //interleavedGradientNoise(gl_FragCoord.xy, shadowJitteringSeed) - 0.5;
+            float currentNormT = shadowT * shadowT;
+            const float detalNormT = currentNormT - previousNormT;
+            const float extinctionFactor = detalNormT;
+            const float shadowSampleDistance = shadowLengthTest * (previousNormT + detalNormT * shadowJitterNorm);
+            const vec3 shadowSamplePos = samplePos + uSunDirection * shadowSampleDistance;
+            const float shadowSampleNormalizedHeight = saturate((length(shadowSamplePos) - uCloudLayerBottomRadiusKm) / uCloudLayerThicknessKm);
+            float shadowSampleDensity = sampleCloudDensity(shadowSamplePos, sampleWeather(shadowSamplePos), shadowSampleNormalizedHeight);
+            previousNormT = currentNormT;
+
+            if (shadowSampleDensity <= 0)
+                continue;
+            
+            ParticipatingMediaContext shadowPMC = setupParticipatingMediaContext(vec3(0), shadowSampleDensity * uExtinction, uMsScattFactor, uMsExtinFactor, vec3(0));
 
             for (uint ms = 0; ms < MS_COUNT; ++ms)
-                extinctionAcc[ms] = vec3(0.0);
-
-            const float shadowDtMeter = shadowLengthTest * 1000.0;
-            float previousNormT = 0.0;
-            for (float shadowT = invShadowStepCount; shadowT <= 1.00001; shadowT += invShadowStepCount)
-            {
-                float currentNormT = shadowT * shadowT;
-                const float detalNormT = currentNormT - previousNormT;
-                const float extinctionFactor = detalNormT;
-                const float shadowSampleDistance = shadowLengthTest * (previousNormT + detalNormT * shadowJitterNorm);
-                const vec3 shadowSamplePos = samplePos + uSunDirection * shadowSampleDistance;
-                const float shadowSampleNormalizedHeight = saturate((length(shadowSamplePos) - uCloudLayerBottomRadiusKm) / uCloudLayerThicknessKm);
-                float shadowSampleDensity = sampleCloudDensity(shadowSamplePos, sampleWeather(shadowSamplePos), shadowSampleNormalizedHeight);
-                previousNormT = currentNormT;
-
-                if (shadowSampleDensity <= 0)
-                    continue;
-                
-                ParticipatingMediaContext shadowPMC = setupParticipatingMediaContext(vec3(0), shadowSampleDensity * uExtinction, uMsScattFactor, uMsExtinFactor, vec3(0));
-
-                for (uint ms = 0; ms < MS_COUNT; ++ms)
-                    extinctionAcc[ms] += shadowPMC.extinctionCoeff[ms] * extinctionFactor;
-            }
-
-            for (uint ms = 0; ms < MS_COUNT; ++ms)
-                pmc.transmittanceToLight0[ms] *= exp(-extinctionAcc[ms] * shadowDtMeter);
+                extinctionAcc[ms] += shadowPMC.extinctionCoeff[ms] * extinctionFactor;
         }
+
+        for (uint ms = 0; ms < MS_COUNT; ++ms)
+            pmc.transmittanceToLight0[ms] *= exp(-extinctionAcc[ms] * shadowDtMeter);
 
         const vec3 distantLightLuminance = gDistantSkyLight * saturate(0.5 + h);
         for (uint ms = MS_COUNT - 1; ms >= 0; --ms)
@@ -679,6 +681,6 @@ void main()
 #endif
     float tDepth = depth == 1.0 ? uCloudLayerTopRadiusKm : -viewSpace.z / 1000.0;
     float outDepth;
-    fragData[0] = vec4(rayMarchCloud(worldPos, worldDir, tDepth, outDepth));
+    fragData[0] = vec4(rayMarchCloudFast(worldPos, worldDir, tDepth, outDepth));
     fragData[1] = vec4(outDepth);
 }

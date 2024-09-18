@@ -19,20 +19,8 @@ namespace xxx
             return true;
         }
 
-        virtual void serialize(bool* value, size_t count = 1);
-        virtual void serialize(char* value, size_t count = 1);
-        virtual void serialize(wchar_t* value, size_t count = 1);
-        virtual void serialize(int8_t* value, size_t count = 1);
-        virtual void serialize(int16_t* value, size_t count = 1);
-        virtual void serialize(int32_t* value, size_t count = 1);
-        virtual void serialize(int64_t* value, size_t count = 1);
-        virtual void serialize(uint8_t* value, size_t count = 1);
-        virtual void serialize(uint16_t* value, size_t count = 1);
-        virtual void serialize(uint32_t* value, size_t count = 1);
-        virtual void serialize(uint64_t* value, size_t count = 1);
-        virtual void serialize(float* value, size_t count = 1);
-        virtual void serialize(double* value, size_t count = 1);
-        virtual void serialize(std::string* value, size_t count = 1) override;
+        virtual void serializeObject(Object*& object) override;
 
+        void serializeClass(refl::Class* clazz, void* data, size_t count = 1);
     };
 }
