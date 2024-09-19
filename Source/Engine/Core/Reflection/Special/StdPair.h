@@ -16,7 +16,7 @@ namespace xxx::refl
     public:
         virtual SpecialType getSpecialType() const
         {
-            return SpecialType::Std_Map;
+            return SpecialType::Std_Pair;
         }
 
         virtual Type* getFirstType() const = 0;

@@ -96,6 +96,7 @@ namespace xxx::refl
         virtual void setValueByTypeIndex(void* instance, uint32_t typeIndex, void* value) const override
         {
             T* variant = static_cast<T*>(instance);
+            setValueByTypeIndexImpl<0>(variant, typeIndex, value);
         }
 
     protected:

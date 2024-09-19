@@ -76,18 +76,18 @@ namespace xxx::refl
             return dynamic_cast<Class*>(getType<T>());
         }
 
-        template <typename T>
-        static Special* getSpecial()
-        {
-            return dynamic_cast<Special*>(getType<T>());
-        }
-
-        static Class* getClassByName(std::string_view name)
+        static Class* getClass(std::string_view name)
         {
             auto findResult = sRegisteredClassMap.find(name);
             if (findResult == sRegisteredClassMap.end())
                 return nullptr;
             return findResult->second;
+        }
+
+        template <typename T>
+        static Special* getSpecial()
+        {
+            return dynamic_cast<Special*>(getType<T>());
         }
 
     public:

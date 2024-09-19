@@ -69,8 +69,8 @@ void main()
         //float distDelta = abs(dist - historyDist);
         //if (distDelta > 1000.0 && distDelta < 10000.0)
         //    rgba = vec4(1, 0, 0, 0);
-        if (history.a > 0.8 && length(history.rgb) > 0)
-            rgba = vec4(1, 0, 0, 0);
+        //if (history.a > 0.8 && length(history.rgb) > 0)
+        //    rgba = vec4(1, 0, 0, 0);
         outDist = historyDist * 0.001;
     }
     else

@@ -41,6 +41,7 @@ namespace xxx
 
     class Object : public osg::Referenced
     {
+        friend class Asset;
         friend class AssetManager;
     public:
         virtual refl::Class* getClass() const

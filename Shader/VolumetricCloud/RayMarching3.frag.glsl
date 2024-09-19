@@ -681,6 +681,6 @@ void main()
 #endif
     float tDepth = depth == 1.0 ? uCloudLayerTopRadiusKm : -viewSpace.z / 1000.0;
     float outDepth;
-    fragData[0] = vec4(rayMarchCloudFast(worldPos, worldDir, tDepth, outDepth));
+    fragData[0] = vec4(rayMarchCloud(worldPos, worldDir, tDepth, outDepth));
     fragData[1] = vec4(outDepth);
 }

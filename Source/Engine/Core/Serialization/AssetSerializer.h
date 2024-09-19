@@ -18,104 +18,120 @@ namespace xxx
     public:
         AssetSerializer(Asset* asset) : mAsset(asset)
         {
-            pushObjectBufferIndex(createNewObjectBuffer());
+            
         }
-        virtual ~AssetSerializer() = 0;
-        virtual bool isLoading() const = 0;
-        virtual bool isSaving() const = 0;
+        virtual ~AssetSerializer() = default;
 
-        virtual void serializeObject(Object*& object) override;
+        template <typename T, typename = std::enable_if_t<std::is_base_of_v<Object, T>>>
+        void serialize(T*& object)
+        {
+            serializeClass(object->getClass(), &object);
+        }
 
     protected:
-        inline void serialize(bool* data, size_t count = 1)
+        inline void serialize(bool* data, uint32_t count = 1)
         {
             serializeBinary(data, sizeof(bool) * count);
         }
 
-        inline void serialize(char* data, size_t count = 1)
+        inline void serialize(char* data, uint32_t count = 1)
         {
             serializeBinary(data, sizeof(char) * count);
         }
 
-        inline void serialize(wchar_t* data, size_t count = 1)
+        inline void serialize(wchar_t* data, uint32_t count = 1)
         {
             serializeBinary(data, sizeof(wchar_t) * count);
         }
 
-        inline void serialize(int8_t* data, size_t count = 1)
+        inline void serialize(int8_t* data, uint32_t count = 1)
         {
             serializeBinary(data, sizeof(int8_t) * count);
         }
 
-        inline void serialize(int16_t* data, size_t count = 1)
+        inline void serialize(int16_t* data, uint32_t count = 1)
         {
             serializeBinary(data, sizeof(int16_t) * count);
         }
 
-        inline void serialize(int32_t* data, size_t count = 1)
+        inline void serialize(int32_t* data, uint32_t count = 1)
         {
             serializeBinary(data, sizeof(int32_t) * count);
         }
 
-        inline void serialize(int64_t* data, size_t count = 1)
+        inline void serialize(int64_t* data, uint32_t count = 1)
         {
             serializeBinary(data, sizeof(int64_t) * count);
         }
 
-        inline void serialize(uint8_t* data, size_t count = 1)
+        inline void serialize(uint8_t* data, uint32_t count = 1)
         {
             serializeBinary(data, sizeof(uint8_t) * count);
         }
 
-        inline void serialize(uint16_t* data, size_t count = 1)
+        inline void serialize(uint16_t* data, uint32_t count = 1)
         {
             serializeBinary(data, sizeof(uint16_t) * count);
         }
 
-        inline void serialize(uint32_t* data, size_t count = 1)
+        inline void serialize(uint32_t* data, uint32_t count = 1)
         {
             serializeBinary(data, sizeof(uint32_t) * count);
         }
 
-        inline void serialize(uint64_t* data, size_t count = 1)
+        inline void serialize(uint64_t* data, uint32_t count = 1)
         {
             serializeBinary(data, sizeof(uint64_t) * count);
         }
 
-        inline void serialize(float* data, size_t count = 1)
+        inline void serialize(float* data, uint32_t count = 1)
         {
             serializeBinary(data, sizeof(float) * count);
         }
 
-        inline void serialize(double* data, size_t count = 1)
+        inline void serialize(double* data, uint32_t count = 1)
         {
             serializeBinary(data, sizeof(double) * count);
         }
 
-        virtual void serializeBinary(void* data, size_t count) = 0;
+        virtual void serializeObject(Object*& object) = 0;
+        virtual void serializeBinary(void* data, uint32_t count) = 0;
 
         // serialize types
-        void serializeType(refl::Type* type, void* data, size_t count = 1);
-        void serializeFundamental(refl::Fundamental* fundamental, void* data, size_t count = 1);
-        void serializeEnum(refl::Enum* enumerate, void* data, size_t count = 1);
-        void serializeStruct(refl::Struct* structure, void* data, size_t count = 1);
-        void serializeClass(refl::Class* clazz, void* data, size_t count = 1);
-        void serializeSpecial(refl::Special* special, void* data, size_t count = 1);
+        virtual void serializeType(refl::Type* type, void* data, uint32_t count = 1);
+        virtual void serializeFundamental(refl::Fundamental* fundamental, void* data, uint32_t count = 1);
+        virtual void serializeStruct(refl::Struct* structure, void* data, uint32_t count = 1);
+        virtual void serializeSpecial(refl::Special* special, void* data, uint32_t count = 1);
+
+        virtual void serializeEnum(refl::Enum* enumerate, void* data, uint32_t count = 1) = 0;
+        virtual void serializeClass(refl::Class* clazz, void* data, uint32_t count = 1) = 0;
 
         // serialize specials
-        void serializeStdString(std::string* data, size_t count = 1);
-        void serializeStdArray(refl::StdArray* stdArray, void* data, size_t count = 1);
-        void serializeStdMap(refl::StdMap* stdMap, void* data, size_t count = 1);
-        void serializeStdPair(refl::StdPair* stdPair, void* data, size_t count = 1);
-        void serializeStdSet(refl::StdSet* stdSet, void* data, size_t count = 1);
-        void serializeStdTuple(refl::StdTuple* stdTuple, void* data, size_t count = 1);
-        void serializeStdVariant(refl::StdVariant* stdVariant, void* data, size_t count = 1);
-        void serializeStdVector(refl::StdVector* stdVector, void* data, size_t count = 1);
+        virtual void serializeStdArray(refl::StdArray* stdArray, void* data, uint32_t count = 1);
+        virtual void serializeStdPair(refl::StdPair* stdPair, void* data, uint32_t count = 1);
+        virtual void serializeStdTuple(refl::StdTuple* stdTuple, void* data, uint32_t count = 1);
+
+        virtual void serializeStdString(std::string* data, uint32_t count = 1) = 0;
+        virtual void serializeStdSet(refl::StdSet* stdSet, void* data, uint32_t count = 1) = 0;
+        virtual void serializeStdMap(refl::StdMap* stdMap, void* data, uint32_t count = 1) = 0;
+        virtual void serializeStdVariant(refl::StdVariant* stdVariant, void* data, uint32_t count = 1) = 0;
+        virtual void serializeStdVector(refl::StdVector* stdVector, void* data, uint32_t count = 1) = 0;
+
+        struct ObjectBuffer
+        {
+            std::vector<uint8_t> buffer;
+            uint32_t pointer = 0;
+
+            ObjectBuffer(uint32_t bufferSize = 0, uint32_t pointer = 0) : buffer(bufferSize), pointer(pointer)
+            {
+
+            }
+        };
 
         inline uint32_t createNewObjectBuffer()
         {
             uint32_t index = mObjectBufferTable.size();
-            mObjectBufferTable.emplace_back(std::vector<uint8_t>{}, 0);
+            mObjectBufferTable.emplace_back();
             return index;
         }
 
@@ -124,58 +140,44 @@ namespace xxx
             mObjectBufferIndexStack.push(index);
         }
 
-        inline uint32_t popObjectBufferIndex()
+        inline void popObjectBufferIndex()
         {
             mObjectBufferIndexStack.pop();
         }
 
         inline uint32_t tell() const
         {
-            uint32_t objectBufferIndex = mObjectBufferIndexStack.top();
-            if (objectBufferIndex >= mObjectBufferTable.size())
-                return uint32_t(-1);
-            return mObjectBufferTable[objectBufferIndex].second;
+            return getCurrentObjectBuffer().pointer;
         }
 
         inline void seek(uint32_t pos)
         {
-            uint32_t objectBufferIndex = mObjectBufferIndexStack.top();
-            if (objectBufferIndex >= mObjectBufferTable.size())
-                return;
-            mObjectBufferTable[objectBufferIndex].second = pos;
+            getCurrentObjectBuffer().pointer = pos;
         }
 
-        inline uint32_t getStringTableIndex(const std::string& str)
+        inline ObjectBuffer& getCurrentObjectBuffer()
         {
-            auto findResult = std::find(mRawStringTable.begin(), mRawStringTable.end(), str);
-            if (findResult == mRawStringTable.end())
-            {
-                mRawStringTable.emplace_back(str);
-                return mRawStringTable.size() - 1;
-            }
-            else
-            {
-                return findResult - mRawStringTable.begin();
-            }
+            return mObjectBufferTable.at(mObjectBufferIndexStack.top());
         }
 
-        inline const std::string& getStringTableStr(uint32_t index)
+        inline const ObjectBuffer& getCurrentObjectBuffer() const
         {
-            return mRawStringTable.at(index);
+            return mObjectBufferTable.at(mObjectBufferIndexStack.top());
+        }
+
+        inline bool currentObjectBufferIsValid() const
+        {
+            return !mObjectBufferIndexStack.empty();
         }
 
     protected:
         Asset* mAsset;
-
-        using RawStringTable = std::vector<std::string>;
-        using RawImportTable = std::vector<std::pair<uint32_t, Guid>>;
-        using RawExportTable = std::vector<std::pair<Guid, osg::ref_ptr<Object>>>;
-        RawStringTable mRawStringTable;
-        RawImportTable mRawImportTable;
-        RawExportTable mRawExportTable;
+        std::vector<std::string> mStringTable;
+        std::vector<uint32_t> mImportTable;
+        std::vector<Guid> mExportTable;
 
     private:
-        std::vector<std::pair<std::vector<uint8_t>, uint32_t>> mObjectBufferTable;
+        std::vector<ObjectBuffer> mObjectBufferTable;
         std::stack<uint32_t> mObjectBufferIndexStack;
     };
 }

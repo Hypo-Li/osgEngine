@@ -11,7 +11,7 @@ namespace xxx
     class Serializer : public osg::Referenced
     {
     public:
-        virtual ~Serializer() = 0;
+        virtual ~Serializer() = default;
 
         virtual void serializeObject(Object*& object) = 0;
         

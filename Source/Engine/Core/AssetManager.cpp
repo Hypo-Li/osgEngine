@@ -7,7 +7,7 @@ namespace xxx
     Asset* AssetManager::createAsset(Object* rootObject, const std::string& assetPath)
     {
         Asset* asset = new Asset(assetPath);
-        setObjectAssetRecursively(rootObject, asset);
+        asset->setRootObject(rootObject);
         return asset;
     }
 
@@ -17,24 +17,5 @@ namespace xxx
         if (findResult != mAssets.end())
             return findResult->second;
         return nullptr;
-    }
-
-    void AssetManager::setObjectAssetRecursively(Object* object, Asset* asset)
-    {
-        object->mAsset = asset;
-        Class* clazz = object->getClass();
-        while (clazz)
-        {
-            for (Property* prop : clazz->getProperties())
-            {
-                bool isClass = prop->getDeclaredType()->getKind() == Type::Kind::Class;
-                Object* propObject;
-                prop->getValue(object, &propObject);
-                bool hasNoAsset = propObject->getAsset() == nullptr;
-                if (isClass && hasNoAsset)
-                    setObjectAssetRecursively(propObject, asset);
-            }
-            clazz = clazz->getBaseClass();
-        }
     }
 }

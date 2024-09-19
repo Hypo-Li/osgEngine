@@ -3,6 +3,7 @@
 #include "Engine/Render/Shader.h"
 #include "Engine/Core/Asset.h"
 #include "Engine/Core/Prefab.h"
+#include "Engine/Core/AssetManager.h"
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
@@ -58,25 +59,31 @@ namespace xxx::refl
 
 int main()
 {
-    Prefab* prefab = new Prefab;
+    /*Entity* entity = new Entity;
+    entity->addComponent(new TestComponent);
+    entity->addChild(new Entity);
+    AssetSaver* assetSaver = new AssetSaver(nullptr);
+    assetSaver->serialize(entity);*/
+
+    Shader* shader = new Shader;
+    shader->addParameter("BaseColor", osg::Vec3f(0.8, 0.8, 0.8));
+    shader->addParameter("Roughness", 0.5f);
+    shader->addParameter("Metallic", 0.0f);
+    shader->addParameter("Specular", 0.5f);
+
     {
-        Entity* entity = new Entity("Hello");
-        entity->appendComponent(new TestComponent);
-        Entity* entityChild0 = new Entity("World");
-        entity->appendChild(entityChild0);
-        prefab->appendPackedEntity(entity);
+        Asset* shaderAsset = AssetManager::get().createAsset(shader, TEMP_DIR "shader.xast");
+        shaderAsset->save();
     }
 
-    Asset* asset = new Asset;
-    asset->setRootObject(prefab);
 
-    osg::ref_ptr<Entity> ent = new Prefab;
-    Class* clazz = ent->getClass();
-
-    Prefab* pf = dynamic_cast<Prefab*>(ent.get());
-    pf->setAsset(asset);
-    pf->syncWithAsset();
-    ent = Prefab::unpack(pf);
+    {
+        Asset* shaderAsset = AssetManager::get().createAsset(nullptr, TEMP_DIR "shader.xast");
+        shaderAsset->load();
+        Object* object = shaderAsset->getRootObject();
+        bool compareResult = object->getClass()->compare(shader, object);
+        std::cout << compareResult << std::endl;
+    }
 
     return 0;
 }
