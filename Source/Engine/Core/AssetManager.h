@@ -16,7 +16,11 @@ namespace xxx
 
         Asset* getAsset(const std::string& path);
 
+        Asset* getAsset(Guid guid);
+
     private:
-        std::unordered_map<std::string, osg::ref_ptr<Asset>> mAssets;
+        std::vector<osg::ref_ptr<Asset>> mAssets;
+        std::unordered_map<std::string, Asset*> mPathAssetMap;
+        std::unordered_map<Guid, Asset*> mGuidAssetMap;
     };
 }

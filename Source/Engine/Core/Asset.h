@@ -22,10 +22,10 @@ namespace xxx
 
     struct AssetHeader
     {
-        uint64_t magic;
-        uint32_t version;
-        uint32_t flags;
-        uint32_t headerSize;
+        uint64_t magic = 0x5858584153534554; // XXXASSET
+        uint32_t version = 0;
+        uint32_t flags = 0;
+        Guid     guid = Guid();
         uint32_t stringTableSize;
         uint32_t importTableSize;
         uint32_t exportTableSize;
@@ -35,14 +35,31 @@ namespace xxx
     class Asset : public osg::Referenced
     {
     public:
+        Asset(const std::string& path) : mPath(path)
+        {
+            if (std::filesystem::exists(mPath))
+            {
+                std::ifstream ifs(mPath, std::ios::binary);
+                readAssetHeader(ifs);
+            }
+        }
 
-        Asset(const std::string& path);
         virtual ~Asset() = default;
 
         template <typename T = Object, std::enable_if_t<std::is_base_of_v<Object, T>, int> = 0>
         T* getRootObject()
         {
             return dynamic_cast<T*>(mRootObject.get());
+        }
+
+        void setRootObject(Object* rootObject)
+        {
+            mRootObject = rootObject;
+            if (rootObject)
+            {
+                rootObject->mAsset = this;
+                mHeader.guid = rootObject->getGuid();
+            }
         }
 
         std::string& getPath()
@@ -53,6 +70,11 @@ namespace xxx
         const std::string& getPath() const
         {
             return mPath;
+        }
+
+        Guid getGuid() const
+        {
+            return mHeader.guid;
         }
 
         void load()
@@ -69,87 +91,74 @@ namespace xxx
 
         void forceLoad()
         {
-            std::filesystem::path assetPath = mPath;
-            std::ifstream ifs(assetPath, std::ios::binary);
             AssetSerializer* assetLoader = new AssetLoader(this);
 
-            AssetHeader header;
-            readAssetHeader(header, assetLoader, ifs);
-            readStringTable(header, assetLoader, ifs);
-            readImportTable(header, assetLoader, ifs);
-            readExportEable(header, assetLoader, ifs);
-            readObjectBuffers(header, assetLoader, ifs);
-            mFlags = header.flags;
+            std::ifstream ifs(mPath, std::ios::binary);
+            readAssetHeader(ifs);
+            readStringTable(assetLoader, ifs);
+            readImportTable(assetLoader, ifs);
+            readExportEable(assetLoader, ifs);
+            readObjectBuffers(assetLoader, ifs);
 
             Object* rootObject = nullptr;
             assetLoader->serializeClass(refl::Reflection::getClass(assetLoader->mStringTable[0]), &rootObject);
             setRootObject(rootObject);
 
+            mNeedSave = false;
             mIsLoaded = true;
-
         }
 
         void forceSave()
         {
-            std::filesystem::path assetPath = mPath;
-            std::ofstream ofs(assetPath, std::ios::binary);
             AssetSerializer* assetSaver = new AssetSaver(this);
 
             Object* rootObject = getRootObject();
             assetSaver->mStringTable.emplace_back(rootObject->getClass()->getName());
             assetSaver->serializeClass(rootObject->getClass(), &rootObject);
 
-            AssetHeader header;
-            header.flags = mFlags;
-            writeAssetHeader(header, assetSaver, ofs);
-            writeStringTable(header, assetSaver, ofs);
-            writeImportTable(header, assetSaver, ofs);
-            writeExportTable(header, assetSaver, ofs);
-            writeObjectBuffers(header, assetSaver, ofs);
+            std::ofstream ofs(mPath, std::ios::binary);
+            writeAssetHeader(assetSaver, ofs);
+            writeStringTable(assetSaver, ofs);
+            writeImportTable(assetSaver, ofs);
+            writeExportTable(assetSaver, ofs);
+            writeObjectBuffers(assetSaver, ofs);
 
             mNeedSave = false;
-        }
-
-        void setRootObject(Object* rootObject)
-        {
-            mRootObject = rootObject;
-            setObjectAssetRecursively(rootObject);
+            mIsLoaded = true;
         }
 
         void removeObject(Object* object)
         {
-            mExportedObjects.erase(object);
+            //mExportedObjects.erase(object);
         }
 
     protected:
         std::string mPath;
+        AssetHeader mHeader;
         bool mIsLoaded = false;
         bool mNeedSave = false;
-        uint32_t mFlags = 0;
+
         osg::ref_ptr<Object> mRootObject;
 
         // Asset 中需要保留导入表, 以供删除其它资产时查询本资产是否引用其对象
-        std::unordered_set<Asset*> mImportedObjects;
+        std::vector<Asset*> mImportedObjects;
         // Asset 中需要保留导出表;
-        std::unordered_set<osg::ref_ptr<Object>> mExportedObjects;
+        std::vector<osg::ref_ptr<Object>> mExportedObjects;
 
-        void setObjectAssetRecursively(Object* object);
-
-        void recordObjects(AssetSerializer* serializer);
-
-        static void readAssetHeader(AssetHeader& header, AssetSerializer* serializer, std::ifstream& ifs)
+        void readAssetHeader(std::ifstream& ifs)
         {
-            ifs.read((char*)(&header), sizeof(AssetHeader));
+            ifs.read((char*)&mHeader, sizeof(mHeader));
         }
 
-        static void readStringTable(AssetHeader& header, AssetSerializer* serializer, std::ifstream& ifs)
+        void readStringTable(AssetSerializer* serializer, std::ifstream& ifs)
         {
-            std::vector<uint8_t> buffer(header.stringTableSize);
+            std::vector<uint8_t> buffer(mHeader.stringTableSize);
             uint8_t* dataPtr = buffer.data();
-            ifs.read((char*)(dataPtr), header.stringTableSize);
+            ifs.read((char*)(dataPtr), mHeader.stringTableSize);
 
             uint32_t stringCount = *(uint32_t*)(dataPtr);
             dataPtr += sizeof(uint32_t);
+
             for (uint32_t i = 0; i < stringCount; ++i)
             {
                 uint32_t stringLength = *(uint32_t*)(dataPtr);
@@ -159,30 +168,32 @@ namespace xxx
             }
         }
 
-        static void readImportTable(AssetHeader& header, AssetSerializer* serializer, std::ifstream& ifs)
+        void readImportTable(AssetSerializer* serializer, std::ifstream& ifs)
         {
-            std::vector<uint8_t> buffer(header.importTableSize);
+            std::vector<uint8_t> buffer(mHeader.importTableSize);
             uint8_t* dataPtr = buffer.data();
-            ifs.read((char*)(dataPtr), header.importTableSize);
+            ifs.read((char*)(dataPtr), mHeader.importTableSize);
 
             uint32_t importCount = *(uint32_t*)(dataPtr);
             dataPtr += sizeof(uint32_t);
+
             for (uint32_t i = 0; i < importCount; ++i)
             {
-                uint32_t pathStringIndex = *(uint32_t*)(dataPtr);
-                serializer->mImportTable.emplace_back(pathStringIndex);
-                dataPtr += sizeof(uint32_t);
+                Guid guid = *(Guid*)(dataPtr);
+                serializer->mImportTable.emplace_back(guid);
+                dataPtr += sizeof(Guid);
             }
         }
 
-        static void readExportEable(AssetHeader& header, AssetSerializer* serializer, std::ifstream& ifs)
+        void readExportEable(AssetSerializer* serializer, std::ifstream& ifs)
         {
-            std::vector<uint8_t> buffer(header.exportTableSize);
+            std::vector<uint8_t> buffer(mHeader.exportTableSize);
             uint8_t* dataPtr = buffer.data();
-            ifs.read((char*)(dataPtr), header.exportTableSize);
+            ifs.read((char*)(dataPtr), mHeader.exportTableSize);
 
             uint32_t exportCount = *(uint32_t*)(dataPtr);
             dataPtr += sizeof(uint32_t);
+
             for (uint32_t i = 0; i < exportCount; ++i)
             {
                 serializer->mExportTable.emplace_back(*(Guid*)(dataPtr));
@@ -190,9 +201,9 @@ namespace xxx
             }
         }
 
-        static void readObjectBuffers(AssetHeader& header, AssetSerializer* serializer, std::ifstream& ifs)
+        void readObjectBuffers(AssetSerializer* serializer, std::ifstream& ifs)
         {
-            for (uint32_t i = 0; i < header.objectBufferCount; ++i)
+            for (uint32_t i = 0; i < mHeader.objectBufferCount; ++i)
             {
                 uint32_t objectBufferSize = 0;
                 ifs.read((char*)(&objectBufferSize), sizeof(uint32_t));
@@ -201,30 +212,27 @@ namespace xxx
             }
         }
 
-        static void writeAssetHeader(AssetHeader& header, AssetSerializer* serializer, std::ofstream& ofs)
+        void writeAssetHeader(AssetSerializer* serializer, std::ofstream& ofs)
         {
-            char magicChars[8] = { 'X', 'X', 'X', 'A', 'S', 'S', 'E', 'T' };
-            header.magic = *(uint64_t*)(magicChars);
-            header.version = 0;
-            header.headerSize = sizeof(AssetHeader);
-            header.stringTableSize = sizeof(uint32_t); // string count
+            mHeader.stringTableSize = sizeof(uint32_t);
             {
                 for (auto& it : serializer->mStringTable)
-                    header.stringTableSize += sizeof(uint32_t) + it.size(); // string length + string
+                    mHeader.stringTableSize += sizeof(uint32_t) + it.size();
             }
-            header.importTableSize = sizeof(uint32_t) + sizeof(uint32_t) * serializer->mImportTable.size(); // imported object count + path string indices
-            header.exportTableSize = sizeof(uint32_t) + sizeof(Guid) * serializer->mExportTable.size(); // exported object count + object guid
-            header.objectBufferCount = serializer->mObjectBufferTable.size();
-            ofs.write((char*)(&header), sizeof(AssetHeader));
+            mHeader.importTableSize = sizeof(uint32_t) + sizeof(Guid) * serializer->mImportTable.size();
+            mHeader.exportTableSize = sizeof(uint32_t) + sizeof(Guid) * serializer->mExportTable.size();
+            mHeader.objectBufferCount = serializer->mObjectBufferTable.size();
+            ofs.write((char*)(&mHeader), sizeof(AssetHeader));
         }
 
-        static void writeStringTable(AssetHeader& header, AssetSerializer* serializer, std::ofstream& ofs)
+        void writeStringTable(AssetSerializer* serializer, std::ofstream& ofs)
         {
-            std::vector<uint8_t> buffer(header.stringTableSize);
+            std::vector<uint8_t> buffer(mHeader.stringTableSize);
             uint8_t* dataPtr = buffer.data();
 
             *(uint32_t*)(dataPtr) = static_cast<uint32_t>(serializer->mStringTable.size());
             dataPtr += sizeof(uint32_t);
+
             for (auto& it : serializer->mStringTable)
             {
                 *(uint32_t*)(dataPtr) = static_cast<uint32_t>(it.size());
@@ -232,42 +240,47 @@ namespace xxx
                 std::memcpy(dataPtr, it.data(), it.size());
                 dataPtr += it.size();
             }
-            ofs.write((const char*)(buffer.data()), header.stringTableSize);
+
+            ofs.write((const char*)(buffer.data()), mHeader.stringTableSize);
         }
 
-        static void writeImportTable(AssetHeader& header, AssetSerializer* serializer, std::ofstream& ofs)
+        void writeImportTable(AssetSerializer* serializer, std::ofstream& ofs)
         {
-            std::vector<uint8_t> buffer(header.importTableSize);
+            std::vector<uint8_t> buffer(mHeader.importTableSize);
             uint8_t* dataPtr = buffer.data();
 
             *(uint32_t*)(dataPtr) = static_cast<uint32_t>(serializer->mImportTable.size());
             dataPtr += sizeof(uint32_t);
+
             for (auto it : serializer->mImportTable)
             {
-                *(uint32_t*)(dataPtr) = it;
-                dataPtr += sizeof(uint32_t);
+                *(Guid*)(dataPtr) = it;
+                dataPtr += sizeof(Guid);
             }
-            ofs.write((const char*)(buffer.data()), header.importTableSize);
+
+            ofs.write((const char*)(buffer.data()), mHeader.importTableSize);
         }
 
-        static void writeExportTable(AssetHeader& header, AssetSerializer* serializer, std::ofstream& ofs)
+        void writeExportTable(AssetSerializer* serializer, std::ofstream& ofs)
         {
-            std::vector<uint8_t> buffer(header.exportTableSize);
+            std::vector<uint8_t> buffer(mHeader.exportTableSize);
             uint8_t* dataPtr = buffer.data();
 
             *(uint32_t*)(dataPtr) = static_cast<uint32_t>(serializer->mExportTable.size());
             dataPtr += sizeof(uint32_t);
+
             for (auto it : serializer->mExportTable)
             {
                 *(Guid*)(dataPtr) = it;
                 dataPtr += sizeof(Guid);
             }
-            ofs.write((const char*)(buffer.data()), header.exportTableSize);
+
+            ofs.write((const char*)(buffer.data()), mHeader.exportTableSize);
         }
 
-        static void writeObjectBuffers(AssetHeader& header, AssetSerializer* serializer, std::ofstream& ofs)
+        void writeObjectBuffers(AssetSerializer* serializer, std::ofstream& ofs)
         {
-            for (uint32_t i = 0; i < header.objectBufferCount; ++i)
+            for (uint32_t i = 0; i < mHeader.objectBufferCount; ++i)
             {
                 AssetSerializer::ObjectBuffer& objectBuffer = serializer->mObjectBufferTable.at(i);
                 uint32_t bufferSize = objectBuffer.buffer.size();

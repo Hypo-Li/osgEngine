@@ -5,7 +5,7 @@
 namespace xxx
 {
     using namespace refl;
-    void AssetLoader::serializeObject(Object*& object)
+    void AssetLoader::serializeObject(Object* object)
     {
         Class* clazz = object->getClass();
 
@@ -104,27 +104,26 @@ namespace xxx
             {
                 // imported object
                 index = index - 1;
-                uint32_t pathStringIndex = mImportTable[index];
-                const std::string& path = mStringTable.at(pathStringIndex);
+                Guid guid = mImportTable[index];
 
-                Asset* asset = AssetManager::get().getAsset(path);
+                Asset* asset = AssetManager::get().getAsset(guid);
                 object = asset->getRootObject();
             }
             else
             {
                 // exported object
                 index = -index - 1;
-                if (index <= mObjectsTemp.size())
+                if (index >= mObjectsTemp.size())
                 {
                     // if no loaded
                     Guid guid = mExportTable[index];
-                    object = static_cast<Object*>(clazz->newInstance());
+                    Object* tempObject = static_cast<Object*>(clazz->newInstance());
+                    mObjectsTemp.push_back(tempObject);
+
                     // object->mGuid = guid;
                     pushObjectBufferIndex(index);
-                    serializeObject(object);
+                    serializeObject(tempObject);
                     popObjectBufferIndex();
-
-                    mObjectsTemp.push_back(object);
                 }
                 else
                 {

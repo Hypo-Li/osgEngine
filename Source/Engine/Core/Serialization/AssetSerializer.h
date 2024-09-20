@@ -22,8 +22,7 @@ namespace xxx
         }
         virtual ~AssetSerializer() = default;
 
-        template <typename T, typename = std::enable_if_t<std::is_base_of_v<Object, T>>>
-        void serialize(T*& object)
+        virtual void serialize(Object*& object)
         {
             serializeClass(object->getClass(), &object);
         }
@@ -94,7 +93,7 @@ namespace xxx
             serializeBinary(data, sizeof(double) * count);
         }
 
-        virtual void serializeObject(Object*& object) = 0;
+        virtual void serializeObject(Object* object) = 0;
         virtual void serializeBinary(void* data, uint32_t count) = 0;
 
         // serialize types
@@ -173,7 +172,7 @@ namespace xxx
     protected:
         Asset* mAsset;
         std::vector<std::string> mStringTable;
-        std::vector<uint32_t> mImportTable;
+        std::vector<Guid> mImportTable;
         std::vector<Guid> mExportTable;
 
     private:

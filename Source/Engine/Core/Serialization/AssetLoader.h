@@ -13,7 +13,7 @@ namespace xxx
         virtual ~AssetLoader() = default;
 
     protected:
-        virtual void serializeObject(Object*& object) override;
+        virtual void serializeObject(Object* object) override;
         virtual void serializeBinary(void* data, uint32_t count) override;
 
         virtual void serializeEnum(refl::Enum* enumerate, void* data, uint32_t count = 1) override;

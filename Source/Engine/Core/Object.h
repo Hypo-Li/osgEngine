@@ -24,6 +24,11 @@ namespace xxx
             };
         };
 
+        Guid()
+        {
+            data[0] = data[1] = 0;
+        }
+
         bool operator==(const Guid& rhs) const
         {
             return data[0] == rhs.data[0] && data[1] == rhs.data[1];
@@ -31,6 +36,30 @@ namespace xxx
         bool operator!=(const Guid& rhs) const
         {
             return data[0] != rhs.data[0] || data[1] != rhs.data[1];
+        }
+
+        bool isValid() const
+        {
+            return data[0] != 0 || data[1] != 0;
+        }
+
+        std::string toString() const
+        {
+            std::string result(36, '-');
+            static constexpr char table[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+            for (uint8_t i = 0; i < 8; ++i)
+                result[i] = A & (0xF0000000 >> (i * 4));
+            for (uint8_t i = 0; i < 4; ++i)
+                result[i + 9] = B & (0xF0000000 >> (i * 4));
+            for (uint8_t i = 0; i < 4; ++i)
+                result[i + 14] = B & (0x0000F000 >> (i * 4));
+            for (uint8_t i = 0; i < 4; ++i)
+                result[i + 19] = C & (0xF0000000 >> (i * 4));
+            for (uint8_t i = 0; i < 4; ++i)
+                result[i + 24] = C & (0x0000F000 >> (i * 4));
+            for (uint8_t i = 0; i < 8; ++i)
+                result[i + 28] = D & (0xF0000000 >> (i * 4));
+            return result;
         }
 
         static Guid newGuid();

@@ -5,7 +5,7 @@ namespace xxx
 {
     using namespace refl;
 
-    void AssetSaver::serializeObject(Object*& object)
+    void AssetSaver::serializeObject(Object* object)
     {
         object->preSerialize();
 
@@ -91,24 +91,25 @@ namespace xxx
         for (uint32_t i = 0; i < count; ++i)
         {
             Object*& object = (static_cast<Object**>(data))[i];
-
+            std::string className(object->getClass()->getName());
+            
+            
             int32_t index;
-            if (object->getAsset() != mAsset)
+            if (object->getAsset() != mAsset && object->getAsset() != nullptr)
             {
                 // imported object
-                auto findResult = std::find(mStringTable.begin(), mStringTable.end(), object->getAsset()->getPath());
+                auto findResult = std::find(mImportTable.begin(), mImportTable.end(), object->getGuid());
 
-                if (findResult == mStringTable.end())
+                if (findResult == mImportTable.end())
                 {
                     // if no saved
-                    mStringTable.emplace_back(object->getAsset()->getPath());
-                    mImportTable.emplace_back(mStringTable.size() - 1);
+                    mImportTable.emplace_back(object->getGuid());
                     index = mImportTable.size() - 1;
                 }
                 else
                 {
                     // if saved
-                    index = findResult - mStringTable.begin();
+                    index = findResult - mImportTable.begin();
                 }
 
                 index = index + 1;

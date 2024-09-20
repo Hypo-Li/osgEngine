@@ -44,7 +44,14 @@ public:
         return Type::MeshRenderer;
     }
 
+    void setShader(Shader* shader)
+    {
+        mShader = shader;
+    }
+
 protected:
+    osg::ref_ptr<Shader> mShader;
+
     osg::ref_ptr<osg::Group> mOsgImplGroup;
 };
 
@@ -53,36 +60,43 @@ namespace xxx::refl
     template <> Type* Reflection::createType<TestComponent>()
     {
         Class* clazz = new ClassInstance<TestComponent>("TestComponent");
+        clazz->addProperty("Shader", &TestComponent::mShader);
         return clazz;
     }
 }
 
 int main()
 {
-    /*Entity* entity = new Entity;
-    entity->addComponent(new TestComponent);
-    entity->addChild(new Entity);
-    AssetSaver* assetSaver = new AssetSaver(nullptr);
-    assetSaver->serialize(entity);*/
-
     Shader* shader = new Shader;
     shader->addParameter("BaseColor", osg::Vec3f(0.8, 0.8, 0.8));
     shader->addParameter("Roughness", 0.5f);
     shader->addParameter("Metallic", 0.0f);
     shader->addParameter("Specular", 0.5f);
-
     {
         Asset* shaderAsset = AssetManager::get().createAsset(shader, TEMP_DIR "shader.xast");
         shaderAsset->save();
     }
 
+    Entity* entity = new Entity;
+    TestComponent* testComponent = new TestComponent;
+    testComponent->setShader(shader);
+    entity->addComponent(testComponent);
+    entity->addChild(new Entity);
+    {
+        Asset* entityAsset = AssetManager::get().createAsset(entity, TEMP_DIR "entity.xast");
+        entityAsset->save();
+    }
 
     {
-        Asset* shaderAsset = AssetManager::get().createAsset(nullptr, TEMP_DIR "shader.xast");
+        /*Asset* shaderAsset = AssetManager::get().createAsset(nullptr, TEMP_DIR "shader.xast");
         shaderAsset->load();
         Object* object = shaderAsset->getRootObject();
         bool compareResult = object->getClass()->compare(shader, object);
-        std::cout << compareResult << std::endl;
+        std::cout << compareResult << std::endl;*/
+
+        Asset* entityAsset = AssetManager::get().createAsset(nullptr, TEMP_DIR "entity.xast");
+        entityAsset->load();
+        Object* object = entityAsset->getRootObject();
     }
 
     return 0;
