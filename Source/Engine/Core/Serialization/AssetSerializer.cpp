@@ -5,6 +5,117 @@ namespace xxx
 {
     using namespace refl;
 
+    uint32_t AssetSerializer::addString(const std::string& str)
+    {
+        auto findResult = std::find(mStringTable.begin(), mStringTable.end(), str);
+        if (findResult == mStringTable.end())
+        {
+            mStringTable.emplace_back(str);
+            return mStringTable.size() - 1;
+        }
+        else
+        {
+            return findResult - mStringTable.begin();
+        }
+    }
+
+    int32_t AssetSerializer::getIndexOfObject(Object* object)
+    {
+        int32_t index = 0;
+        if (object == nullptr)
+            index = 0;
+        else if (object->getAsset() != mAsset && object->getAsset() != nullptr)
+        {
+            // imported object
+            auto findResult = std::find(mImportTable.begin(), mImportTable.end(), object->getGuid());
+
+            if (findResult == mImportTable.end())
+            {
+                // if no saved
+                mImportTable.emplace_back(object->getGuid());
+                index = mImportTable.size() - 1;
+            }
+            else
+            {
+                // if saved
+                index = findResult - mImportTable.begin();
+            }
+
+            index = index + 1;
+        }
+        else
+        {
+            // exported object
+            auto findResult = std::find_if(
+                mExportTable.begin(), mExportTable.end(),
+                [object](ExportItem& item)
+                {
+                return item.guid == object->getGuid();
+                }
+            );
+
+            if (findResult == mExportTable.end())
+            {
+                // if no saved
+                index = mExportTable.size();
+                std::string className(object->getClass()->getName());
+                mExportTable.emplace_back(object->getGuid(), addString(className));
+
+                pushObjectBufferIndex(createNewObjectBuffer());
+                serializeObject(object);
+                popObjectBufferIndex();
+            }
+            else
+            {
+                // if saved
+                index = findResult - mExportTable.begin();
+            }
+
+            index = -(index + 1);
+        }
+        return index;
+    }
+
+    Object* AssetSerializer::getObjectByIndex(int32_t index)
+    {
+        Object* object;
+        if (index == 0)
+            object = nullptr;
+        else if (index > 0)
+        {
+            // imported object
+            index = index - 1;
+            Guid guid = mImportTable[index];
+
+            Asset* asset = AssetManager::get().getAsset(guid);
+            object = asset->getRootObject();
+        }
+        else
+        {
+            // exported object
+            index = -index - 1;
+            if (mExportTable[index].tempObject == nullptr)
+            {
+                // if no loaded
+                Guid guid = mExportTable[index].guid;
+                Class* clazz = Reflection::getClass(getString(mExportTable[index].className));
+                object = static_cast<Object*>(clazz->newInstance());
+                mExportTable[index].tempObject = object;
+
+                // object->mGuid = guid;
+                pushObjectBufferIndex(index);
+                serializeObject(object);
+                popObjectBufferIndex();
+            }
+            else
+            {
+                // if loaded
+                object = mExportTable[index].tempObject;
+            }
+        }
+        return object;
+    }
+
     void AssetSerializer::serializeType(refl::Type* type, void* data, uint32_t count)
     {
         switch (type->getKind())
@@ -26,7 +137,7 @@ namespace xxx
         }
         case refl::Type::Kind::Class:
         {
-            serializeClass(dynamic_cast<Class*>(type), data, count);
+            serializeClass(static_cast<Object**>(data), count);
             break;
         }
         case refl::Type::Kind::Special:
@@ -42,31 +153,31 @@ namespace xxx
     void AssetSerializer::serializeFundamental(refl::Fundamental* fundamental, void* data, uint32_t count)
     {
         if (fundamental == Reflection::BoolType)
-            serialize((bool*)(data), count);
+            serializeArithmetic((bool*)(data), count);
         else if (fundamental == Reflection::CharType)
-            serialize((char*)(data), count);
+            serializeArithmetic((char*)(data), count);
         else if (fundamental == Reflection::WCharType)
-            serialize((wchar_t*)(data), count);
+            serializeArithmetic((wchar_t*)(data), count);
         else if (fundamental == Reflection::Int8Type)
-            serialize((int8_t*)(data), count);
+            serializeArithmetic((int8_t*)(data), count);
         else if (fundamental == Reflection::Int16Type)
-            serialize((int16_t*)(data), count);
+            serializeArithmetic((int16_t*)(data), count);
         else if (fundamental == Reflection::Int32Type)
-            serialize((int32_t*)(data), count);
+            serializeArithmetic((int32_t*)(data), count);
         else if (fundamental == Reflection::Int64Type)
-            serialize((int64_t*)(data), count);
+            serializeArithmetic((int64_t*)(data), count);
         else if (fundamental == Reflection::Uint8Type)
-            serialize((uint8_t*)(data), count);
+            serializeArithmetic((uint8_t*)(data), count);
         else if (fundamental == Reflection::Uint16Type)
-            serialize((uint16_t*)(data), count);
+            serializeArithmetic((uint16_t*)(data), count);
         else if (fundamental == Reflection::Uint32Type)
-            serialize((uint32_t*)(data), count);
+            serializeArithmetic((uint32_t*)(data), count);
         else if (fundamental == Reflection::Uint64Type)
-            serialize((uint64_t*)(data), count);
+            serializeArithmetic((uint64_t*)(data), count);
         else if (fundamental == Reflection::FloatType)
-            serialize((float*)(data), count);
+            serializeArithmetic((float*)(data), count);
         else if (fundamental == Reflection::DoubleType)
-            serialize((double*)(data), count);
+            serializeArithmetic((double*)(data), count);
     }
 
     void AssetSerializer::serializeStruct(Struct* structure, void* data, uint32_t count)

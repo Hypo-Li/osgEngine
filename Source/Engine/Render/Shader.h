@@ -30,12 +30,20 @@ namespace xxx
         template <typename T, typename = std::enable_if_t<is_shader_parameter_v<T>>>
         void addParameter(const std::string& name, T defaultValue)
         {
-            mParameters.emplace_back(name, defaultValue);
+            mParameters.emplace(name, defaultValue);
+        }
+
+        template <typename T, typename = std::enable_if_t<is_shader_parameter_v<T>>>
+        void setParameter(const std::string& name, T value)
+        {
+            auto findResult = mParameters.find(name);
+            if (findResult != mParameters.end())
+                findResult->second = value;
         }
 
     private:
         using ShaderParameter = std::variant<bool, int, float, osg::Vec2f, osg::Vec3f, osg::Vec4f, osg::ref_ptr<Texture>>;
-        std::vector<std::pair<std::string, ShaderParameter>> mParameters;
+        std::map<std::string, ShaderParameter> mParameters;
         std::string mSource;
         osg::ref_ptr<osg::Shader> mOsgShader;
     };
@@ -78,13 +86,14 @@ namespace xxx
             Class* clazz = new ClassInstance<Shader>("Shader");
             Property* propParameters = clazz->addProperty("Parameters", &Shader::mParameters);
             Property* propSource = clazz->addProperty("Source", &Shader::mSource);
-            /*clazz->addMethod("addParameter<bool>", &Shader::addParameter<bool>);
+            clazz->addMethod("addParameter<bool>", &Shader::addParameter<bool>);
             clazz->addMethod("addParameter<int>", &Shader::addParameter<int>);
             clazz->addMethod("addParameter<float>", &Shader::addParameter<float>);
+            clazz->addMethod("setParameter<float>", &Shader::setParameter<float>);
             clazz->addMethod("addParameter<osg::Vec2f>", &Shader::addParameter<osg::Vec2f>);
             clazz->addMethod("addParameter<osg::Vec3f>", &Shader::addParameter<osg::Vec3f>);
             clazz->addMethod("addParameter<osg::Vec4f>", &Shader::addParameter<osg::Vec4f>);
-            clazz->addMethod("addParameter<Texture>", &Shader::addParameter<Texture*>);*/
+            clazz->addMethod("addParameter<Texture>", &Shader::addParameter<Texture*>);
             sRegisteredClassMap.emplace("Shader", clazz);
             return clazz;
         }

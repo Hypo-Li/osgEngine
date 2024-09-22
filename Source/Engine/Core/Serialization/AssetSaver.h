@@ -17,7 +17,7 @@ namespace xxx
         virtual void serializeBinary(void* data, uint32_t count) override;
 
         virtual void serializeEnum(refl::Enum* enumerate, void* data, uint32_t count = 1) override;
-        virtual void serializeClass(refl::Class* clazz, void* data, uint32_t count = 1) override;
+        virtual void serializeClass(Object** data, uint32_t count = 1) override;
 
         virtual void serializeStdString(std::string* data, uint32_t count = 1) override;
         virtual void serializeStdMap(refl::StdMap* stdMap, void* data, uint32_t count = 1) override;

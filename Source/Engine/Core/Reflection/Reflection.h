@@ -19,7 +19,7 @@
 #include <unordered_map>
 
 template <typename T>
-using remove_cvrefp_t = typename std::remove_pointer_t<std::remove_reference_t<std::remove_cv_t<T>>>;
+using remove_cvrefp_t = typename std::remove_cv_t<std::remove_reference_t<std::remove_pointer_t<T>>>;
 
 template <typename T>
 static constexpr bool is_special_v =

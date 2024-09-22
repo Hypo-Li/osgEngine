@@ -10,13 +10,13 @@ namespace xxx
         Class* clazz = object->getClass();
 
         uint32_t propertyCount;
-        serialize(&propertyCount);
+        serializeArithmetic(&propertyCount);
 
         std::vector<Property*> properties;
         Class* baseClass = clazz;
         while (baseClass)
         {
-            const std::vector<Property*>& props = clazz->getProperties();
+            const std::vector<Property*>& props = baseClass->getProperties();
             properties.insert(properties.end(), props.begin(), props.end());
             baseClass = baseClass->getBaseClass();
         }
@@ -26,7 +26,7 @@ namespace xxx
             std::string propertyName;
             uint32_t propertySize;
             serializeStdString(&propertyName);
-            serialize(&propertySize);
+            serializeArithmetic(&propertySize);
 
             auto findResult = std::find_if(properties.begin(), properties.end(),
                 [propertyName](const Property* prop)->bool
@@ -90,57 +90,27 @@ namespace xxx
             setEnumValues<uint64_t>(enumerate, data, enumNames, count);
     }
 
-    void AssetLoader::serializeClass(Class* clazz, void* data, uint32_t count)
+    void AssetLoader::serializeClass(Object** data, uint32_t count)
     {
         for (uint32_t i = 0; i < count; ++i)
         {
-            Object*& object = (static_cast<Object**>(data))[i];
+            Object*& object = data[i];
             int32_t index;
             if (currentObjectBufferIsValid())
-                serialize(&index);
+                serializeArithmetic(&index);
             else
                 index = -1;
-            if (index > 0)
-            {
-                // imported object
-                index = index - 1;
-                Guid guid = mImportTable[index];
-
-                Asset* asset = AssetManager::get().getAsset(guid);
-                object = asset->getRootObject();
-            }
-            else
-            {
-                // exported object
-                index = -index - 1;
-                if (index >= mObjectsTemp.size())
-                {
-                    // if no loaded
-                    Guid guid = mExportTable[index];
-                    Object* tempObject = static_cast<Object*>(clazz->newInstance());
-                    mObjectsTemp.push_back(tempObject);
-
-                    // object->mGuid = guid;
-                    pushObjectBufferIndex(index);
-                    serializeObject(tempObject);
-                    popObjectBufferIndex();
-                }
-                else
-                {
-                    // if loaded
-                    object = mObjectsTemp[index];
-                }
-            }
+            object = getObjectByIndex(index);
         }
     }
 
     void AssetLoader::serializeStdString(std::string* data, uint32_t count)
     {
         std::vector<uint32_t> stringIndices(count);
-        serialize(stringIndices.data(), count);
+        serializeArithmetic(stringIndices.data(), count);
         for (uint32_t i = 0; i < count; ++i)
         {
-            data[i] = mStringTable.at(stringIndices[i]);
+            data[i] = getString(stringIndices[i]);
         }
     }
 
@@ -152,7 +122,7 @@ namespace xxx
         {
             void* stdMapData = static_cast<uint8_t*>(data) + stdMap->getSize() * i;
             size_t keyValuePairCount;
-            serialize(&keyValuePairCount);
+            serializeArithmetic(&keyValuePairCount);
 
             const bool keyTypeIsClass = keyType->getKind() == Type::Kind::Class;
             const bool valueTypeIsClass = valueType->getKind() == Type::Kind::Class;
@@ -193,7 +163,7 @@ namespace xxx
         {
             void* stdSetData = static_cast<uint8_t*>(data) + stdSetSize * i;
             size_t elementCount;
-            serialize(&elementCount);
+            serializeArithmetic(&elementCount);
 
             const bool elementTypeIsClass = elementType->getKind() == Type::Kind::Class;
             void* elements = elementTypeIsClass ?
@@ -221,7 +191,7 @@ namespace xxx
         {
             void* stdVariantData = static_cast<uint8_t*>(data) + stdVariant->getSize() * i;
             uint32_t typeIndex;
-            serialize(&typeIndex);
+            serializeArithmetic(&typeIndex);
             Type* variantType = stdVariant->getTypes().at(typeIndex);
             if (variantType->getKind() == Type::Kind::Class)
             {
@@ -246,7 +216,7 @@ namespace xxx
         {
             void* stdVectorData = static_cast<uint8_t*>(data) + stdVector->getSize() * i;
             size_t elementCount;
-            serialize(&elementCount);
+            serializeArithmetic(&elementCount);
             if (elementCount > 0)
             {
                 stdVector->resize(stdVectorData, elementCount);

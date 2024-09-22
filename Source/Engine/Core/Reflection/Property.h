@@ -1,6 +1,5 @@
 #pragma once
 #include "Type.h"
-#include "Argument.h"
 #include "Metadata.h"
 
 #include <functional>

@@ -59,8 +59,9 @@ namespace xxx::refl
 {
     template <> Type* Reflection::createType<TestComponent>()
     {
-        Class* clazz = new ClassInstance<TestComponent>("TestComponent");
-        clazz->addProperty("Shader", &TestComponent::mShader);
+        Class* clazz = new ClassInstance<TestComponent, Component>("TestComponent");
+        clazz->addProperty("TestShader", &TestComponent::mShader);
+        sRegisteredClassMap.emplace("TestComponent", clazz);
         return clazz;
     }
 }
@@ -72,8 +73,11 @@ int main()
     shader->addParameter("Roughness", 0.5f);
     shader->addParameter("Metallic", 0.0f);
     shader->addParameter("Specular", 0.5f);
+    Class* clazz = shader->getClass();
+    Method* setParameterFloatMethod = clazz->getMethod("setParameter<float>");
+    setParameterFloatMethod->invoke(shader, std::string("Roughness"), 0.01f);
     {
-        Asset* shaderAsset = AssetManager::get().createAsset(shader, TEMP_DIR "shader.xast");
+        Asset* shaderAsset = AssetManager::get().createAsset(shader, TEMP_DIR "Shader.xast");
         shaderAsset->save();
     }
 
@@ -83,18 +87,12 @@ int main()
     entity->addComponent(testComponent);
     entity->addChild(new Entity);
     {
-        Asset* entityAsset = AssetManager::get().createAsset(entity, TEMP_DIR "entity.xast");
+        Asset* entityAsset = AssetManager::get().createAsset(entity, TEMP_DIR "Entity.xast");
         entityAsset->save();
     }
 
     {
-        /*Asset* shaderAsset = AssetManager::get().createAsset(nullptr, TEMP_DIR "shader.xast");
-        shaderAsset->load();
-        Object* object = shaderAsset->getRootObject();
-        bool compareResult = object->getClass()->compare(shader, object);
-        std::cout << compareResult << std::endl;*/
-
-        Asset* entityAsset = AssetManager::get().createAsset(nullptr, TEMP_DIR "entity.xast");
+        Asset* entityAsset = AssetManager::get().createAsset(nullptr, TEMP_DIR "Entity.xast");
         entityAsset->load();
         Object* object = entityAsset->getRootObject();
     }

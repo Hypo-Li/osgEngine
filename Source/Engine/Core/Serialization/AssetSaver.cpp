@@ -23,7 +23,7 @@ namespace xxx
             baseClass = baseClass->getBaseClass();
         }
         uint32_t propertyCount = properties.size();
-        serialize(&propertyCount);
+        serializeArithmetic(&propertyCount);
 
         for (Property* prop : properties)
         {
@@ -32,7 +32,7 @@ namespace xxx
 
             serializeStdString(&propertyName);
             uint32_t propertySizePos = tell();
-            serialize(&propertySize);
+            serializeArithmetic(&propertySize);
 
             uint32_t propertyBeginPos = tell();
             void* valuePtr = prop->getValuePtr(object);
@@ -41,7 +41,7 @@ namespace xxx
 
             propertySize = propertyEndPos - propertyBeginPos;
             seek(propertySizePos);
-            serialize(&propertySize);
+            serializeArithmetic(&propertySize);
             seek(propertyEndPos);
         }
     }
@@ -86,60 +86,17 @@ namespace xxx
         serializeStdString(enumNames.data(), count);
     }
 
-    void AssetSaver::serializeClass(Class* clazz, void* data, uint32_t count)
+    void AssetSaver::serializeClass(Object** data, uint32_t count)
     {
         for (uint32_t i = 0; i < count; ++i)
         {
-            Object*& object = (static_cast<Object**>(data))[i];
-            std::string className(object->getClass()->getName());
-            
-            
-            int32_t index;
-            if (object->getAsset() != mAsset && object->getAsset() != nullptr)
-            {
-                // imported object
-                auto findResult = std::find(mImportTable.begin(), mImportTable.end(), object->getGuid());
+            Object* object = data[i];
 
-                if (findResult == mImportTable.end())
-                {
-                    // if no saved
-                    mImportTable.emplace_back(object->getGuid());
-                    index = mImportTable.size() - 1;
-                }
-                else
-                {
-                    // if saved
-                    index = findResult - mImportTable.begin();
-                }
+            int32_t index = getIndexOfObject(object);
 
-                index = index + 1;
-            }
-            else
-            {
-                // exported object
-                auto findResult = std::find(mExportTable.begin(), mExportTable.end(), object->getGuid());
-
-                if (findResult == mExportTable.end())
-                {
-                    // if no saved
-                    index = mExportTable.size();
-                    mExportTable.emplace_back(object->getGuid());
-
-                    pushObjectBufferIndex(createNewObjectBuffer());
-                    serializeObject(object);
-                    popObjectBufferIndex();
-                }
-                else
-                {
-                    // if saved
-                    index = findResult - mExportTable.begin();
-                }
-
-                index = -(index + 1);
-            }
             if (currentObjectBufferIsValid())
             {
-                serialize(&index);
+                serializeArithmetic(&index);
             }
         }
     }
@@ -149,18 +106,9 @@ namespace xxx
         std::vector<uint32_t> stringIndices(count);
         for (uint32_t i = 0; i < count; ++i)
         {
-            auto findResult = std::find(mStringTable.begin(), mStringTable.end(), data[i]);
-            if (findResult == mStringTable.end())
-            {
-                mStringTable.emplace_back(data[i]);
-                stringIndices[i] = mStringTable.size() - 1;
-            }
-            else
-            {
-                stringIndices[i] = findResult - mStringTable.begin();
-            }
+            stringIndices[i] = addString(data[i]);
         }
-        serialize(stringIndices.data(), count);
+        serializeArithmetic(stringIndices.data(), count);
     }
 
     void AssetSaver::serializeStdMap(StdMap* stdMap, void* data, uint32_t count)
@@ -172,7 +120,7 @@ namespace xxx
             void* stdMapData = static_cast<uint8_t*>(data) + stdMap->getSize() * i;
             std::vector<std::pair<const void*, void*>> keyValuePtrs = stdMap->getKeyValuePtrs(stdMapData);
             size_t keyValuePairCount = keyValuePtrs.size();
-            serialize(&keyValuePairCount);
+            serializeArithmetic(&keyValuePairCount);
             for (size_t j = 0; j < keyValuePairCount; ++j)
                 serializeType(keyType, const_cast<void*>(keyValuePtrs[j].first));
             for (size_t j = 0; j < keyValuePairCount; ++j)
@@ -189,7 +137,7 @@ namespace xxx
             void* stdSetData = static_cast<uint8_t*>(data) + stdSetSize * i;
             std::vector<const void*> elementPtrs = stdSet->getElementPtrs(stdSetData);
             size_t elementCount = elementPtrs.size();
-            serialize(&elementCount);
+            serializeArithmetic(&elementCount);
             for (size_t j = 0; j < elementCount; ++j)
                 serializeType(elementType, const_cast<void*>(elementPtrs[j]));
         }
@@ -201,7 +149,7 @@ namespace xxx
         {
             void* stdVariantData = static_cast<uint8_t*>(data) + stdVariant->getSize() * i;
             uint32_t typeIndex = stdVariant->getTypeIndex(stdVariantData);
-            serialize(&typeIndex);
+            serializeArithmetic(&typeIndex);
             Type* variantType = stdVariant->getTypes().at(typeIndex);
             void* valuePtr = stdVariant->getValuePtr(stdVariantData);
             serializeType(variantType, valuePtr);
@@ -215,7 +163,7 @@ namespace xxx
         {
             void* stdVectorData = static_cast<uint8_t*>(data) + stdVector->getSize() * i;
             size_t elementCount = stdVector->getElementCount(stdVectorData);
-            serialize(&elementCount);
+            serializeArithmetic(&elementCount);
             if (elementCount > 0)
                 serializeType(elementType, stdVector->getElementPtrByIndex(stdVectorData, 0), elementCount);
         }

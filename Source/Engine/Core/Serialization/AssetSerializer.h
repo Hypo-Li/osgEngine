@@ -22,75 +22,16 @@ namespace xxx
         }
         virtual ~AssetSerializer() = default;
 
-        virtual void serialize(Object*& object)
+        virtual void serialize(Object** object) override
         {
-            serializeClass(object->getClass(), &object);
+            serializeClass(object);
         }
 
     protected:
-        inline void serialize(bool* data, uint32_t count = 1)
+        template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        inline void serializeArithmetic(T* data, uint32_t count = 1)
         {
-            serializeBinary(data, sizeof(bool) * count);
-        }
-
-        inline void serialize(char* data, uint32_t count = 1)
-        {
-            serializeBinary(data, sizeof(char) * count);
-        }
-
-        inline void serialize(wchar_t* data, uint32_t count = 1)
-        {
-            serializeBinary(data, sizeof(wchar_t) * count);
-        }
-
-        inline void serialize(int8_t* data, uint32_t count = 1)
-        {
-            serializeBinary(data, sizeof(int8_t) * count);
-        }
-
-        inline void serialize(int16_t* data, uint32_t count = 1)
-        {
-            serializeBinary(data, sizeof(int16_t) * count);
-        }
-
-        inline void serialize(int32_t* data, uint32_t count = 1)
-        {
-            serializeBinary(data, sizeof(int32_t) * count);
-        }
-
-        inline void serialize(int64_t* data, uint32_t count = 1)
-        {
-            serializeBinary(data, sizeof(int64_t) * count);
-        }
-
-        inline void serialize(uint8_t* data, uint32_t count = 1)
-        {
-            serializeBinary(data, sizeof(uint8_t) * count);
-        }
-
-        inline void serialize(uint16_t* data, uint32_t count = 1)
-        {
-            serializeBinary(data, sizeof(uint16_t) * count);
-        }
-
-        inline void serialize(uint32_t* data, uint32_t count = 1)
-        {
-            serializeBinary(data, sizeof(uint32_t) * count);
-        }
-
-        inline void serialize(uint64_t* data, uint32_t count = 1)
-        {
-            serializeBinary(data, sizeof(uint64_t) * count);
-        }
-
-        inline void serialize(float* data, uint32_t count = 1)
-        {
-            serializeBinary(data, sizeof(float) * count);
-        }
-
-        inline void serialize(double* data, uint32_t count = 1)
-        {
-            serializeBinary(data, sizeof(double) * count);
+            serializeBinary(data, sizeof(T) * count);
         }
 
         virtual void serializeObject(Object* object) = 0;
@@ -103,7 +44,7 @@ namespace xxx
         virtual void serializeSpecial(refl::Special* special, void* data, uint32_t count = 1);
 
         virtual void serializeEnum(refl::Enum* enumerate, void* data, uint32_t count = 1) = 0;
-        virtual void serializeClass(refl::Class* clazz, void* data, uint32_t count = 1) = 0;
+        virtual void serializeClass(Object** data, uint32_t count = 1) = 0;
 
         // serialize specials
         virtual void serializeStdArray(refl::StdArray* stdArray, void* data, uint32_t count = 1);
@@ -122,9 +63,7 @@ namespace xxx
             uint32_t pointer = 0;
 
             ObjectBuffer(uint32_t bufferSize = 0, uint32_t pointer = 0) : buffer(bufferSize), pointer(pointer)
-            {
-
-            }
+            {}
         };
 
         inline uint32_t createNewObjectBuffer()
@@ -169,14 +108,36 @@ namespace xxx
             return !mObjectBufferIndexStack.empty();
         }
 
-    protected:
-        Asset* mAsset;
-        std::vector<std::string> mStringTable;
-        std::vector<Guid> mImportTable;
-        std::vector<Guid> mExportTable;
+        uint32_t addString(const std::string& str);
+
+        inline const std::string& getString(uint32_t index)
+        {
+            return mStringTable.at(index);
+        }
+
+        int32_t getIndexOfObject(Object* object);
+
+        Object* getObjectByIndex(int32_t index);
 
     private:
+        Asset* mAsset;
+
+        std::vector<std::string> mStringTable;
+
+        std::vector<Guid> mImportTable;
+
+        struct ExportItem
+        {
+            Guid guid;
+            uint32_t className;
+            Object* tempObject;
+            ExportItem(Guid guid, uint32_t className) :
+                guid(guid), className(className), tempObject(nullptr) {}
+        };
+        std::vector<ExportItem> mExportTable;
+
         std::vector<ObjectBuffer> mObjectBufferTable;
+
         std::stack<uint32_t> mObjectBufferIndexStack;
     };
 }

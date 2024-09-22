@@ -23,7 +23,7 @@ namespace xxx
         mGuid(other.mGuid),
         mAsset(other.mAsset)
     {
-        other.mAsset->removeObject(&other);
+        
     }
 
     Guid Guid::newGuid()

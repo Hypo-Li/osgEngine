@@ -13,7 +13,7 @@ namespace xxx
     public:
         virtual ~Serializer() = default;
 
-        virtual void serialize(Object*& object) = 0;
+        virtual void serialize(Object** object) = 0;
         
     };
 }
