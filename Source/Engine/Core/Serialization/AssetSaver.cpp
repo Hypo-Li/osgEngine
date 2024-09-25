@@ -44,16 +44,14 @@ namespace xxx
             serializeArithmetic(&propertySize);
             seek(propertyEndPos);
         }
+
+        object->postSerialize();
     }
 
     void AssetSaver::serializeBinary(void* data, uint32_t count)
     {
         ObjectBuffer& objectBuffer = getCurrentObjectBuffer();
-        size_t newPointer = objectBuffer.pointer + count;
-        if (newPointer > objectBuffer.buffer.size())
-            objectBuffer.buffer.resize(newPointer);
-        std::memcpy(objectBuffer.buffer.data() + objectBuffer.pointer, data, count);
-        objectBuffer.pointer = newPointer;
+        objectBuffer.writeData(data, count);
     }
 
     template <typename T>

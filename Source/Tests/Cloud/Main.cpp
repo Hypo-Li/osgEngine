@@ -14,6 +14,7 @@
 #include <osgEarth/MapNode>
 #include <osgEarth/GDAL>
 #include <osgEarth/TMS>
+#include <osgEarth/ElevationLayer>
 #include <osgEarth/GeoTransform>
 #include <osgEarth/EarthManipulator>
 #include <osgEarth/AutoClipPlaneHandler>
@@ -106,7 +107,7 @@ struct VolumetricCloudParameters
     float phaseG1 = -0.5;
     float phaseBlend = 0.2;
     float msScatteringFactor = 0.2;
-    float msExtinctionFactor = 0.2;
+    float msExtinctionFactor = 0.5;
     float msPhaseFactor = 0.2;
     float cloudMapScaleFactor = 0.006;
     float basicNoiseScaleFactor = 0.08;
@@ -528,10 +529,14 @@ int main()
     rootGroup->addChild(meshNode);
 
     osgEarth::Map* map = new osgEarth::Map;
-    osgEarth::TMSImageLayer* tmsImagery = new osgEarth::TMSImageLayer;
+    osgEarth::TMSImageLayer* tmsImageLayer = new osgEarth::TMSImageLayer;
+    tmsImageLayer->setURL(R"(C:\Users\admin\Downloads\wenhualou\tms.xml)");
+    map->addLayer(tmsImageLayer);
 
-    tmsImagery->setURL(R"(C:\Users\admin\Downloads\wenhualou\tms.xml)");
-    map->addLayer(tmsImagery);
+    osgEarth::GDALElevationLayer* elevationLayer = new osgEarth::GDALElevationLayer;
+    elevationLayer->setURL(R"(C:\Users\Public\Nwt\cache\recv\lhc\30m.tif)");
+    map->addLayer(elevationLayer);
+
     osgEarth::ProfileOptions po;
     po.srsString() = "+proj=latlong +a=6371000 +b=6371000 +towgs84=0,0,0,0,0,0,0";
     map->setProfile(osgEarth::Profile::create(po));
@@ -645,11 +650,13 @@ int main()
     osg::ref_ptr<xxx::Pipeline::Pass> cloudReconstructionPass = pipeline->addWorkPass("CloudReconstruction", cloudReconstructionProgram, GL_COLOR_BUFFER_BIT);
     cloudReconstructionPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F);
     cloudReconstructionPass->attach(BufferType::COLOR_BUFFER1, GL_R16F);
-    cloudReconstructionPass->setAttribute(gViewDataUBB);
+
     cloudReconstructionPass->applyTexture(volumetricCloudPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uCurrentCloudColorTexture", 0);
     cloudReconstructionPass->applyTexture(volumetricCloudPass->getBufferTexture(BufferType::COLOR_BUFFER1), "uCurrentCloudDistanceTexture", 1);
     cloudReconstructionPass->applyTexture(historyCloudColorTexture, "uHistoryCloudColorTexture", 2);
     cloudReconstructionPass->applyTexture(historyCloudDistanceTexture, "uHistoryCloudDistanceTexture", 3);
+    cloudReconstructionPass->setAttribute(gViewDataUBB);
+
     cloudReconstructionPass->getCamera()->setPreDrawCallback(new ReconstructionPassCallback(cloudReconstructionPass->getCamera()));
 
     osg::ref_ptr<osg::Program> copyColorProgram = new osg::Program;
@@ -683,6 +690,8 @@ int main()
     colorGradingProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CombineAtmosphereAndCloud.frag.glsl"));
     osg::ref_ptr<xxx::Pipeline::Pass> displayPass = pipeline->addDisplayPass("Display", colorGradingProgram);
     displayPass->applyTexture(atmospherePass->getBufferTexture(BufferType::COLOR_BUFFER0), "uAtmosphereColorTexture", 0);
+    displayPass->setAttribute(gViewDataUBB);
+    displayPass->setAttribute(gAtmosphereParametersUBB);
 #if FAST_RENDER
     displayPass->applyTexture(taaPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uCloudColorTexture", 1);
 #else

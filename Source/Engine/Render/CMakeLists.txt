@@ -4,5 +4,6 @@ add_library (
     "Pipeline.cpp"
     "Shader.h"
     "Texture.h"
+    "Texture.cpp"
     "Material.h"
- "StaticMesh.h")
+ "StaticMesh.h" "Shader.cpp")

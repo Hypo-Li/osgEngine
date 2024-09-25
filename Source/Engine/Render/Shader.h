@@ -4,28 +4,42 @@
 #include <osg/Shader>
 #include <variant>
 
+template <typename T>
+static constexpr bool is_shader_parameter_v =
+    std::is_same_v<T, bool> |
+    std::is_same_v<T, int> |
+    std::is_same_v<T, float> |
+    std::is_same_v<T, osg::Vec2f> |
+    std::is_same_v<T, osg::Vec3f> |
+    std::is_same_v<T, osg::Vec4f> |
+    std::is_same_v<T, xxx::Texture*>;
+
 namespace xxx
 {
+    enum class RenderingPath
+    {
+        Deferred,
+        Forward,
+    };
+
+    enum class ShadingModel
+    {
+        Unlit,
+        Standard,
+    };
+
+    enum class AlphaMode
+    {
+        Opaque,
+        Mask,
+        Blend,
+    };
+
     class Shader : public Object
     {
-        friend class refl::Reflection;
-    public:
-        virtual refl::Class* getClass() const
-        {
-            return static_cast<refl::Class*>(refl::Reflection::getType<Shader>());
-        }
+        REFLECT_CLASS(Shader)
     public:
         Shader() = default;
-
-        template <typename T>
-        static constexpr bool is_shader_parameter_v =
-            std::is_same_v<T, bool> |
-            std::is_same_v<T, int> |
-            std::is_same_v<T, float> |
-            std::is_same_v<T, osg::Vec2f> |
-            std::is_same_v<T, osg::Vec3f> |
-            std::is_same_v<T, osg::Vec4f> |
-            std::is_same_v<T, Texture*>;
 
         template <typename T, typename = std::enable_if_t<is_shader_parameter_v<T>>>
         void addParameter(const std::string& name, T defaultValue)
@@ -41,10 +55,14 @@ namespace xxx
                 findResult->second = value;
         }
 
-    private:
         using ShaderParameter = std::variant<bool, int, float, osg::Vec2f, osg::Vec3f, osg::Vec4f, osg::ref_ptr<Texture>>;
+    private:
         std::map<std::string, ShaderParameter> mParameters;
         std::string mSource;
+        RenderingPath mRenderingPath = RenderingPath::Deferred;
+        ShadingModel mShadingModel = ShadingModel::Unlit;
+        AlphaMode mAlphaMode = AlphaMode::Opaque;
+
         osg::ref_ptr<osg::Shader> mOsgShader;
     };
 
@@ -94,8 +112,39 @@ namespace xxx
             clazz->addMethod("addParameter<osg::Vec3f>", &Shader::addParameter<osg::Vec3f>);
             clazz->addMethod("addParameter<osg::Vec4f>", &Shader::addParameter<osg::Vec4f>);
             clazz->addMethod("addParameter<Texture>", &Shader::addParameter<Texture*>);
-            sRegisteredClassMap.emplace("Shader", clazz);
+            getClassMap().emplace("Shader", clazz);
             return clazz;
+        }
+
+        template <>
+        inline Type* Reflection::createType<RenderingPath>()
+        {
+            Enum* enumerate = new EnumInstance<RenderingPath>("RenderingPath", {
+                {"Deferred", RenderingPath::Deferred},
+                {"Forward", RenderingPath::Forward},
+            });
+            return enumerate;
+        }
+
+        template <>
+        inline Type* Reflection::createType<ShadingModel>()
+        {
+            Enum* enumerate = new EnumInstance<ShadingModel>("ShadingModel", {
+                {"Unlit", ShadingModel::Unlit},
+                {"Standard", ShadingModel::Standard},
+            });
+            return enumerate;
+        }
+
+        template <>
+        inline Type* Reflection::createType<AlphaMode>()
+        {
+            Enum* enumerate = new EnumInstance<AlphaMode>("AlphaMode", {
+                {"Opaque", AlphaMode::Opaque},
+                {"Mask", AlphaMode::Mask},
+                {"Blend", AlphaMode::Blend},
+            });
+            return enumerate;
         }
     }
 }

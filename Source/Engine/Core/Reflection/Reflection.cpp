@@ -15,6 +15,4 @@ namespace xxx::refl
     const Fundamental* Reflection::Uint64Type = dynamic_cast<Fundamental*>(Reflection::getType<uint64_t>());
     const Fundamental* Reflection::FloatType  = dynamic_cast<Fundamental*>(Reflection::getType<float>());
     const Fundamental* Reflection::DoubleType = dynamic_cast<Fundamental*>(Reflection::getType<double>());
-
-    std::unordered_map<std::string_view, Class*> Reflection::sRegisteredClassMap;
 }

@@ -61,13 +61,14 @@ namespace xxx::refl
     {
         Class* clazz = new ClassInstance<TestComponent, Component>("TestComponent");
         clazz->addProperty("TestShader", &TestComponent::mShader);
-        sRegisteredClassMap.emplace("TestComponent", clazz);
+        getClassMap().emplace("TestComponent", clazz);
         return clazz;
     }
 }
 
 int main()
 {
+    /*AssetManager::get();
     Shader* shader = new Shader;
     shader->addParameter("BaseColor", osg::Vec3f(0.8, 0.8, 0.8));
     shader->addParameter("Roughness", 0.5f);
@@ -77,7 +78,7 @@ int main()
     Method* setParameterFloatMethod = clazz->getMethod("setParameter<float>");
     setParameterFloatMethod->invoke(shader, std::string("Roughness"), 0.01f);
     {
-        Asset* shaderAsset = AssetManager::get().createAsset(shader, TEMP_DIR "Shader.xast");
+        Asset* shaderAsset = AssetManager::get().createAsset(shader, ASSET_DIR "Shader.xast");
         shaderAsset->save();
     }
 
@@ -87,15 +88,25 @@ int main()
     entity->addComponent(testComponent);
     entity->addChild(new Entity);
     {
-        Asset* entityAsset = AssetManager::get().createAsset(entity, TEMP_DIR "Entity.xast");
+        Asset* entityAsset = AssetManager::get().createAsset(entity, ASSET_DIR "Entity.xast");
         entityAsset->save();
     }
 
     {
-        Asset* entityAsset = AssetManager::get().createAsset(nullptr, TEMP_DIR "Entity.xast");
+        Asset* entityAsset = AssetManager::get().getAsset(ASSET_DIR "Entity.xast");
         entityAsset->load();
         Object* object = entityAsset->getRootObject();
-    }
+        std::string guid = object->getGuid().toString();
+        std::cout << guid << std::endl;
+    }*/
+
+    /*Texture2D* texture2d = new Texture2D(TEMP_DIR "awesomeface.png");
+    Asset* textureAsset = AssetManager::get().createAsset(texture2d, ASSET_DIR "Texture/Awesomeface.xast");
+    textureAsset->save();*/
+    AssetManager& am = AssetManager::get();
+    Asset* asset = am.getAsset(ASSET_DIR "Shader.xast");
+    asset->load();
+    Object* object = asset->getRootObject();
 
     return 0;
 }

@@ -78,8 +78,9 @@ namespace xxx::refl
 
         static Class* getClass(std::string_view name)
         {
-            auto findResult = sRegisteredClassMap.find(name);
-            if (findResult == sRegisteredClassMap.end())
+            auto& classMap = getClassMap();
+            auto findResult = classMap.find(name);
+            if (findResult == classMap.end())
                 return nullptr;
             return findResult->second;
         }
@@ -142,7 +143,11 @@ namespace xxx::refl
             return type;
         }
 
-        static std::unordered_map<std::string_view, Class*> sRegisteredClassMap;
+        static std::unordered_map<std::string_view, Class*>& getClassMap()
+        {
+            static std::unordered_map<std::string_view, Class*> classMap;
+            return classMap;
+        }
 	};
 
     template <typename T>

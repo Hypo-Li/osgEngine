@@ -7,6 +7,8 @@ namespace xxx
     using namespace refl;
     void AssetLoader::serializeObject(Object* object)
     {
+        object->preSerialize();
+
         Class* clazz = object->getClass();
 
         uint32_t propertyCount;
@@ -56,8 +58,7 @@ namespace xxx
     void AssetLoader::serializeBinary(void* data, uint32_t count)
     {
         ObjectBuffer& objectBuffer = getCurrentObjectBuffer();
-        std::memcpy(data, objectBuffer.buffer.data() + objectBuffer.pointer, count);
-        objectBuffer.pointer = objectBuffer.pointer + count;
+        objectBuffer.readData(data, count);
     }
 
     template <typename T>
@@ -110,7 +111,7 @@ namespace xxx
         serializeArithmetic(stringIndices.data(), count);
         for (uint32_t i = 0; i < count; ++i)
         {
-            data[i] = getString(stringIndices[i]);
+            data[i] = getStringTable().at(stringIndices[i]);
         }
     }
 

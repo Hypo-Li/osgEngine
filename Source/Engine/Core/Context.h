@@ -1,18 +1,31 @@
 #pragma once
-#include <Core/Base/Entity.h>
+#include <Engine/Core/Entity.h>
 #include <osg/ref_ptr>
 #include <filesystem>
 namespace xxx
 {
     class Engine;
+
+    enum class EngineMode
+    {
+        Edit,
+        Run,
+    };
+
+    enum class EditMode
+    {
+        Select,
+        Terrain,
+    };
+
     class Context
     {
         friend class Engine;
     public:
         Context()
         {
-            std::filesystem::path currentPath = std::filesystem::current_path();
-            _engineAssetPath = currentPath / "../Asset";
+            mEnginePath = std::filesystem::current_path();
+            mEngineAssetPath = ASSET_DIR;
         }
 
         static Context& get()
@@ -21,11 +34,22 @@ namespace xxx
             return context;
         }
 
-        const std::filesystem::path& getEngineAssetPath() { return _engineAssetPath; }
-        const std::filesystem::path& getProjectAssetPath() { return _projectAssetPath; }
+        const std::filesystem::path& getEnginePath() const
+        {
+            return mEnginePath;
+        }
 
-        void setSceneRoot(osg::Node* sceneRoot) { _sceneRoot = sceneRoot; }
-        osg::Node* getSceneRoot() const { return _sceneRoot; }
+        const std::filesystem::path& getEngineAssetPath() const
+        {
+            return mEngineAssetPath;
+        }
+
+        const std::filesystem::path& getProjectAssetPath() const
+        {
+            return mProjectAssetPath;
+        }
+
+
 
         /*void appendEntity(Entity* entity, Entity* parent = nullptr)
         {
@@ -43,7 +67,7 @@ namespace xxx
                 _sceneRoot->removeChild(entity->asMatrixTransform());
         }*/
 
-        osg::ref_ptr<Entity> getActivedEntity() const
+        /*osg::ref_ptr<Entity> getActivedEntity() const
         {
             osg::ref_ptr<Entity> result;
             _activedEntity.lock(result);
@@ -71,18 +95,19 @@ namespace xxx
         void appendSelectedEntity(Entity* entity)
         {
             _selectedEntities.insert(entity);
-        }
+        }*/
 
     private:
-        bool _isEditorMode;
+        
         // Assets search paths
-        std::filesystem::path _engineAssetPath;
-        std::filesystem::path _projectAssetPath;
+        std::filesystem::path mEnginePath;
+        std::filesystem::path mProjectPath;
+        std::filesystem::path mEngineAssetPath;
+        std::filesystem::path mProjectAssetPath;
 
-        osg::observer_ptr<Entity> _activedEntity;
-        std::set<osg::observer_ptr<Entity>> _selectedEntities;
+        //osg::observer_ptr<Entity> _activedEntity;
+        //std::set<osg::observer_ptr<Entity>> _selectedEntities;
 
-        osg::ref_ptr<osg::Node> _sceneRoot;
 
     };
 }

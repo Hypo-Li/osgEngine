@@ -24,8 +24,5 @@ namespace xxx
         virtual void serializeStdSet(refl::StdSet* stdSet, void* data, uint32_t count = 1) override;
         virtual void serializeStdVariant(refl::StdVariant* stdVariant, void* data, uint32_t count = 1) override;
         virtual void serializeStdVector(refl::StdVector* stdVector, void* data, uint32_t count = 1) override;
-
-    private:
-        std::vector<osg::ref_ptr<Object>> mObjectsTemp;
     };
 }

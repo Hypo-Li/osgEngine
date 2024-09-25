@@ -1,5 +1,4 @@
-#version 300 es
-precision mediump float;
+#version 330 compatibility
 uniform vec4 iMouse;
 uniform sampler2D iChannel0;
 uniform sampler2D iChannel1;
@@ -18,23 +17,29 @@ in vec2 Coord1;
 #define ENABLE_WATER_RECEIVE_SHADOW
 #define ENABLE_CONE_STEPPING
 const float k_screenshotTime = 13.0;
-#if defined(ENABLE_SCREENSHOT_MODE) || defined(ENABLE_ULTRA_QUALITY)
-#define ENABLE_SUPERSAMPLE_MODE
-#endif
-#ifndef ENABLE_SCREENSHOT_MODE
-#ifdef ENABLE_ULTRA_QUALITY
-const int k_raymarchSteps = 96;
-const int k_fmbSteps = 6;
-const int k_superSampleCount = 6;
-#else
-const int k_raymarchSteps = 64;
-const int k_fmbSteps = 3;
-#endif
-#else
+
+// #if defined(ENABLE_SCREENSHOT_MODE) || defined(ENABLE_ULTRA_QUALITY)
+// 	#define ENABLE_SUPERSAMPLE_MODE
+// #endif
+
+// #ifndef ENABLE_SCREENSHOT_MODE
+// 	#ifdef ENABLE_ULTRA_QUALITY
+// 		const int k_raymarchSteps = 96;
+// 		const int k_fmbSteps = 6;
+// 		const int k_superSampleCount = 6;
+// 	#else
+// 		const int k_raymarchSteps = 64;
+// 		const int k_fmbSteps = 3;
+// 	#endif
+// #else
+// 	const int k_raymarchSteps = 96;
+// 	const int k_fmbSteps = 5;
+// 	const int k_superSampleCount = 10;
+// #endif
+
 const int k_raymarchSteps = 96;
 const int k_fmbSteps = 5;
 const int k_superSampleCount = 10;
-#endif
 
 const int k_fmbWaterSteps = 4;
 

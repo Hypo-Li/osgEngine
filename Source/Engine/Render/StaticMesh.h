@@ -24,7 +24,7 @@ namespace xxx
 
 
     private:
-        std::vector<uint8_t> mRawData;
+        std::vector<uint8_t> mData;
         std::vector<std::pair<uint32_t, VertexAttributeView>> mVertexAttributeViews;
         IndexBufferView mIndexBufferView;
 

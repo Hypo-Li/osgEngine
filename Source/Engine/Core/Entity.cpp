@@ -32,9 +32,8 @@ namespace xxx
     {
         if (mParent == entity)
             return;
-        else if (mParent != nullptr)
-            mParent->removeChild(entity);
-        entity->addChild(this);
+        if (entity)
+            entity->addChild(this);
     }
 
 	void Entity::addChild(Entity* child)
@@ -43,6 +42,8 @@ namespace xxx
 			return;
 		if (child->mParent != nullptr)
 			child->mParent->removeChild(child);
+
+        child->setOwner(this);
 		child->mParent = this;
         mChildren.emplace_back(child);
         mOsgChildrenGroup->addChild(child->mOsgEntityNode);
@@ -53,6 +54,7 @@ namespace xxx
 		if (child->mParent != this)
 			return;
 		child->mParent = nullptr;
+        child->setOwner(nullptr);
         mOsgChildrenGroup->removeChild(child->mOsgEntityNode);
         for (auto it = mChildren.begin(); it != mChildren.end(); ++it)
         {
@@ -69,6 +71,7 @@ namespace xxx
         if (index >= mChildren.size())
             return;
         Entity* child = mChildren[index];
+        child->setOwner(nullptr);
         child->mParent = nullptr;
         mOsgChildrenGroup->removeChild(child->mOsgEntityNode);
 
@@ -83,6 +86,7 @@ namespace xxx
             if (beginIndex + i >= mChildren.size())
                 break;
             Entity* child = mChildren[beginIndex + i];
+            child->setOwner(nullptr);
             child->mParent = nullptr;
         }
         mOsgChildrenGroup->removeChildren(beginIndex, i);
@@ -99,20 +103,22 @@ namespace xxx
 
 	void Entity::addComponent(Component* component)
 	{
-		if (component->mOwner == this)
-			return;
-		if (component->mOwner != nullptr)
-			component->mOwner->removeComponent(component);
-		component->mOwner = this;
+        if (component->mEntity == this)
+            return;
+        if (component->mEntity != nullptr)
+            component->mEntity->removeComponent(component);
+        component->setOwner(this);
+		component->mEntity = this;
 		mComponents.emplace_back(component);
         mOsgComponentsGroup->addChild(component->mOsgComponentGroup);
 	}
 
 	void Entity::removeComponent(Component* component)
 	{
-		if (component->mOwner != this)
+		if (component->mEntity != this)
 			return;
-		component->mOwner = nullptr;
+        component->setOwner(nullptr);
+		component->mEntity = nullptr;
 		mOsgComponentsGroup->removeChild(component->mOsgComponentGroup);
 
         for (auto it = mComponents.begin(); it != mComponents.end(); ++it)
@@ -130,7 +136,8 @@ namespace xxx
         if (index >= mComponents.size())
             return;
         Component* component = mComponents[index];
-        component->mOwner = nullptr;
+        component->setOwner(nullptr);
+        component->mEntity = nullptr;
         mOsgComponentsGroup->removeChild(component->mOsgComponentGroup);
 
         mComponents.erase(mComponents.begin() + index);
@@ -148,7 +155,8 @@ namespace xxx
     {
         for (auto it : mComponents)
         {
-            it->mOwner = nullptr;
+            it->setOwner(nullptr);
+            it->mEntity = nullptr;
             mOsgComponentsGroup->removeChild(it->mOsgComponentGroup);
         }
         mComponents.clear();
@@ -158,6 +166,7 @@ namespace xxx
     {
         for (auto it : mChildren)
         {
+            it->setOwner(nullptr);
             it->mParent = nullptr;
             mOsgChildrenGroup->removeChild(it->mOsgEntityNode);
         }
@@ -174,7 +183,7 @@ namespace xxx::refl
         Property* propParent = clazz->addProperty("Parent", &Entity::mParent);
         Property* propChildren = clazz->addProperty("Children", &Entity::mChildren);
         Property* propComponents = clazz->addProperty("Components", &Entity::mComponents);
-        sRegisteredClassMap.emplace("Entity", clazz);
+        getClassMap().emplace("Entity", clazz);
         return clazz;
     }
 }

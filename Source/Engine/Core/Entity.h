@@ -24,18 +24,7 @@ namespace xxx
 	{
         friend class Prefab;
 
-        friend class refl::Reflection;
-    public:
-        virtual refl::Class* getClass() const
-        {
-            return static_cast<refl::Class*>(refl::Reflection::getType<Entity>());
-        }
-
-        virtual Entity* clone() const override
-        {
-            return new Entity(*this);
-        }
-
+        REFLECT_CLASS(Entity)
 	public:
 		Entity(const std::string& name = "");
         Entity(const Entity& other);

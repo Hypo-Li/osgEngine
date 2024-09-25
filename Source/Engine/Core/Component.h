@@ -10,18 +10,7 @@ namespace xxx
     class Component : public Object
     {
         friend class Entity;
-        friend class refl::Reflection;
-    public:
-        virtual refl::Class* getClass() const
-        {
-            return static_cast<refl::Class*>(refl::Reflection::getType<Component>());
-        }
-
-        virtual Component* clone() const override
-        {
-            return nullptr;
-        }
-
+        REFLECT_CLASS(Component)
     public:
         enum class Type
         {
@@ -35,13 +24,13 @@ namespace xxx
 
         virtual Type getType() const = 0;
 
-        inline Entity* getOwner() const
+        inline Entity* getEntity() const
         {
-            return mOwner;
+            return mEntity;
         }
 
     protected:
-        Entity* mOwner;
+        Entity* mEntity;
 
         osg::ref_ptr<osg::Group> mOsgComponentGroup;
     };
@@ -52,8 +41,8 @@ namespace xxx
         inline Type* Reflection::createType<Component>()
         {
             Class* clazz = new ClassInstance<Component>("Component");
-            Property* propOwner = clazz->addProperty("Owner", &Component::mOwner);
-            sRegisteredClassMap.emplace("Component", clazz);
+            Property* propOwner = clazz->addProperty("Entity", &Component::mEntity);
+            getClassMap().emplace("Component", clazz);
             return clazz;
         }
     }

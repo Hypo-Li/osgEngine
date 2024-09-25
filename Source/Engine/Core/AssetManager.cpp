@@ -6,17 +6,31 @@ namespace xxx
 
     Asset* AssetManager::createAsset(Object* rootObject, const std::string& path)
     {
-        Asset* asset = new Asset(path);
+        std::filesystem::path fsPath(path);
+        std::string pathStr = fsPath.make_preferred().string();
+        auto findResult = mPathAssetMap.find(pathStr);
+        if (findResult != mPathAssetMap.end())
+        {
+            return nullptr;
+            /*Asset* asset = findResult->second;
+            mPathAssetMap.erase(findResult);
+            mGuidAssetMap.erase(asset->getGuid());
+            mAssets.erase(asset);*/
+        }
+
+        Asset* asset = new Asset(pathStr);
         asset->setRootObject(rootObject);
-        mAssets.emplace_back(asset);
-        mPathAssetMap.emplace(path, asset);
+        mAssets.emplace(asset);
+        mPathAssetMap.emplace(pathStr, asset);
         mGuidAssetMap.emplace(asset->getGuid(), asset);
         return asset;
     }
 
     Asset* AssetManager::getAsset(const std::string& path)
     {
-        auto findResult = mPathAssetMap.find(path);
+        std::filesystem::path fsPath(path);
+        std::string pathStr = fsPath.make_preferred().string();
+        auto findResult = mPathAssetMap.find(pathStr);
         if (findResult != mPathAssetMap.end())
             return findResult->second;
         return nullptr;

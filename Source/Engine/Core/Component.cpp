@@ -4,14 +4,14 @@
 namespace xxx
 {
     Component::Component() :
-        mOwner(nullptr),
+        mEntity(nullptr),
         mOsgComponentGroup(new osg::Group)
     {
 
     }
 
     Component::Component(const Component& other) :
-        mOwner(nullptr),
+        mEntity(nullptr),
         mOsgComponentGroup(new osg::Group)
     {
 

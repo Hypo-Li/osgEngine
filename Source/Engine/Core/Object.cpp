@@ -1,5 +1,5 @@
 #include "Object.h"
-#include "Asset.h"
+#include "AssetManager.h"
 
 #include <objbase.h>
 
@@ -7,23 +7,16 @@ namespace xxx
 {
     Object::Object() :
         mGuid(Guid::newGuid()),
-        mAsset(nullptr)
+        mOwner(nullptr)
     {
 
     }
 
     Object::Object(const Object& other) :
         mGuid(Guid::newGuid()),
-        mAsset(other.mAsset)
+        mOwner(other.mOwner)
     {
 
-    }
-
-    Object::Object(Object&& other) noexcept :
-        mGuid(other.mGuid),
-        mAsset(other.mAsset)
-    {
-        
     }
 
     Guid Guid::newGuid()
@@ -32,6 +25,11 @@ namespace xxx
         if (CoCreateGuid((GUID*)&result) == S_OK)
             return result;
         return result;
+    }
+
+    Asset* Object::getAsset() const
+    {
+        return AssetManager::get().getAsset(getRoot()->getGuid());
     }
 
     namespace refl
@@ -49,9 +47,8 @@ namespace xxx
         template <> Type* Reflection::createType<Object>()
         {
             Class* clazz = new ClassInstance<Object>("Object");
-            // Guid is a special property, cannot serialize directly.
-            //Property* propGuid = clazz->addProperty("Guid", &Object::mGuid);
-            sRegisteredClassMap.emplace("Object", clazz);
+            clazz->addProperty("Owner", &Object::mOwner);
+            getClassMap().emplace("Object", clazz);
             return clazz;
         }
     }
