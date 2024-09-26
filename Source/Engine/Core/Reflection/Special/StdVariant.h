@@ -20,7 +20,7 @@ namespace xxx::refl
     };
 
     class Reflection;
-    template <typename T, std::enable_if_t<is_instance_of_v<T, std::variant>, int> = 0>
+    template <typename T, typename = std::enable_if_t<is_instance_of_v<T, std::variant>>>
     class StdVariantInstance : public StdVariant
     {
         friend class Reflection;

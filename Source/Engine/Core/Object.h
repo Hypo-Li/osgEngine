@@ -124,6 +124,11 @@ namespace xxx
             return mGuid;
         }
 
+        void setGuid(Guid guid)
+        {
+            mGuid = guid;
+        }
+
         void setOwner(Object* owner)
         {
             mOwner = owner;

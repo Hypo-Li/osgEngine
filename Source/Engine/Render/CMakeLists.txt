@@ -6,4 +6,4 @@ add_library (
     "Texture.h"
     "Texture.cpp"
     "Material.h"
- "StaticMesh.h" "Shader.cpp")
+ "StaticMesh.h" "Shader.cpp" "Material.cpp" "Mesh.h")

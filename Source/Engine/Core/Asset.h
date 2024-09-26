@@ -35,34 +35,7 @@ namespace xxx
     class Asset : public osg::Referenced
     {
     public:
-        Asset(const std::string& path) : mPath(path)
-        {
-            if (std::filesystem::exists(mPath))
-            {
-                std::ifstream ifs(mPath, std::ios::binary);
-                AssetHeader header;
-                readAssetHeader(ifs, header);
-                {
-                    // load import table
-                    ifs.seekg(sizeof(AssetHeader) + header.stringTableSize);
-                    std::vector<uint8_t> buffer(header.importTableSize);
-                    uint8_t* dataPtr = buffer.data();
-                    ifs.read((char*)(dataPtr), header.importTableSize);
-
-                    uint32_t importCount = *(uint32_t*)(dataPtr);
-                    dataPtr += sizeof(uint32_t);
-
-                    for (uint32_t i = 0; i < importCount; ++i)
-                    {
-                        ImportItem importItem = *(ImportItem*)(dataPtr);
-                        dataPtr += sizeof(ImportItem);
-                        mImportedObjects.insert(importItem.objectGuid);
-                    }
-                }
-
-                mGuid = header.guid;
-            }
-        }
+        Asset(const std::string& path);
 
         virtual ~Asset() = default;
 
@@ -82,99 +55,49 @@ namespace xxx
             return mNeedSave;
         }
 
-        void setRootObject(Object* rootObject)
-        {
-            mRootObject = rootObject;
-            if (rootObject)
-            {
-                mGuid = rootObject->getGuid();
-            }
-        }
+        void setRootObject(Object* rootObject);
 
-        std::string& getPath()
+        void setPath(const std::string& path);
+
+        inline std::string& getPath()
         {
             return mPath;
         }
 
-        const std::string& getPath() const
+        inline const std::string& getPath() const
         {
             return mPath;
         }
 
-        Guid getGuid() const
+        inline Guid getGuid() const
         {
             return mGuid;
         }
 
-        void load()
+        inline void load()
         {
             if (!mIsLoaded)
                 forceLoad();
         }
 
-        void save()
+        inline void save()
         {
             if (!mNeedSave)
                 forceSave();
         }
 
-        void forceLoad()
-        {
-            std::ifstream ifs(mPath, std::ios::binary);
-            AssetSerializer* assetLoader = new AssetLoader(this);
-            AssetHeader header;
+        void forceLoad();
 
-            readAssetHeader(ifs, header);
-            readStringTable(ifs, assetLoader, header);
-            readImportTable(ifs, assetLoader, header);
-            readExportEable(ifs, assetLoader, header);
-            readObjectBuffers(ifs, assetLoader, header);
+        void forceSave();
 
-            mImportedObjects.clear();
-            std::unordered_set<osg::ref_ptr<Object>> exportedObjectsTemp(mExportedObjects.begin(), mExportedObjects.end());
-            mExportedObjects.clear();
-
-            Object* rootObject = nullptr;
-            assetLoader->serialize(&rootObject);
-            setRootObject(rootObject);
-
-
-            mNeedSave = false;
-            mIsLoaded = true;
-        }
-
-        void forceSave()
-        {
-            std::ofstream ofs(mPath, std::ios::binary);
-            AssetSerializer* assetSaver = new AssetSaver(this);
-            AssetHeader header;
-            header.guid = mGuid;
-
-            mImportedObjects.clear();
-            std::unordered_set<osg::ref_ptr<Object>> exportedObjectsTemp(mExportedObjects.begin(), mExportedObjects.end());
-            mExportedObjects.clear();
-
-            Object* rootObject = getRootObject();
-            assetSaver->serialize(&rootObject);
-
-            writeAssetHeader(ofs, assetSaver, header);
-            writeStringTable(ofs, assetSaver, header);
-            writeImportTable(ofs, assetSaver, header);
-            writeExportTable(ofs, assetSaver, header);
-            writeObjectBuffers(ofs, assetSaver, header);
-
-            mNeedSave = false;
-            mIsLoaded = true;
-        }
-
-        void addImportedObject(Object* object)
+        inline void addImportedObject(Object* object)
         {
             if (!object)
                 return;
             mImportedObjects.insert(object->getGuid());
         }
 
-        void addExportedObject(Object* object)
+        inline void addExportedObject(Object* object)
         {
             if (!object)
                 return;
@@ -189,9 +112,9 @@ namespace xxx
 
         osg::ref_ptr<Object> mRootObject;
 
-        // Asset 中需要保留导入表, 以供删除其它资产时查询本资产是否引用其对象
+        // ImportedObjects仅保留其Guid, 并且在Asset初始化时就需要初始化ImportedObjects
         std::unordered_set<Guid> mImportedObjects;
-        // Asset 中需要保留导出表;
+        // ExportedObjects保留其序列化生成的Object指针
         std::unordered_set<osg::ref_ptr<Object>> mExportedObjects;
 
         static void readAssetHeader(std::ifstream& ifs, AssetHeader& header)

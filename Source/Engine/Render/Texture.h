@@ -91,15 +91,6 @@ namespace xxx
         
     };
 
-    class Texture2DArray : public Texture
-    {
-    public:
-
-    protected:
-        int mWidth, mHeight;
-        int mArrayCount;
-    };
-
     namespace refl
     {
         template <> Type* Reflection::createType<Texture>();

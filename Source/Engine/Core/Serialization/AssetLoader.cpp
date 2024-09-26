@@ -159,10 +159,9 @@ namespace xxx
     void AssetLoader::serializeStdSet(StdSet* stdSet, void* data, uint32_t count)
     {
         Type* elementType = stdSet->getElementType();
-        const size_t stdSetSize = stdSet->getSize();
         for (uint32_t i = 0; i < count; ++i)
         {
-            void* stdSetData = static_cast<uint8_t*>(data) + stdSetSize * i;
+            void* stdSetData = static_cast<uint8_t*>(data) + stdSet->getSize() * i;
             size_t elementCount;
             serializeArithmetic(&elementCount);
 
@@ -177,6 +176,76 @@ namespace xxx
             {
                 void* element = static_cast<uint8_t*>(elements) + j * elementSize;
                 stdSet->insertElement(stdSetData, element);
+            }
+
+            if (elementTypeIsClass)
+                delete[] static_cast<Object**>(elements);
+            else
+                elementType->deleteInstances(elements);
+        }
+    }
+
+    void AssetLoader::serializeStdUnorderedMap(refl::StdUnorderedMap* stdUnorderedMap, void* data, uint32_t count)
+    {
+        Type* keyType = stdUnorderedMap->getKeyType();
+        Type* valueType = stdUnorderedMap->getValueType();
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            void* stdUnorderedMapData = static_cast<uint8_t*>(data) + stdUnorderedMap->getSize() * i;
+            size_t keyValuePairCount;
+            serializeArithmetic(&keyValuePairCount);
+
+            const bool keyTypeIsClass = keyType->getKind() == Type::Kind::Class;
+            const bool valueTypeIsClass = valueType->getKind() == Type::Kind::Class;
+            void* keys = keyTypeIsClass ?
+                new Object * [keyValuePairCount] :
+                keyType->newInstances(keyValuePairCount);
+            void* values = valueTypeIsClass ?
+                new Object * [keyValuePairCount] :
+                valueType->newInstances(keyValuePairCount);
+            serializeType(keyType, keys, keyValuePairCount);
+            serializeType(valueType, values, keyValuePairCount);
+
+            const size_t keySize = keyTypeIsClass ? sizeof(Object*) : keyType->getSize();
+            const size_t valueSize = valueTypeIsClass ? sizeof(Object*) : valueType->getSize();
+            for (size_t j = 0; j < keyValuePairCount; ++j)
+            {
+                void* key = static_cast<uint8_t*>(keys) + j * keySize;
+                void* value = static_cast<uint8_t*>(values) + j * valueSize;
+                stdUnorderedMap->insertKeyValuePair(stdUnorderedMapData, key, value);
+            }
+
+            if (keyTypeIsClass)
+                delete[] static_cast<Object**>(keys);
+            else
+                keyType->deleteInstances(keys);
+            if (valueTypeIsClass)
+                delete[] static_cast<Object**>(values);
+            else
+                valueType->deleteInstances(values);
+        }
+    }
+
+    void AssetLoader::serializeStdUnorderedSet(refl::StdUnorderedSet* stdUnorderedSet, void* data, uint32_t count)
+    {
+        Type* elementType = stdUnorderedSet->getElementType();
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            void* stdUnorderedSetData = static_cast<uint8_t*>(data) + stdUnorderedSet->getSize() * i;
+            size_t elementCount;
+            serializeArithmetic(&elementCount);
+
+            const bool elementTypeIsClass = elementType->getKind() == Type::Kind::Class;
+            void* elements = elementTypeIsClass ?
+                new Object * [elementCount] :
+                elementType->newInstances(elementCount);
+            serializeType(elementType, elements, elementCount);
+
+            const size_t elementSize = elementTypeIsClass ? sizeof(Object*) : elementType->getSize();
+            for (size_t j = 0; j < elementCount; ++j)
+            {
+                void* element = static_cast<uint8_t*>(elements) + j * elementSize;
+                stdUnorderedSet->insertElement(stdUnorderedSetData, element);
             }
 
             if (elementTypeIsClass)

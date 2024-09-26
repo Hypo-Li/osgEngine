@@ -6,13 +6,13 @@
 
 template <typename T>
 static constexpr bool is_shader_parameter_v =
-    std::is_same_v<T, bool> |
-    std::is_same_v<T, int> |
-    std::is_same_v<T, float> |
-    std::is_same_v<T, osg::Vec2f> |
-    std::is_same_v<T, osg::Vec3f> |
-    std::is_same_v<T, osg::Vec4f> |
-    std::is_same_v<T, xxx::Texture*>;
+    std::is_same_v<T, bool> ||
+    std::is_same_v<T, int> ||
+    std::is_same_v<T, float> ||
+    std::is_same_v<T, osg::Vec2f> ||
+    std::is_same_v<T, osg::Vec3f> ||
+    std::is_same_v<T, osg::Vec4f> ||
+    std::is_base_of_v<xxx::Texture, std::remove_pointer_t<T>>;
 
 namespace xxx
 {
@@ -35,8 +35,10 @@ namespace xxx
         Blend,
     };
 
+    class Material;
     class Shader : public Object
     {
+        friend class Material;
         REFLECT_CLASS(Shader)
     public:
         Shader() = default;
@@ -44,7 +46,10 @@ namespace xxx
         template <typename T, typename = std::enable_if_t<is_shader_parameter_v<T>>>
         void addParameter(const std::string& name, T defaultValue)
         {
-            mParameters.emplace(name, defaultValue);
+            if constexpr (std::is_base_of_v<xxx::Texture, std::remove_pointer_t<T>>)
+                mParameters.emplace(name, osg::ref_ptr<Texture>(defaultValue));
+            else
+                mParameters.emplace(name, defaultValue);
         }
 
         template <typename T, typename = std::enable_if_t<is_shader_parameter_v<T>>>
@@ -55,9 +60,9 @@ namespace xxx
                 findResult->second = value;
         }
 
-        using ShaderParameter = std::variant<bool, int, float, osg::Vec2f, osg::Vec3f, osg::Vec4f, osg::ref_ptr<Texture>>;
-    private:
-        std::map<std::string, ShaderParameter> mParameters;
+    protected:
+        using Parameter = std::variant<bool, int, float, osg::Vec2f, osg::Vec3f, osg::Vec4f, osg::ref_ptr<Texture>>;
+        std::map<std::string, Parameter> mParameters;
         std::string mSource;
         RenderingPath mRenderingPath = RenderingPath::Deferred;
         ShadingModel mShadingModel = ShadingModel::Unlit;

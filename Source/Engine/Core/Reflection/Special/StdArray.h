@@ -24,7 +24,7 @@ namespace xxx::refl
     };
 
     class Reflection;
-    template <typename T, std::enable_if_t<is_std_array_v<T>, int> = 0>
+    template <typename T, typename = std::enable_if_t<is_std_array_v<T>>>
     class StdArrayInstance : public StdArray
     {
         friend class Reflection;

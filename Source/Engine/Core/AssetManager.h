@@ -8,6 +8,7 @@ namespace xxx
 {
     class AssetManager
     {
+        friend class Asset;
     public:
         AssetManager()
         {

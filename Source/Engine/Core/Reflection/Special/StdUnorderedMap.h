@@ -1,22 +1,22 @@
 #pragma once
 #include "../Special.h"
 
-#include <map>
+#include <unordered_map>
 
 template <typename T1, typename T2>
-struct container_traits<std::map<T1, T2>> {
+struct container_traits<std::unordered_map<T1, T2>> {
     using type1 = T1;
     using type2 = T2;
 };
 
 namespace xxx::refl
 {
-    class StdMap : public Special
+    class StdUnorderedMap : public Special
     {
     public:
         virtual SpecialType getSpecialType() const
         {
-            return SpecialType::Std_Map;
+            return SpecialType::Std_Unordered_Map;
         }
 
         virtual Type* getKeyType() const = 0;
@@ -30,8 +30,8 @@ namespace xxx::refl
     };
 
     class Reflection;
-    template <typename T, typename = std::enable_if_t<is_instance_of_v<T, std::map>>>
-    class StdMapInstance : public StdMap
+    template <typename T, typename = std::enable_if_t<is_instance_of_v<T, std::unordered_map>>>
+    class StdUnorderedMapInstance : public StdUnorderedMap
     {
         friend class Reflection;
         using Key = container_traits_t1<T>;
@@ -39,27 +39,27 @@ namespace xxx::refl
     public:
         virtual void* newInstance() const override
         {
-            return new std::map<Key, Value>;
+            return new std::unordered_map<Key, Value>;
         }
 
         virtual void deleteInstance(void* instance) const override
         {
-            delete static_cast<std::map<Key, Value>*>(instance);
+            delete static_cast<std::unordered_map<Key, Value>*>(instance);
         }
 
         virtual void* newInstances(size_t count) const override
         {
-            return new std::map<Key, Value>[count];
+            return new std::unordered_map<Key, Value>[count];
         }
 
         virtual void deleteInstances(void* instances) const override
         {
-            delete[] static_cast<std::map<Key, Value>*>(instances);
+            delete[] static_cast<std::unordered_map<Key, Value>*>(instances);
         }
 
         virtual bool compare(const void* instance1, const void* instance2) const override
         {
-            if (static_cast<const std::map<Key, Value>*>(instance1)->size() == 0 && static_cast<const std::map<Key, Value>*>(instance2)->size() == 0)
+            if (static_cast<const std::unordered_map<Key, Value>*>(instance1)->size() == 0 && static_cast<const std::unordered_map<Key, Value>*>(instance2)->size() == 0)
                 return true;
             return false;
         }
@@ -76,14 +76,14 @@ namespace xxx::refl
 
         virtual size_t getKeyValuePairCount(const void* instance) const override
         {
-            return static_cast<const std::map<Key, Value>*>(instance)->size();
+            return static_cast<const std::unordered_map<Key, Value>*>(instance)->size();
         }
 
         virtual void* getValuePtrByKey(void* instance, void* key) const override
         {
-            std::map<Key, Value>* map = static_cast<std::map<Key, Value>*>(instance);
-            auto findResult = map->find(*(Key*)(key));
-            if (findResult != map->end())
+            std::unordered_map<Key, Value>* unorderedMap = static_cast<std::unordered_map<Key, Value>*>(instance);
+            auto findResult = unorderedMap->find(*(Key*)(key));
+            if (findResult != unorderedMap->end())
                 return &findResult->second;
             return nullptr;
         }
@@ -91,8 +91,8 @@ namespace xxx::refl
         virtual std::vector<std::pair<const void*, void*>> getKeyValuePtrs(void* instance) const override
         {
             std::vector<std::pair<const void*, void*>> result;
-            std::map<Key, Value>* map = static_cast<std::map<Key, Value>*>(instance);
-            for (auto it = map->begin(); it != map->end(); ++it)
+            std::unordered_map<Key, Value>* unorderedMap = static_cast<std::unordered_map<Key, Value>*>(instance);
+            for (auto it = unordered_map->begin(); it != unordered_map->end(); ++it)
             {
                 result.emplace_back(&it->first, &it->second);
             }
@@ -101,24 +101,24 @@ namespace xxx::refl
 
         virtual void insertKeyValuePair(void* instance, void* key, void* value) const override
         {
-            std::map<Key, Value>* map = static_cast<std::map<Key, Value>*>(instance);
-            map->emplace(*(Key*)(key), *(Value*)(value));
+            std::unordered_map<Key, Value>* unorderedMap = static_cast<std::unordered_map<Key, Value>*>(instance);
+            unorderedMap->emplace(*(Key*)(key), *(Value*)(value));
         }
 
         virtual void removeKeyValuePairByKey(void* instance, void* key) const override
         {
-            std::map<Key, Value>* map = static_cast<std::map<Key, Value>*>(instance);
-            auto findResult = map->find(*(Key*)(key));
-            if (findResult != map->end())
-                map->erase(findResult);
+            std::unordered_map<Key, Value>* unorderedMap = static_cast<std::unordered_map<Key, Value>*>(instance);
+            auto findResult = unorderedMap->find(*(Key*)(key));
+            if (findResult != unorderedMap->end())
+                unorderedMap->erase(findResult);
         }
 
     protected:
-        StdMapInstance()
+        StdUnorderedMapInstance()
         {
-            static std::string name = "std::map<" + std::string(Reflection::getType<Key>()->getName()) + ", " + std::string(Reflection::getType<Value>()->getName()) + ">";
+            static std::string name = "std::unordered_map<" + std::string(Reflection::getType<Key>()->getName()) + ", " + std::string(Reflection::getType<Value>()->getName()) + ">";
             mName = name;
-            mSize = sizeof(std::map<Key, Value>);
+            mSize = sizeof(std::unordered_map<Key, Value>);
         }
     };
 }

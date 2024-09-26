@@ -129,11 +129,41 @@ namespace xxx
     void AssetSaver::serializeStdSet(StdSet* stdSet, void* data, uint32_t count)
     {
         Type* elementType = stdSet->getElementType();
-        const size_t stdSetSize = stdSet->getSize();
         for (uint32_t i = 0; i < count; ++i)
         {
-            void* stdSetData = static_cast<uint8_t*>(data) + stdSetSize * i;
+            void* stdSetData = static_cast<uint8_t*>(data) + stdSet->getSize() * i;
             std::vector<const void*> elementPtrs = stdSet->getElementPtrs(stdSetData);
+            size_t elementCount = elementPtrs.size();
+            serializeArithmetic(&elementCount);
+            for (size_t j = 0; j < elementCount; ++j)
+                serializeType(elementType, const_cast<void*>(elementPtrs[j]));
+        }
+    }
+
+    void AssetSaver::serializeStdUnorderedMap(refl::StdUnorderedMap* stdUnorderedMap, void* data, uint32_t count)
+    {
+        Type* keyType = stdUnorderedMap->getKeyType();
+        Type* valueType = stdUnorderedMap->getValueType();
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            void* stdUnorderedMapData = static_cast<uint8_t*>(data) + stdUnorderedMap->getSize() * i;
+            std::vector<std::pair<const void*, void*>> keyValuePtrs = stdUnorderedMap->getKeyValuePtrs(stdUnorderedMapData);
+            size_t keyValuePairCount = keyValuePtrs.size();
+            serializeArithmetic(&keyValuePairCount);
+            for (size_t j = 0; j < keyValuePairCount; ++j)
+                serializeType(keyType, const_cast<void*>(keyValuePtrs[j].first));
+            for (size_t j = 0; j < keyValuePairCount; ++j)
+                serializeType(valueType, keyValuePtrs[j].second);
+        }
+    }
+
+    void AssetSaver::serializeStdUnorderedSet(refl::StdUnorderedSet* stdUnorderedSet, void* data, uint32_t count)
+    {
+        Type* elementType = stdUnorderedSet->getElementType();
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            void* stdSetData = static_cast<uint8_t*>(data) + stdUnorderedSet->getSize() * i;
+            std::vector<const void*> elementPtrs = stdUnorderedSet->getElementPtrs(stdSetData);
             size_t elementCount = elementPtrs.size();
             serializeArithmetic(&elementCount);
             for (size_t j = 0; j < elementCount; ++j)

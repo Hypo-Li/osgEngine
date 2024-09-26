@@ -10,7 +10,7 @@ namespace xxx
 
     protected:
         osg::ref_ptr<Shader> mShader;
-        std::map<std::string, Shader::ShaderParameter> mParameters;
+        std::map<std::string, Shader::Parameter> mParameters;
     };
 
     namespace refl

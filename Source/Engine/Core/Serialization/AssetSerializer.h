@@ -79,10 +79,7 @@ namespace xxx
     class AssetSerializer : public Serializer
     {
     public:
-        AssetSerializer(Asset* asset) : mAsset(asset)
-        {
-            
-        }
+        AssetSerializer(Asset* asset) : mAsset(asset) {}
         virtual ~AssetSerializer() = default;
 
         // serialize from root object
@@ -122,8 +119,10 @@ namespace xxx
         }
 
     protected:
+        // using in AssetSaver
         int32_t getIndexOfObject(Object* object);
 
+        // using in AssetLoader
         Object* getObjectByIndex(int32_t index);
 
         inline void pushObjectBufferIndex(uint32_t index)

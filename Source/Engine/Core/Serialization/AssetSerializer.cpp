@@ -147,6 +147,7 @@ namespace xxx
             }
             else
             {
+                asset->load();
                 object = asset->getRootObject();
                 mAsset->addImportedObject(object);
             }
@@ -161,6 +162,7 @@ namespace xxx
                 Guid guid = mExportTable[index].objectGuid;
                 Class* clazz = Reflection::getClass(getStringTable().at(mExportTable[index].classNameStrIndex));
                 object = static_cast<Object*>(clazz->newInstance());
+                object->setGuid(guid);
                 mTempObjects[index] = object;
                 mAsset->addExportedObject(object);
 
@@ -281,6 +283,16 @@ namespace xxx
         case SpecialType::Std_Tuple:
         {
             serializeStdTuple(dynamic_cast<StdTuple*>(special), data, count);
+            break;
+        }
+        case SpecialType::Std_Unordered_Map:
+        {
+            serializeStdUnorderedMap(dynamic_cast<StdUnorderedMap*>(special), data, count);
+            break;
+        }
+        case SpecialType::Std_Unordered_Set:
+        {
+            serializeStdUnorderedSet(dynamic_cast<StdUnorderedSet*>(special), data, count);
             break;
         }
         case SpecialType::Std_Variant:

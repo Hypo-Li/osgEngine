@@ -1,16 +1,16 @@
 #pragma once
 #include "../Special.h"
 
-#include <set>
+#include <unordered_set>
 
 template <typename T>
-struct container_traits<std::set<T>> {
+struct container_traits<std::unordered_set<T>> {
     using type = T;
 };
 
 namespace xxx::refl
 {
-    class StdSet : public Special
+    class StdUnorderedSet : public Special
     {
     public:
         virtual SpecialType getSpecialType() const
@@ -27,35 +27,35 @@ namespace xxx::refl
     };
 
     class Reflection;
-    template <typename T, typename = std::enable_if_t<is_instance_of_v<T, std::set>>>
-    class StdSetInstance : public StdSet
+    template <typename T, typename = std::enable_if_t<is_instance_of_v<T, std::unordered_set>>>
+    class StdUnorderedSetInstance : public StdUnorderedSet
     {
         friend class Reflection;
         using Element = container_traits_t<T>;
     public:
         virtual void* newInstance() const override
         {
-            return new std::set<Element>;
+            return new std::unordered_set<Element>;
         }
 
         virtual void deleteInstance(void* instance) const override
         {
-            delete static_cast<std::set<Element>*>(instance);
+            delete static_cast<std::unordered_set<Element>*>(instance);
         }
 
         virtual void* newInstances(size_t count) const override
         {
-            return new std::set<Element>[count];
+            return new std::unordered_set<Element>[count];
         }
 
         virtual void deleteInstances(void* instances) const override
         {
-            delete[] static_cast<std::set<Element>*>(instances);
+            delete[] static_cast<std::unordered_set<Element>*>(instances);
         }
 
         virtual bool compare(const void* instance1, const void* instance2) const override
         {
-            if (static_cast<const std::set<Element>*>(instance1)->size() == 0 && static_cast<const std::set<Element>*>(instance2)->size() == 0)
+            if (static_cast<const std::unordered_set<Element>*>(instance1)->size() == 0 && static_cast<const std::unordered_set<Element>*>(instance2)->size() == 0)
                 return true;
             return false;
         }
@@ -67,14 +67,14 @@ namespace xxx::refl
 
         virtual size_t getElementCount(const void* instance) const override
         {
-            return static_cast<const std::set<Element>*>(instance)->size();
+            return static_cast<const std::unordered_set<Element>*>(instance)->size();
         }
 
         virtual std::vector<const void*> getElementPtrs(const void* instance) const override
         {
             std::vector<const void*> result;
-            const std::set<Element>* set = static_cast<const std::set<Element>*>(instance);
-            for (auto it = set->begin(); it != set->end(); ++it)
+            const std::unordered_set<Element>* unorderedSet = static_cast<const std::unordered_set<Element>*>(instance);
+            for (auto it = unorderedSet->begin(); it != unorderedSet->end(); ++it)
             {
                 result.emplace_back(&(*it));
             }
@@ -83,24 +83,24 @@ namespace xxx::refl
 
         virtual void insertElement(void* instance, void* element) const override
         {
-            std::set<Element>* set = static_cast<std::set<Element>*>(instance);
-            set->insert(*(Element*)(element));
+            std::unordered_set<Element>* unorderedSet = static_cast<std::unordered_set<Element>*>(instance);
+            unorderedSet->insert(*(Element*)(element));
         }
 
         virtual void removeElement(void* instance, void* element) const override
         {
-            std::set<Element>* set = static_cast<std::set<Element>*>(instance);
-            auto findResult = set->find(*(Element*)(element));
-            if (findResult != set->end())
-                set->erase(findResult);
+            std::unordered_set<Element>* unorderedSet = static_cast<std::unordered_set<Element>*>(instance);
+            auto findResult = unorderedSet->find(*(Element*)(element));
+            if (findResult != unorderedSet->end())
+                unorderedSet->erase(findResult);
         }
 
     protected:
-        StdSetInstance()
+        StdUnorderedSetInstance()
         {
-            static std::string name = "std::set<" + std::string(Reflection::getType<Element>()->getName()) + ">";
+            static std::string name = "std::unordered_set<" + std::string(Reflection::getType<Element>()->getName()) + ">";
             mName = name;
-            mSize = sizeof(std::set<Element>);
+            mSize = sizeof(std::unordered_set<Element>);
         }
     };
 }

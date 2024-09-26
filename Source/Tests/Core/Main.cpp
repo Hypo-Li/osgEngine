@@ -1,6 +1,7 @@
 #include "Engine/Core/Entity.h"
 #include "Engine/Core/Component.h"
 #include "Engine/Render/Shader.h"
+#include "Engine/Render/Mesh.h"
 #include "Engine/Core/Asset.h"
 #include "Engine/Core/Prefab.h"
 #include "Engine/Core/AssetManager.h"
@@ -14,13 +15,7 @@ using namespace xxx::refl;
 
 class TestComponent : public Component
 {
-    friend class refl::Reflection;
-public:
-    virtual refl::Class* getClass() const
-    {
-        return static_cast<refl::Class*>(refl::Reflection::getType<TestComponent>());
-    }
-
+    REFLECT_CLASS(TestComponent)
 public:
     TestComponent() :
         mOsgImplGroup(new osg::Group)
@@ -32,11 +27,6 @@ public:
         mOsgImplGroup(new osg::Group(*other.mOsgImplGroup))
     {
         mOsgComponentGroup->addChild(mOsgImplGroup);
-    }
-
-    virtual TestComponent* clone() const override
-    {
-        return new TestComponent(*this);
     }
 
     virtual Type getType() const override
@@ -65,6 +55,13 @@ namespace xxx::refl
         return clazz;
     }
 }
+
+struct TestStruct
+{
+    int a;
+    float b;
+    char c;
+};
 
 int main()
 {
@@ -103,10 +100,21 @@ int main()
     /*Texture2D* texture2d = new Texture2D(TEMP_DIR "awesomeface.png");
     Asset* textureAsset = AssetManager::get().createAsset(texture2d, ASSET_DIR "Texture/Awesomeface.xast");
     textureAsset->save();*/
-    AssetManager& am = AssetManager::get();
-    Asset* asset = am.getAsset(ASSET_DIR "Shader.xast");
-    asset->load();
-    Object* object = asset->getRootObject();
+
+    /*AssetManager& am = AssetManager::get();
+
+    Asset* shaderAsset = am.getAsset(ASSET_DIR "Shader.xast");
+    shaderAsset->load();
+    Shader* shader = shaderAsset->getRootObject<Shader>();
+
+    Asset* textureAsset = am.getAsset(ASSET_DIR "Texture/Awesomeface.xast");
+    textureAsset->load();
+    Texture* texture = textureAsset->getRootObject<Texture>();
+
+    shader->addParameter("BaseColorTexture", texture);
+    shaderAsset->forceSave();*/
+
+    Mesh* mesh = new Mesh(TEMP_DIR "test.fbx");
 
     return 0;
 }

@@ -19,15 +19,16 @@ namespace xxx::refl
         }
 
         virtual Type* getElementType() const = 0;
-        virtual size_t getElementCount(void* vector) const = 0;
+        virtual size_t getElementCount(const void* vector) const = 0;
         virtual void* getElementPtrByIndex(void* vector, size_t index) const = 0;
+        virtual const void* getElementPtrByIndex(const void* vector, size_t index) const = 0;
         virtual void appendElement(void* vector, void* newElement) const = 0;
         virtual void removeElementByIndex(void* vector, size_t index) const = 0;
         virtual void resize(void* vector, size_t size) const = 0;
     };
 
     class Reflection;
-    template <typename T, std::enable_if_t<is_instance_of_v<T, std::vector>, int> = 0>
+    template <typename T, typename = std::enable_if_t<is_instance_of_v<T, std::vector>>>
     class StdVectorInstance : public StdVector
     {
         friend class Reflection;
@@ -55,6 +56,8 @@ namespace xxx::refl
 
         virtual bool compare(const void* instance1, const void* instance2) const override
         {
+            if (getElementCount(instance1) == 0 && getElementCount(instance2) == 0)
+                return true;
             return false;
         }
 
@@ -63,14 +66,19 @@ namespace xxx::refl
             return Type::getType<Element>();
         }
 
-        virtual size_t getElementCount(void* vector) const override
+        virtual size_t getElementCount(const void* vector) const override
         {
-            return static_cast<std::vector<Element>*>(vector)->size();
+            return static_cast<const std::vector<Element>*>(vector)->size();
         }
 
         virtual void* getElementPtrByIndex(void* vector, size_t index) const override
         {
             return &(static_cast<std::vector<Element>*>(vector)->at(index));
+        }
+
+        virtual const void* getElementPtrByIndex(const void* vector, size_t index) const override
+        {
+            return &(static_cast<const std::vector<Element>*>(vector)->at(index));
         }
 
         virtual void appendElement(void* vector, void* element) const override
