@@ -55,20 +55,20 @@ namespace xxx
         object->postSerialize();
     }
 
-    void AssetLoader::serializeBinary(void* data, uint32_t count)
+    void AssetLoader::serializeBinary(void* data, size_t count)
     {
         ObjectBuffer& objectBuffer = getCurrentObjectBuffer();
         objectBuffer.readData(data, count);
     }
 
     template <typename T>
-    static void setEnumValues(Enum* enumerate, void* data, const std::vector<std::string>& enumNames, uint32_t count)
+    static void setEnumValues(Enum* enumerate, void* data, const std::vector<std::string>& enumNames, size_t count)
     {
         for (uint32_t i = 0; i < count; ++i)
             ((T*)(data))[i] = static_cast<T>(enumerate->getValueByName(enumNames[i]));
     }
 
-    void AssetLoader::serializeEnum(Enum* enumerate, void* data, uint32_t count)
+    void AssetLoader::serializeEnum(Enum* enumerate, void* data, size_t count)
     {
         std::vector<std::string> enumNames(count);
         Type* underlying = enumerate->getUnderlyingType();
@@ -91,7 +91,7 @@ namespace xxx
             setEnumValues<uint64_t>(enumerate, data, enumNames, count);
     }
 
-    void AssetLoader::serializeClass(Object** data, uint32_t count)
+    void AssetLoader::serializeClass(Object** data, size_t count)
     {
         for (uint32_t i = 0; i < count; ++i)
         {
@@ -105,7 +105,7 @@ namespace xxx
         }
     }
 
-    void AssetLoader::serializeStdString(std::string* data, uint32_t count)
+    void AssetLoader::serializeStdString(std::string* data, size_t count)
     {
         std::vector<uint32_t> stringIndices(count);
         serializeArithmetic(stringIndices.data(), count);
@@ -115,7 +115,7 @@ namespace xxx
         }
     }
 
-    void AssetLoader::serializeStdMap(StdMap* stdMap, void* data, uint32_t count)
+    void AssetLoader::serializeStdMap(StdMap* stdMap, void* data, size_t count)
     {
         Type* keyType = stdMap->getKeyType();
         Type* valueType = stdMap->getValueType();
@@ -156,7 +156,7 @@ namespace xxx
         }
     }
 
-    void AssetLoader::serializeStdSet(StdSet* stdSet, void* data, uint32_t count)
+    void AssetLoader::serializeStdSet(StdSet* stdSet, void* data, size_t count)
     {
         Type* elementType = stdSet->getElementType();
         for (uint32_t i = 0; i < count; ++i)
@@ -185,7 +185,7 @@ namespace xxx
         }
     }
 
-    void AssetLoader::serializeStdUnorderedMap(refl::StdUnorderedMap* stdUnorderedMap, void* data, uint32_t count)
+    void AssetLoader::serializeStdUnorderedMap(refl::StdUnorderedMap* stdUnorderedMap, void* data, size_t count)
     {
         Type* keyType = stdUnorderedMap->getKeyType();
         Type* valueType = stdUnorderedMap->getValueType();
@@ -226,7 +226,7 @@ namespace xxx
         }
     }
 
-    void AssetLoader::serializeStdUnorderedSet(refl::StdUnorderedSet* stdUnorderedSet, void* data, uint32_t count)
+    void AssetLoader::serializeStdUnorderedSet(refl::StdUnorderedSet* stdUnorderedSet, void* data, size_t count)
     {
         Type* elementType = stdUnorderedSet->getElementType();
         for (uint32_t i = 0; i < count; ++i)
@@ -255,7 +255,7 @@ namespace xxx
         }
     }
 
-    void AssetLoader::serializeStdVariant(StdVariant* stdVariant, void* data, uint32_t count)
+    void AssetLoader::serializeStdVariant(StdVariant* stdVariant, void* data, size_t count)
     {
         for (uint32_t i = 0; i < count; ++i)
         {
@@ -279,7 +279,7 @@ namespace xxx
         }
     }
 
-    void AssetLoader::serializeStdVector(StdVector* stdVector, void* data, uint32_t count)
+    void AssetLoader::serializeStdVector(StdVector* stdVector, void* data, size_t count)
     {
         Type* elementType = stdVector->getElementType();
         for (uint32_t i = 0; i < count; ++i)

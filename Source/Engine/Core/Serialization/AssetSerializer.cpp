@@ -180,7 +180,7 @@ namespace xxx
         return object;
     }
 
-    void AssetSerializer::serializeType(refl::Type* type, void* data, uint32_t count)
+    void AssetSerializer::serializeType(refl::Type* type, void* data, size_t count)
     {
         switch (type->getKind())
         {
@@ -214,7 +214,7 @@ namespace xxx
         }
     }
 
-    void AssetSerializer::serializeFundamental(refl::Fundamental* fundamental, void* data, uint32_t count)
+    void AssetSerializer::serializeFundamental(refl::Fundamental* fundamental, void* data, size_t count)
     {
         if (fundamental == Reflection::BoolType)
             serializeArithmetic((bool*)(data), count);
@@ -244,14 +244,18 @@ namespace xxx
             serializeArithmetic((double*)(data), count);
     }
 
-    void AssetSerializer::serializeStruct(Struct* structure, void* data, uint32_t count)
+    void AssetSerializer::serializeStruct(Struct* structure, void* data, size_t count)
     {
         for (uint32_t i = 0; i < count; ++i)
+        {
+            void* structData = static_cast<uint8_t*>(data) + structure->getSize() * i;
             for (Property* prop : structure->getProperties())
-                serializeType(prop->getDeclaredType(), prop->getValuePtr(data));
+                serializeType(prop->getDeclaredType(), prop->getValuePtr(structData));
+        }
+            
     }
 
-    void AssetSerializer::serializeSpecial(Special* special, void* data, uint32_t count)
+    void AssetSerializer::serializeSpecial(Special* special, void* data, size_t count)
     {
         switch (special->getSpecialType())
         {
@@ -310,7 +314,7 @@ namespace xxx
         }
     }
 
-    void AssetSerializer::serializeStdArray(StdArray* stdArray, void* data, uint32_t count)
+    void AssetSerializer::serializeStdArray(StdArray* stdArray, void* data, size_t count)
     {
         const size_t stdArraySize = stdArray->getSize();
         for (uint32_t i = 0; i < count; ++i)
@@ -320,7 +324,7 @@ namespace xxx
         }
     }
 
-    void AssetSerializer::serializeStdPair(StdPair* stdPair, void* data, uint32_t count)
+    void AssetSerializer::serializeStdPair(StdPair* stdPair, void* data, size_t count)
     {
         for (uint32_t i = 0; i < count; ++i)
         {
@@ -330,7 +334,7 @@ namespace xxx
         }
     }
 
-    void AssetSerializer::serializeStdTuple(StdTuple* stdTuple, void* data, uint32_t count)
+    void AssetSerializer::serializeStdTuple(StdTuple* stdTuple, void* data, size_t count)
     {
         for (uint32_t i = 0; i < count; ++i)
         {

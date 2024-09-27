@@ -12,11 +12,11 @@
 
 namespace xxx
 {
-    class CMeshRenderer : public Component
+    class MeshRenderer : public Component
     {
     public:
-        CMeshRenderer() : Component(Type::MeshRenderer) {}
-        virtual ~CMeshRenderer() = default;
+        MeshRenderer() : Component(Type::MeshRenderer) {}
+        virtual ~MeshRenderer() = default;
 
         void setMesh(AStaticMesh* mesh)
         {

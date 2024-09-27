@@ -197,7 +197,7 @@ namespace xxx::refl
         inline static const Fundamental* Int64Type = dynamic_cast<Fundamental*>(getType<int64_t>());
         inline static const Fundamental* Uint8Type = dynamic_cast<Fundamental*>(getType<uint8_t>());
         inline static const Fundamental* Uint16Type = dynamic_cast<Fundamental*>(getType<uint16_t>());
-        inline static const Fundamental* Uint32Type = dynamic_cast<Fundamental*>(getType<uint64_t>());
+        inline static const Fundamental* Uint32Type = dynamic_cast<Fundamental*>(getType<uint32_t>());
         inline static const Fundamental* Uint64Type = dynamic_cast<Fundamental*>(getType<uint64_t>());
         inline static const Fundamental* FloatType = dynamic_cast<Fundamental*>(getType<float>());
         inline static const Fundamental* DoubleType = dynamic_cast<Fundamental*>(getType<double>());

@@ -48,20 +48,20 @@ namespace xxx
         object->postSerialize();
     }
 
-    void AssetSaver::serializeBinary(void* data, uint32_t count)
+    void AssetSaver::serializeBinary(void* data, size_t count)
     {
         ObjectBuffer& objectBuffer = getCurrentObjectBuffer();
         objectBuffer.writeData(data, count);
     }
 
     template <typename T>
-    static void getEnumNames(Enum* enumerate, void* data, std::vector<std::string>& enumNames, uint32_t count)
+    static void getEnumNames(Enum* enumerate, void* data, std::vector<std::string>& enumNames, size_t count)
     {
         for (uint32_t i = 0; i < count; ++i)
             enumNames[i] = enumerate->getNameByValue(static_cast<int64_t>(((T*)(data))[i]));
     }
 
-    void AssetSaver::serializeEnum(Enum* enumerate, void* data, uint32_t count)
+    void AssetSaver::serializeEnum(Enum* enumerate, void* data, size_t count)
     {
         std::vector<std::string> enumNames(count);
         Type* underlying = enumerate->getUnderlyingType();
@@ -84,7 +84,7 @@ namespace xxx
         serializeStdString(enumNames.data(), count);
     }
 
-    void AssetSaver::serializeClass(Object** data, uint32_t count)
+    void AssetSaver::serializeClass(Object** data, size_t count)
     {
         for (uint32_t i = 0; i < count; ++i)
         {
@@ -99,7 +99,7 @@ namespace xxx
         }
     }
 
-    void AssetSaver::serializeStdString(std::string* data, uint32_t count)
+    void AssetSaver::serializeStdString(std::string* data, size_t count)
     {
         std::vector<uint32_t> stringIndices(count);
         for (uint32_t i = 0; i < count; ++i)
@@ -109,7 +109,7 @@ namespace xxx
         serializeArithmetic(stringIndices.data(), count);
     }
 
-    void AssetSaver::serializeStdMap(StdMap* stdMap, void* data, uint32_t count)
+    void AssetSaver::serializeStdMap(StdMap* stdMap, void* data, size_t count)
     {
         Type* keyType = stdMap->getKeyType();
         Type* valueType = stdMap->getValueType();
@@ -126,7 +126,7 @@ namespace xxx
         }
     }
 
-    void AssetSaver::serializeStdSet(StdSet* stdSet, void* data, uint32_t count)
+    void AssetSaver::serializeStdSet(StdSet* stdSet, void* data, size_t count)
     {
         Type* elementType = stdSet->getElementType();
         for (uint32_t i = 0; i < count; ++i)
@@ -140,7 +140,7 @@ namespace xxx
         }
     }
 
-    void AssetSaver::serializeStdUnorderedMap(refl::StdUnorderedMap* stdUnorderedMap, void* data, uint32_t count)
+    void AssetSaver::serializeStdUnorderedMap(refl::StdUnorderedMap* stdUnorderedMap, void* data, size_t count)
     {
         Type* keyType = stdUnorderedMap->getKeyType();
         Type* valueType = stdUnorderedMap->getValueType();
@@ -157,7 +157,7 @@ namespace xxx
         }
     }
 
-    void AssetSaver::serializeStdUnorderedSet(refl::StdUnorderedSet* stdUnorderedSet, void* data, uint32_t count)
+    void AssetSaver::serializeStdUnorderedSet(refl::StdUnorderedSet* stdUnorderedSet, void* data, size_t count)
     {
         Type* elementType = stdUnorderedSet->getElementType();
         for (uint32_t i = 0; i < count; ++i)
@@ -171,7 +171,7 @@ namespace xxx
         }
     }
 
-    void AssetSaver::serializeStdVariant(StdVariant* stdVariant, void* data, uint32_t count)
+    void AssetSaver::serializeStdVariant(StdVariant* stdVariant, void* data, size_t count)
     {
         for (uint32_t i = 0; i < count; ++i)
         {
@@ -184,7 +184,7 @@ namespace xxx
         }
     }
 
-    void AssetSaver::serializeStdVector(StdVector* stdVector, void* data, uint32_t count)
+    void AssetSaver::serializeStdVector(StdVector* stdVector, void* data, size_t count)
     {
         Type* elementType = stdVector->getElementType();
         for (uint32_t i = 0; i < count; ++i)

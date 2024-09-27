@@ -161,22 +161,22 @@ namespace xxx
         }
 
         template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-        inline void serializeArithmetic(T* data, uint32_t count = 1)
+        inline void serializeArithmetic(T* data, size_t count = 1)
         {
             serializeBinary(data, sizeof(T) * count);
         }
 
         virtual void serializeObject(Object* object) = 0;
-        virtual void serializeBinary(void* data, uint32_t count) = 0;
+        virtual void serializeBinary(void* data, size_t count) = 0;
 
-        virtual void serializeType(refl::Type* type, void* data, uint32_t count = 1) override;
-        virtual void serializeFundamental(refl::Fundamental* fundamental, void* data, uint32_t count = 1) override;
-        virtual void serializeStruct(refl::Struct* structure, void* data, uint32_t count = 1) override;
-        virtual void serializeSpecial(refl::Special* special, void* data, uint32_t count = 1) override;
+        virtual void serializeType(refl::Type* type, void* data, size_t count = 1) override;
+        virtual void serializeFundamental(refl::Fundamental* fundamental, void* data, size_t count = 1) override;
+        virtual void serializeStruct(refl::Struct* structure, void* data, size_t count = 1) override;
+        virtual void serializeSpecial(refl::Special* special, void* data, size_t count = 1) override;
 
-        virtual void serializeStdArray(refl::StdArray* stdArray, void* data, uint32_t count = 1) override;
-        virtual void serializeStdPair(refl::StdPair* stdPair, void* data, uint32_t count = 1) override;
-        virtual void serializeStdTuple(refl::StdTuple* stdTuple, void* data, uint32_t count = 1) override;
+        virtual void serializeStdArray(refl::StdArray* stdArray, void* data, size_t count = 1) override;
+        virtual void serializeStdPair(refl::StdPair* stdPair, void* data, size_t count = 1) override;
+        virtual void serializeStdTuple(refl::StdTuple* stdTuple, void* data, size_t count = 1) override;
 
     private:
         Asset* mAsset;

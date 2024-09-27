@@ -60,6 +60,31 @@ namespace xxx
                 findResult->second = value;
         }
 
+        const auto& getParameters() const
+        {
+            return mParameters;
+        }
+
+        RenderingPath getRenderingPath() const
+        {
+            return mRenderingPath;
+        }
+
+        ShadingModel getShadingModel() const
+        {
+            return mShadingModel;
+        }
+
+        AlphaMode getAlphaMode() const
+        {
+            return mAlphaMode;
+        }
+
+        osg::Shader* getOsgShader() const
+        {
+            return mOsgShader;
+        }
+
     protected:
         using Parameter = std::variant<bool, int, float, osg::Vec2f, osg::Vec3f, osg::Vec4f, osg::ref_ptr<Texture>>;
         std::map<std::string, Parameter> mParameters;
@@ -67,6 +92,7 @@ namespace xxx
         RenderingPath mRenderingPath = RenderingPath::Deferred;
         ShadingModel mShadingModel = ShadingModel::Unlit;
         AlphaMode mAlphaMode = AlphaMode::Opaque;
+        bool mDoubleSided;
 
         osg::ref_ptr<osg::Shader> mOsgShader;
     };

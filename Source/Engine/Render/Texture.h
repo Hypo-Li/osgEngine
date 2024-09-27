@@ -87,7 +87,7 @@ namespace xxx
         }
 
     protected:
-        int mWidth = 0, mHeight = 0;
+        uint32_t mWidth = 0, mHeight = 0;
         
     };
 
