@@ -5,10 +5,10 @@ namespace xxx
 {
     struct VertexAttributeView
     {
-        uint32_t index;
-        bool bindPerVertex;
+        uint32_t location;
         uint8_t dimension;
         GLenum type;
+
         size_t offset;
         size_t size;
     };
@@ -20,7 +20,7 @@ namespace xxx
         size_t size;
     };
 
-    struct Submesh
+    struct SubmeshView
     {
         std::vector<VertexAttributeView> vertexAttributeViews;
         IndexBufferView indexBufferView;
@@ -36,15 +36,20 @@ namespace xxx
         Mesh() = default;
         Mesh(const std::string& meshPath);
 
-        virtual void preSerialize() override;
+        virtual void preSerialize(Serializer* serializer) override;
 
-        virtual void postSerialize() override;
+        virtual void postSerialize(Serializer* serializer) override;
 
     protected:
         std::vector<uint8_t> mData;
-        std::vector<Submesh> mSubmeshes;
+        std::vector<SubmeshView> mSubmeshViews;
 
-        std::vector<osg::ref_ptr<osg::Geometry>> mOsgGeometries;
+        struct OsgGeometryData
+        {
+            std::vector<std::pair<uint32_t, osg::ref_ptr<osg::Array>>> vertexAttributes;
+            osg::ref_ptr<osg::DrawElements> drawElements;
+        };
+        std::vector<OsgGeometryData> mOsgGeometryDatas;
 
         static osg::Array* createOsgArrayByVertexAttributeView(VertexAttributeView& vav, uint8_t* data);
         static osg::DrawElements* createOsgDrawElementsByIndexBufferView(IndexBufferView& ibv, uint8_t* data);
@@ -55,7 +60,7 @@ namespace xxx
         template <> inline Type* Reflection::createType<VertexAttributeView>()
         {
             Struct* structure = new StructInstance<VertexAttributeView>("VertexAttributeView");
-            structure->addProperty("Index", &VertexAttributeView::index);
+            structure->addProperty("Location", &VertexAttributeView::location);
             structure->addProperty("Dimension", &VertexAttributeView::dimension);
             structure->addProperty("Type", &VertexAttributeView::type);
             structure->addProperty("Offset", &VertexAttributeView::offset);
@@ -72,12 +77,12 @@ namespace xxx
             return structure;
         }
 
-        template <> inline Type* Reflection::createType<Submesh>()
+        template <> inline Type* Reflection::createType<SubmeshView>()
         {
-            Struct* structure = new StructInstance<Submesh>("Submesh");
-            structure->addProperty("VertexAttributeViews", &Submesh::vertexAttributeViews);
-            structure->addProperty("IndexBufferView", &Submesh::indexBufferView);
-            structure->addProperty("DefaultMaterial", &Submesh::defaultMaterial);
+            Struct* structure = new StructInstance<SubmeshView>("SubmeshView");
+            structure->addProperty("VertexAttributeViews", &SubmeshView::vertexAttributeViews);
+            structure->addProperty("IndexBufferView", &SubmeshView::indexBufferView);
+            structure->addProperty("DefaultMaterial", &SubmeshView::defaultMaterial);
             return structure;
         }
 
@@ -85,7 +90,7 @@ namespace xxx
         {
             Class* clazz = new ClassInstance<Mesh>("Mesh");
             clazz->addProperty("Data", &Mesh::mData);
-            clazz->addProperty("Submeshes", &Mesh::mSubmeshes);
+            clazz->addProperty("SubmeshViews", &Mesh::mSubmeshViews);
             getClassMap().emplace("Mesh", clazz);
             return clazz;
         }

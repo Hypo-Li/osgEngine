@@ -80,6 +80,11 @@ namespace xxx
             return mAlphaMode;
         }
 
+        bool getDoubleSided() const
+        {
+            return mDoubleSided;
+        }
+
         osg::Shader* getOsgShader() const
         {
             return mOsgShader;
@@ -92,7 +97,7 @@ namespace xxx
         RenderingPath mRenderingPath = RenderingPath::Deferred;
         ShadingModel mShadingModel = ShadingModel::Unlit;
         AlphaMode mAlphaMode = AlphaMode::Opaque;
-        bool mDoubleSided;
+        bool mDoubleSided = false;
 
         osg::ref_ptr<osg::Shader> mOsgShader;
     };

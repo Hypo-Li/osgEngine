@@ -55,10 +55,6 @@ namespace xxx
             return mNeedSave;
         }
 
-        void setRootObject(Object* rootObject);
-
-        void setPath(const std::string& path);
-
         inline std::string& getPath()
         {
             return mPath;
@@ -74,22 +70,6 @@ namespace xxx
             return mGuid;
         }
 
-        inline void load()
-        {
-            if (!mIsLoaded)
-                forceLoad();
-        }
-
-        inline void save()
-        {
-            if (!mNeedSave)
-                forceSave();
-        }
-
-        void forceLoad();
-
-        void forceSave();
-
         inline void addImportedObject(Object* object)
         {
             if (!object)
@@ -103,6 +83,14 @@ namespace xxx
                 return;
             mExportedObjects.insert(object);
         }
+
+        void setRootObject(Object* rootObject);
+
+        void setPath(const std::string& path);
+
+        void load();
+
+        void save();
 
     protected:
         std::string mPath;

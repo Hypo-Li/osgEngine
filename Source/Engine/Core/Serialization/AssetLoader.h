@@ -12,6 +12,16 @@ namespace xxx
         }
         virtual ~AssetLoader() = default;
 
+        inline virtual bool isLoader() const override
+        {
+            return true;
+        }
+
+        inline virtual bool isSaver() const override
+        {
+            return false;
+        }
+
     protected:
         virtual void serializeObject(Object* object) override;
         virtual void serializeBinary(void* data, size_t count) override;

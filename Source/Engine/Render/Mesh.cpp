@@ -128,71 +128,70 @@ namespace xxx
         {
             osg::Geometry* geom = dynamic_cast<osg::Geometry*>(mov.getGeode()->getDrawable(i));
             if (geom)
-                mOsgGeometries.emplace_back(geom);
+            {
+                OsgGeometryData osgGeometryData;
+                osgGeometryData.vertexAttributes.emplace_back(0, geom->getVertexArray());
+                if (geom->getNormalArray())
+                    osgGeometryData.vertexAttributes.emplace_back(1, geom->getNormalArray());
+                if (geom->getColorArray())
+                    osgGeometryData.vertexAttributes.emplace_back(2, geom->getColorArray());
+                uint32_t texcoordIndex = 3;
+                for (osg::Array* texcoordArray : geom->getTexCoordArrayList())
+                    osgGeometryData.vertexAttributes.emplace_back(texcoordIndex++, texcoordArray);
+                uint32_t vertexAttributeIndex = 0;
+                for (osg::Array* vertexAttributeArray : geom->getVertexAttribArrayList())
+                {
+                    if (vertexAttributeArray)
+                        osgGeometryData.vertexAttributes.emplace_back(vertexAttributeIndex, vertexAttributeArray);
+                    ++vertexAttributeIndex;
+                }
+
+                // fixed only use PrimitiveSet(0), so that we can assign an IndexBufferView to each Geometry
+                osgGeometryData.drawElements = dynamic_cast<osg::DrawElements*>(geom->getPrimitiveSet(0));
+                mOsgGeometryDatas.emplace_back(osgGeometryData);
+            }
         }
         return;
     }
 
-    void Mesh::preSerialize()
+    void Mesh::preSerialize(Serializer* serializer)
     {
-        if (!mOsgGeometries.empty())
+        if (serializer->isSaver())
         {
-            mSubmeshes.resize(mOsgGeometries.size());
+            mSubmeshViews.resize(mOsgGeometryDatas.size());
 
             size_t dataSize = 0;
-            for (osg::Geometry* geom : mOsgGeometries)
+            for (OsgGeometryData& geomData : mOsgGeometryDatas)
             {
-                dataSize += geom->getVertexArray()->getTotalDataSize();
-                if (geom->getNormalArray())
-                    dataSize += geom->getNormalArray()->getTotalDataSize();
-                if (geom->getColorArray())
-                    dataSize += geom->getColorArray()->getTotalDataSize();
+                for (auto& vertexAttribute : geomData.vertexAttributes)
+                    dataSize += vertexAttribute.second->getTotalDataSize();
 
-                for (osg::Array* texcoord : geom->getTexCoordArrayList())
-                    if (texcoord)
-                        dataSize += texcoord->getTotalDataSize();
-
-                for (osg::Array* vertexAttribute : geom->getVertexAttribArrayList())
-                    if (vertexAttribute)
-                        dataSize += vertexAttribute->getTotalDataSize();
-
-                // fixed only use PrimitiveSet(0), so that we can assign an IndexBufferView to each Geometry
-                dataSize += geom->getPrimitiveSet(0)->getTotalDataSize();
+                dataSize += geomData.drawElements->getTotalDataSize();
             }
             mData.resize(dataSize);
 
             size_t dataOffset = 0;
-            for (uint32_t i = 0; i < mOsgGeometries.size(); ++i)
+            for (uint32_t i = 0; i < mOsgGeometryDatas.size(); ++i)
             {
-                osg::Geometry* geom = mOsgGeometries[i];
-                auto addVertexAttributeView = [&dataOffset, i, this](osg::Array* array, uint32_t index)
-                    {
-                        if (!array)
-                            return;
-                        VertexAttributeView vav;
-                        vav.index = index;
-                        vav.dimension = array->getDataSize();
-                        vav.type = array->getDataType();
-                        vav.offset = dataOffset;
-                        vav.size = array->getTotalDataSize();
-                        mSubmeshes[i].vertexAttributeViews.emplace_back(vav);
+                OsgGeometryData& geomData = mOsgGeometryDatas[i];
 
-                        std::memcpy(mData.data() + dataOffset, array->getDataPointer(), array->getTotalDataSize());
-                        dataOffset += array->getTotalDataSize();
-                    };
+                for (auto& vertexAttribute : geomData.vertexAttributes)
+                {
+                    VertexAttributeView vav;
+                    osg::Array* vertexAttributeArray = vertexAttribute.second;
+                    vav.location = vertexAttribute.first;
+                    vav.dimension = vertexAttributeArray->getDataSize();
+                    vav.type = vertexAttributeArray->getDataType();
+                    vav.offset = dataOffset;
+                    vav.size = vertexAttributeArray->getTotalDataSize();
+                    mSubmeshViews[i].vertexAttributeViews.emplace_back(vav);
 
-                addVertexAttributeView(geom->getVertexArray(), 0);
-                addVertexAttributeView(geom->getNormalArray(), 1);
-                addVertexAttributeView(geom->getColorArray(), 2);
-                uint32_t texcoordVertexAttribtueIndex = 3;
-                for (osg::Array* texcoord : geom->getTexCoordArrayList())
-                    addVertexAttributeView(texcoord, texcoordVertexAttribtueIndex++);
-                uint32_t vertexAttributeIndex = 0;
-                for (osg::Array* vertexAttribute : geom->getVertexAttribArrayList())
-                    addVertexAttributeView(vertexAttribute, vertexAttributeIndex++);
+                    std::memcpy(mData.data() + dataOffset, vertexAttributeArray->getDataPointer(), vertexAttributeArray->getTotalDataSize());
+                    dataOffset += vertexAttributeArray->getTotalDataSize();
+                }
 
-                osg::DrawElements* drawElements = dynamic_cast<osg::DrawElements*>(geom->getPrimitiveSet(0));
-                IndexBufferView& ibv = mSubmeshes[i].indexBufferView;
+                osg::DrawElements* drawElements = geomData.drawElements;
+                IndexBufferView& ibv = mSubmeshViews[i].indexBufferView;
                 ibv.type = drawElements->getDataType();
                 ibv.offset = dataOffset;
                 ibv.size = drawElements->getTotalDataSize();
@@ -203,26 +202,29 @@ namespace xxx
         }
     }
 
-    void Mesh::postSerialize()
+    void Mesh::postSerialize(Serializer* serializer)
     {
-        if (mOsgGeometries.empty())
+        if (serializer->isLoader())
         {
-            for (Submesh& submesh : mSubmeshes)
+            for (SubmeshView& submeshView : mSubmeshViews)
             {
-                osg::Geometry* geom = new osg::Geometry;
-                osg::DrawElements* drawElements = createOsgDrawElementsByIndexBufferView(submesh.indexBufferView, mData.data());
-                geom->addPrimitiveSet(drawElements);
+                OsgGeometryData geomData;
 
-                for (VertexAttributeView& vav : submesh.vertexAttributeViews)
+                for (VertexAttributeView& vav : submeshView.vertexAttributeViews)
                 {
-                    geom->setVertexAttribArray(vav.index, createOsgArrayByVertexAttributeView(vav, mData.data()));
-                    // TODO: we need a VertexAttributeView field to record that is bind overall or bind per vertex
-                    geom->setVertexAttribBinding(vav.index, osg::Geometry::BIND_PER_VERTEX);
+                    osg::Array* osgArray = createOsgArrayByVertexAttributeView(vav, mData.data());
+                    if (osgArray->getNumElements() == 1)
+                        osgArray->setBinding(osg::Array::BIND_OVERALL);
+                    geomData.vertexAttributes.emplace_back(vav.location, osgArray);
                 }
-                mOsgGeometries.emplace_back(geom);
+
+                geomData.drawElements = createOsgDrawElementsByIndexBufferView(submeshView.indexBufferView, mData.data());
+
+                mOsgGeometryDatas.emplace_back(geomData);
             }
-            mData.clear();
         }
+        mData.clear();
+        mSubmeshViews.clear();
     }
 
     osg::Array* Mesh::createOsgArrayByVertexAttributeView(VertexAttributeView& vav, uint8_t* data)

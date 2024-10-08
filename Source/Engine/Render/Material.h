@@ -18,36 +18,21 @@ namespace xxx
             return mOsgStateSet;
         }
 
-        void setShader(Shader* shader)
-        {
-            mShader = shader;
-            osg::Program* program = new osg::Program;
-            program->addShader(shader->getOsgShader());
-            // TODO: add framework shader
-            //program->addShader();
-            mOsgStateSet->setAttribute(program, osg::StateAttribute::ON);
-            const auto& parameters = mShader->getParameters();
-            //for (const auto& param : parameters)
-            //{
-            //    mOsgStateSet->addUniform(new osg::Uniform("u" + param.first, ))
-            //}
-        }
-
-        virtual void preSerialize() override
-        {
-            
-        }
-
-        virtual void postSerialize() override
-        {
-
-        }
+        void setShader(Shader* shader);
 
     protected:
         osg::ref_ptr<Shader> mShader;
         std::map<std::string, Shader::Parameter> mParameters;
 
         osg::ref_ptr<osg::StateSet> mOsgStateSet;
+
+        void setRenderingPath(RenderingPath renderingPath);
+
+        void setShadingModel(ShadingModel shadingModel);
+
+        void setAlphaMode(AlphaMode alphaMode);
+
+        void setDoubleSided(bool doubleSided);
     };
 
     namespace refl

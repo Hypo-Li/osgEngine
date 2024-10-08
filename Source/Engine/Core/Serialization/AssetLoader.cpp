@@ -7,7 +7,7 @@ namespace xxx
     using namespace refl;
     void AssetLoader::serializeObject(Object* object)
     {
-        object->preSerialize();
+        object->preSerialize(this);
 
         Class* clazz = object->getClass();
 
@@ -52,7 +52,7 @@ namespace xxx
             }
         }
 
-        object->postSerialize();
+        object->postSerialize(this);
     }
 
     void AssetLoader::serializeBinary(void* data, size_t count)

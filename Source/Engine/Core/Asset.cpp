@@ -62,8 +62,11 @@ namespace xxx
         }
     }
 
-    void Asset::forceLoad()
+    void Asset::load()
     {
+        if (!mIsLoaded)
+            return;
+
         std::ifstream ifs(mPath, std::ios::binary);
         AssetSerializer* assetLoader = new AssetLoader(this);
         AssetHeader header;
@@ -86,8 +89,11 @@ namespace xxx
         mIsLoaded = true;
     }
 
-    void Asset::forceSave()
+    void Asset::save()
     {
+        if (!mNeedSave)
+            return;
+
         std::ofstream ofs(mPath, std::ios::binary);
         AssetSerializer* assetSaver = new AssetSaver(this);
         AssetHeader header;

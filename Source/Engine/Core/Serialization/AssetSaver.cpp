@@ -7,7 +7,7 @@ namespace xxx
 
     void AssetSaver::serializeObject(Object* object)
     {
-        object->preSerialize();
+        object->preSerialize(this);
 
         Class* clazz = object->getClass();
         const Object* defaultObject = clazz->getDefaultObject();
@@ -45,7 +45,7 @@ namespace xxx
             seek(propertyEndPos);
         }
 
-        object->postSerialize();
+        object->postSerialize(this);
     }
 
     void AssetSaver::serializeBinary(void* data, size_t count)

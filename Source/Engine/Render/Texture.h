@@ -30,6 +30,11 @@ namespace xxx
             mOsgTexture->setWrap(osg::Texture::WRAP_T, osg::Texture::WrapMode(mWrapT));
         }
 
+        osg::Texture* getOsgTexture() const
+        {
+            return mOsgTexture;
+        }
+
     protected:
         GLenum mFormat = GL_RGBA;
         GLenum mPixelFormat = GL_RGBA;
@@ -60,9 +65,9 @@ namespace xxx
         }
         virtual ~Texture2D() = default;
 
-        virtual void preSerialize() override
+        virtual void preSerialize(Serializer* serializer) override
         {
-            if (mOsgTexture)
+            if (serializer->isSaver())
             {
                 osg::Texture2D* texture2d = dynamic_cast<osg::Texture2D*>(mOsgTexture.get());
                 uint32_t dataSize = texture2d->getImage()->getTotalSizeInBytes();
@@ -71,19 +76,19 @@ namespace xxx
             }
         }
 
-        virtual void postSerialize() override
+        virtual void postSerialize(Serializer* serializer) override
         {
-            if (!mOsgTexture)
+            if (serializer->isLoader())
             {
                 osg::Image* image = new osg::Image;
                 image->allocateImage(mWidth, mHeight, 1, mPixelFormat, mPixelType);
                 std::memcpy(image->data(), mData.data(), mData.size());
-                mData.clear();
                 osg::Texture2D* texture2d = new osg::Texture2D;
                 texture2d->setImage(image);
                 mOsgTexture = texture2d;
                 fillTextureParameters();
             }
+            mData.clear();
         }
 
     protected:

@@ -1,6 +1,6 @@
 #pragma once
 #include "Reflection/Reflection.h"
-//#include "Serialization/Serializer.h"
+#include "Serialization/Serializer.h"
 
 #include <osg/Referenced>
 #include <osg/ref_ptr>
@@ -158,10 +158,16 @@ namespace xxx
         Asset* getAsset() const;
 
         // load something from osg object when serialization
-        virtual void preSerialize() {}
+        virtual void preSerialize(Serializer* serializer)
+        {
+
+        }
 
         // store something to osg object when deserialization and release
-        virtual void postSerialize() {}
+        virtual void postSerialize(Serializer* serializer)
+        {
+
+        }
 
     private:
         Guid mGuid;
