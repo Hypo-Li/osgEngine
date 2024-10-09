@@ -58,58 +58,8 @@ namespace xxx::refl
     {
         Class* clazz = new ClassInstance<TestComponent, Component>("TestComponent");
         clazz->addProperty("TestShader", &TestComponent::mShader);
-        getClassMap().emplace("TestComponent", clazz);
         return clazz;
     }
-}
-
-struct TestStruct
-{
-    int a;
-    float b;
-    char c;
-};
-
-const char* vs = R"(
-#version 430 core
-in vec4 osg_Vertex;
-uniform mat4 osg_ModelViewProjectionMatrix;
-void main()
-{
-    gl_Position = osg_ModelViewProjectionMatrix * osg_Vertex;
-}
-)";
-
-const char* fs = R"(
-#version 430 core
-out vec4 fragData;
-void main()
-{
-    fragData = vec4(1, 0, 0, 1);
-}
-)";
-
-osg::Vec3f positions[] = {
-    osg::Vec3f(0, 0, 0),
-    osg::Vec3f(1, 1, 1),
-    osg::Vec3f(1, 2, 3)
-};
-
-uint32_t indices[] = { 0, 1, 2 };
-
-osg::Geometry* generateGeometry()
-{
-    static osg::Vec3Array* va = new osg::Vec3Array(3, positions);
-    static osg::DrawElementsUInt* deui = new osg::DrawElementsUInt(GL_TRIANGLES, 3, indices);
-    osg::Geometry* geometry = new osg::Geometry;
-    geometry->setVertexArray(va);
-    geometry->addPrimitiveSet(deui);
-    osg::StateSet* stateSet = geometry->getOrCreateStateSet();
-    osg::Program* program = new osg::Program;
-    program->addShader(new osg::Shader(osg::Shader::VERTEX, vs));
-    program->addShader(new osg::Shader(osg::Shader::FRAGMENT, fs));
-    stateSet->setAttributeAndModes(program);
-    return geometry;
 }
 
 int main()
@@ -163,16 +113,14 @@ int main()
     shader->addParameter("BaseColorTexture", texture);
     shaderAsset->save();*/
 
-    Mesh* mesh = new Mesh(TEMP_DIR "test.fbx");
+    Mesh* mesh = new Mesh(TEMP_DIR "test.obj");
 
     AssetManager& am = AssetManager::get();
-    Asset* textureAsset = am.getAsset(ASSET_DIR "Texture/Awesomeface.xast");
+    Asset* textureAsset = am.getAsset(ASSET_DIR "Texture/AwesomeFace.xast");
     textureAsset->load();
     Texture* texture = textureAsset->getRootObject<Texture>();
 
     Shader* shader = new Shader;
-    shader->setAlphaMode(AlphaMode::Mask);
-    shader->setDoubleSided(true);
     shader->addParameter("BaseColor", osg::Vec3f(0.8, 0.8, 0.8));
     shader->addParameter("Roughness", 0.5f);
     shader->addParameter("Metallic", 0.0f);
@@ -185,21 +133,26 @@ void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
     vec4 texColor = texture(uBaseColorTexture, mi.texcoord0.xy);
     mo.opaque = texColor.a;
 #if (SHADING_MODEL >= STANDARD)
-    mo.baseColor = texColor.rgb;
+    mo.baseColor = texColor.rgb * uBaseColor;
     mo.metallic = uMetallic;
     mo.roughness = uRoughness;
     mat3 tbn = mat3(mi.tangentWS, mi.bitangentWS, mi.normalWS);
     mo.normal = tbn * vec3(0, 0, 1);
     mo.occlusion = 1.0;
 #endif
-    mo.emissive = mo.normal * 0.5 + 0.5;
+    mo.emissive = (mo.normal * 0.5 + 0.5) * uEmissiveFactor;
 }
 )"
     );
 
     Material* material = new Material;
     material->setShader(shader);
+    material->setAlphaMode(AlphaMode::Mask);
+    material->setDoubleSided(true);
     material->setParameter("BaseColor", osg::Vec3f(1.0, 0.5, 0.0));
+
+    shader->addParameter("EmissiveFactor", osg::Vec3(1, 0.5, 0));
+    material->syncShader();
 
     /*Asset* asset = AssetManager::get().getAsset(ASSET_DIR "Mesh.xast");
     asset->load();

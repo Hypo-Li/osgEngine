@@ -63,7 +63,7 @@ namespace xxx::refl
 
         virtual Type* getElementType() const override
         {
-            return Type::getType<Element>();
+            return Reflection::getType<Element>();
         }
 
         virtual size_t getElementCount(const void* vector) const override

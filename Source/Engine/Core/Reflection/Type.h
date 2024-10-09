@@ -1,5 +1,6 @@
 #pragma once
 #include <string_view>
+#include <unordered_map>
 
 template <class>
 inline constexpr bool is_std_array_v = std::false_type{};
@@ -69,8 +70,5 @@ namespace xxx::refl
 
 		std::string_view mName;
 		size_t mSize;
-
-        template <typename T>
-        static Type* getType();
 	};
 }

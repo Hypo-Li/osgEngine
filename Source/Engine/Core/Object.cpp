@@ -38,7 +38,6 @@ namespace xxx
         {
             Class* clazz = new ClassInstance<Object>("Object");
             clazz->addProperty("Owner", &Object::mOwner);
-            getClassMap().emplace("Object", clazz);
             return clazz;
         }
     }

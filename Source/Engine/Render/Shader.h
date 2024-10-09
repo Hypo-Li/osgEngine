@@ -16,29 +16,9 @@ static constexpr bool is_shader_parameter_v =
 
 namespace xxx
 {
-    enum class RenderingPath
-    {
-        Deferred,
-        Forward,
-    };
 
-    enum class ShadingModel
-    {
-        Unlit,
-        Standard,
-    };
-
-    enum class AlphaMode
-    {
-        Opaque,
-        Mask,
-        Blend,
-    };
-
-    class Material;
     class Shader : public Object
     {
-        friend class Material;
         REFLECT_CLASS(Shader)
     public:
         Shader();
@@ -48,6 +28,11 @@ namespace xxx
         void setSource(const std::string& source)
         {
             mSource = source;
+        }
+
+        const std::string& getSource() const
+        {
+            return mSource;
         }
 
         template <typename T, typename = std::enable_if_t<is_shader_parameter_v<T>>>
@@ -75,63 +60,14 @@ namespace xxx
             }
         }
 
-        const std::string& getSource() const
-        {
-            return mSource;
-        }
-
         const auto& getParameters() const
         {
             return mParameters;
         }
 
-        void setRenderingPath(RenderingPath renderingPath)
-        {
-            mRenderingPath = renderingPath;
-        }
-
-        void setShadingModel(ShadingModel shadingModel)
-        {
-            mShadingModel = shadingModel;
-        }
-
-        void setAlphaMode(AlphaMode alphaMode)
-        {
-            mAlphaMode = alphaMode;
-        }
-
-        void setDoubleSided(bool doubleSided)
-        {
-            mDoubleSided = doubleSided;
-        }
-
-        RenderingPath getRenderingPath() const
-        {
-            return mRenderingPath;
-        }
-
-        ShadingModel getShadingModel() const
-        {
-            return mShadingModel;
-        }
-
-        AlphaMode getAlphaMode() const
-        {
-            return mAlphaMode;
-        }
-
-        bool getDoubleSided() const
-        {
-            return mDoubleSided;
-        }
-
     protected:
         std::map<std::string, Parameter> mParameters;
         std::string mSource;
-        RenderingPath mRenderingPath = RenderingPath::Deferred;
-        ShadingModel mShadingModel = ShadingModel::Standard;
-        AlphaMode mAlphaMode = AlphaMode::Opaque;
-        bool mDoubleSided = false;
     };
 
     namespace refl
@@ -172,47 +108,7 @@ namespace xxx
             Class* clazz = new ClassInstance<Shader>("Shader");
             Property* propParameters = clazz->addProperty("Parameters", &Shader::mParameters);
             Property* propSource = clazz->addProperty("Source", &Shader::mSource);
-            clazz->addMethod("addParameter<bool>", &Shader::addParameter<bool>);
-            clazz->addMethod("addParameter<int>", &Shader::addParameter<int>);
-            clazz->addMethod("addParameter<float>", &Shader::addParameter<float>);
-            clazz->addMethod("setParameter<float>", &Shader::setParameter<float>);
-            clazz->addMethod("addParameter<osg::Vec2f>", &Shader::addParameter<osg::Vec2f>);
-            clazz->addMethod("addParameter<osg::Vec3f>", &Shader::addParameter<osg::Vec3f>);
-            clazz->addMethod("addParameter<osg::Vec4f>", &Shader::addParameter<osg::Vec4f>);
-            clazz->addMethod("addParameter<Texture>", &Shader::addParameter<Texture*>);
-            getClassMap().emplace("Shader", clazz);
             return clazz;
-        }
-
-        template <>
-        inline Type* Reflection::createType<RenderingPath>()
-        {
-            Enum* enumerate = new EnumInstance<RenderingPath>("RenderingPath", {
-                {"Deferred", RenderingPath::Deferred},
-                {"Forward", RenderingPath::Forward},
-            });
-            return enumerate;
-        }
-
-        template <>
-        inline Type* Reflection::createType<ShadingModel>()
-        {
-            Enum* enumerate = new EnumInstance<ShadingModel>("ShadingModel", {
-                {"Unlit", ShadingModel::Unlit},
-                {"Standard", ShadingModel::Standard},
-            });
-            return enumerate;
-        }
-
-        template <>
-        inline Type* Reflection::createType<AlphaMode>()
-        {
-            Enum* enumerate = new EnumInstance<AlphaMode>("AlphaMode", {
-                {"Opaque", AlphaMode::Opaque},
-                {"Mask", AlphaMode::Mask},
-                {"Blend", AlphaMode::Blend},
-            });
-            return enumerate;
         }
     }
 }

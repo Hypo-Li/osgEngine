@@ -66,12 +66,12 @@ namespace xxx::refl
 
         virtual Type* getKeyType() const override
         {
-            return Type::getType<Key>();
+            return Reflection::getType<Key>();
         }
 
         virtual Type* getValueType() const override
         {
-            return Type::getType<Value>();
+            return Reflection::getType<Value>();
         }
 
         virtual size_t getKeyValuePairCount(const void* instance) const override

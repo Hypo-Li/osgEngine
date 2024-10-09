@@ -1,5 +1,5 @@
 #pragma once
-#include "Type.h"
+#include "Reflection.h"
 #include "Metadata.h"
 
 #include <array>
@@ -112,7 +112,7 @@ namespace xxx::refl
         {
             if constexpr (Index >= 0)
             {
-                mParameters[Index].second = Type::getType<ArgType<Index>>();
+                mParameters[Index].second = Reflection::getType<ArgType<Index>>();
                 setParameterType<Index - 1, T>();
             }
         }
@@ -129,12 +129,12 @@ namespace xxx::refl
 
         virtual Type* getReturnType() const override
         {
-            return Type::getType<ReturnType>();
+            return Reflection::getType<ReturnType>();
         }
 
         virtual Type* getOwnerType() const override
         {
-            return Type::getType<ClassType>();
+            return Reflection::getType<ClassType>();
         }
 
         virtual std::string_view getParameterNameByIndex(uint32_t index) const override

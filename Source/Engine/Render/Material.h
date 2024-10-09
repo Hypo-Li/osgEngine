@@ -3,6 +3,19 @@
 
 namespace xxx
 {
+    enum class ShadingModel
+    {
+        Unlit,
+        Standard,
+    };
+
+    enum class AlphaMode
+    {
+        Opaque,
+        Mask,
+        Blend,
+    };
+
     class Material : public Object
     {
         REFLECT_CLASS(Material)
@@ -19,6 +32,13 @@ namespace xxx
         }
 
         void setShader(Shader* shader);
+
+        void syncShader();
+
+        Shader* getShader() const
+        {
+            return mShader;
+        }
 
         template <typename T, typename = std::enable_if_t<is_shader_parameter_v<T>>>
         void setParameter(const std::string& name, T value)
@@ -55,17 +75,10 @@ namespace xxx
             }
         }
 
-    protected:
-        osg::ref_ptr<Shader> mShader;
-        std::map<std::string, Shader::Parameter> mParameters;
-        RenderingPath mRenderingPath = RenderingPath::Deferred;
-        ShadingModel mShadingModel = ShadingModel::Standard;
-        AlphaMode mAlphaMode = AlphaMode::Opaque;
-        bool mDoubleSided = false;
-
-        osg::ref_ptr<osg::StateSet> mOsgStateSet;
-
-        void setRenderingPath(RenderingPath renderingPath);
+        const auto& getParameters() const
+        {
+            return mParameters;
+        }
 
         void setShadingModel(ShadingModel shadingModel);
 
@@ -73,42 +86,31 @@ namespace xxx
 
         void setDoubleSided(bool doubleSided);
 
-        std::string getParameterTypeString(const Shader::Parameter& parameter)
+        ShadingModel getShadingModel() const
         {
-            switch (parameter.index())
-            {
-            case 0:
-                return "bool";
-            case 1:
-                return "int";
-            case 2:
-                return "float";
-            case 3:
-                return "vec2";
-            case 4:
-                return "vec3";
-            case 5:
-                return "vec4";
-            case 6:
-            {
-                switch (std::get<osg::ref_ptr<Texture>>(parameter)->getOsgTexture()->getTextureTarget())
-                {
-                case GL_TEXTURE_2D:
-                    return "sampler2D";
-                case GL_TEXTURE_2D_ARRAY:
-                    return "sampler2DArray";
-                case GL_TEXTURE_3D:
-                    return "sampler3D";
-                case GL_TEXTURE_CUBE_MAP:
-                    return "samplerCube";
-                default:
-                    return "";
-                }
-            }
-            default:
-                return "";
-            }
+            return mShadingModel;
         }
+
+        AlphaMode getAlphaMode() const
+        {
+            return mAlphaMode;
+        }
+
+        bool getDoubleSided() const
+        {
+            return mDoubleSided;
+        }
+
+    protected:
+        osg::ref_ptr<Shader> mShader;
+        std::map<std::string, Shader::Parameter> mParameters;
+        ShadingModel mShadingModel = ShadingModel::Standard;
+        AlphaMode mAlphaMode = AlphaMode::Opaque;
+        bool mDoubleSided = false;
+
+        osg::ref_ptr<osg::StateSet> mOsgStateSet;
+
+        std::string getParameterTypeString(const Shader::Parameter& parameter);
     };
 
     namespace refl
@@ -118,8 +120,28 @@ namespace xxx
             Class* clazz = new ClassInstance<Material>("Material");
             clazz->addProperty("Shader", &Material::mShader);
             clazz->addProperty("Parameters", &Material::mParameters);
-            getClassMap().emplace("Material", clazz);
             return clazz;
+        }
+
+        template <>
+        inline Type* Reflection::createType<ShadingModel>()
+        {
+            Enum* enumerate = new EnumInstance<ShadingModel>("ShadingModel", {
+                {"Unlit", ShadingModel::Unlit},
+                {"Standard", ShadingModel::Standard},
+            });
+            return enumerate;
+        }
+
+        template <>
+        inline Type* Reflection::createType<AlphaMode>()
+        {
+            Enum* enumerate = new EnumInstance<AlphaMode>("AlphaMode", {
+                {"Opaque", AlphaMode::Opaque},
+                {"Mask", AlphaMode::Mask},
+                {"Blend", AlphaMode::Blend},
+            });
+            return enumerate;
         }
     }
 }

@@ -116,7 +116,6 @@ namespace xxx
             Class* clazz = new ClassInstance<Mesh>("Mesh");
             clazz->addProperty("Data", &Mesh::mData);
             clazz->addProperty("SubmeshViews", &Mesh::mSubmeshViews);
-            getClassMap().emplace("Mesh", clazz);
             return clazz;
         }
     }

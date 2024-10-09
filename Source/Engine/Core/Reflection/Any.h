@@ -1,5 +1,5 @@
 #pragma once
-#include "Type.h"
+#include "Reflection.h"
 
 #include <typeinfo>
 
@@ -23,7 +23,7 @@ namespace xxx::refl
 
         virtual Type* getType() const override
         {
-            return Type::getType<T>();
+            return Reflection::getType<T>();
         }
 
         virtual void* getValuePtr() override
@@ -74,7 +74,7 @@ namespace xxx::refl
         template <typename T>
         T& getValue()
         {
-            if (getType() == Type::getType<T>())
+            if (getType() == Reflection::getType<T>())
                 return *(T*)mWrapper->getValuePtr();
             else
                 throw std::bad_cast{};
@@ -83,7 +83,7 @@ namespace xxx::refl
         template <typename T>
         const T& getValue() const
         {
-            if (getType() == Type::getType<T>())
+            if (getType() == Reflection::getType<T>())
                 return *(const T*)mWrapper->getValuePtr();
             else
                 throw std::bad_cast{};

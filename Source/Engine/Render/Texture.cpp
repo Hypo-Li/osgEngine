@@ -14,7 +14,6 @@ namespace xxx::refl
         clazz->addProperty("WrapT", &Texture::mWrapT);
         Property* propData = clazz->addProperty("Data", &Texture::mData);
         propData->addMetadata(MetaKey::Hidden, true);
-        getClassMap().emplace("Texture", clazz);
         return clazz;
     }
 
@@ -23,7 +22,6 @@ namespace xxx::refl
         Class* clazz = new ClassInstance<Texture2D, Texture>("Texture2D");
         clazz->addProperty("Width", &Texture2D::mWidth);
         clazz->addProperty("Height", &Texture2D::mHeight);
-        getClassMap().emplace("Texture2D", clazz);
         return clazz;
     }
 }

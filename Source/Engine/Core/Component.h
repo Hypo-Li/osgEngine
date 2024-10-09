@@ -42,7 +42,6 @@ namespace xxx
         {
             Class* clazz = new ClassInstance<Component>("Component");
             Property* propOwner = clazz->addProperty("Entity", &Component::mEntity);
-            getClassMap().emplace("Component", clazz);
             return clazz;
         }
     }

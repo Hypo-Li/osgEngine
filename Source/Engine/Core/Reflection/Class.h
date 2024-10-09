@@ -141,12 +141,14 @@ namespace xxx::refl
             if constexpr (std::is_same_v<T, Object>)
                 mBaseClass = nullptr;
             else
-                mBaseClass = dynamic_cast<Class*>(Type::getType<Base>());
+                mBaseClass = dynamic_cast<Class*>(Reflection::getType<Base>());
 
             if constexpr (std::is_abstract_v<T>)
                 mDefaultObject = nullptr;
             else
                 mDefaultObject = new T;
+
+            Reflection::registerClass(name, this);
         }
     };
 }

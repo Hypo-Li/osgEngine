@@ -1,5 +1,5 @@
 #pragma once
-#include "Type.h"
+#include "Reflection.h"
 #include "Metadata.h"
 
 #include <functional>
@@ -103,12 +103,12 @@ namespace xxx::refl
 
         virtual Type* getDeclaredType() const override
         {
-            return Type::getType<Declared>();
+            return Reflection::getType<Declared>();
         }
 
         virtual Type* getOwnerType() const override
         {
-            return Type::getType<Owner>();
+            return Reflection::getType<Owner>();
         }
 
         virtual void getValue(const void* instance, void* value) const override
@@ -148,7 +148,7 @@ namespace xxx::refl
             if constexpr (is_comparable_v<Declared>)
                 return *static_cast<const Declared*>(getValuePtr(instance1)) == *static_cast<const Declared*>(getValuePtr(instance2));
             else
-                return Type::getType<Declared>()->compare(getValuePtr(instance1), getValuePtr(instance2));
+                return Reflection::getType<Declared>()->compare(getValuePtr(instance1), getValuePtr(instance2));
         }
 
     protected:

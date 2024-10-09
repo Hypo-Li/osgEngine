@@ -1,5 +1,5 @@
 #pragma once
-#include "Type.h"
+#include "Reflection.h"
 
 #include <vector>
 
@@ -123,7 +123,7 @@ namespace xxx::refl
         EnumInstance(std::string_view name, std::initializer_list<std::pair<std::string_view, T>> values) :
             Enum(name, sizeof(T))
         {
-            mUnderlyingType = dynamic_cast<Fundamental*>(Type::getType<std::underlying_type_t<T>>());
+            mUnderlyingType = dynamic_cast<Fundamental*>(Reflection::getType<std::underlying_type_t<T>>());
             for (std::pair<std::string_view, T> value : values)
                 mValues.emplace_back(value.first, static_cast<int64_t>(value.second));
         }

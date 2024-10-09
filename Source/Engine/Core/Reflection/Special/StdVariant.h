@@ -27,7 +27,7 @@ namespace xxx::refl
         template <std::size_t... Is>
         static std::vector<Type*> getTypesImpl(std::index_sequence<Is...>)
         {
-            return { Type::getType<std::variant_alternative_t<Is, T>>()... };
+            return { Reflection::getType<std::variant_alternative_t<Is, T>>()... };
         }
 
         template <std::size_t I>

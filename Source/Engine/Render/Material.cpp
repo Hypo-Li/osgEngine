@@ -186,16 +186,27 @@ namespace xxx
 {
     void Material::setShader(Shader* shader)
     {
-        if (!shader)
+        if (!shader || shader == mShader)
             return;
 
         mOsgStateSet->clear();
 
-        mShader = shader;
+        setShadingModel(mShadingModel);
+        setAlphaMode(mAlphaMode);
+        setDoubleSided(mDoubleSided);
 
+        mShader = shader;
+        syncShader();
+    }
+
+    void Material::syncShader()
+    {
         static osg::ref_ptr<osg::Shader> frameworkVertexShader = new osg::Shader(osg::Shader::VERTEX, FrameworkVertexShaderSource);
         static osg::ref_ptr<osg::Shader> frameworkFragmentShader = new osg::Shader(osg::Shader::FRAGMENT, FrameworkFragmentShaderSource);
         static osg::ref_ptr<osg::Shader> frameworkMaterialShader = new osg::Shader(osg::Shader::FRAGMENT, MaterialPreDefines + DefaultMaterialShaderSource);
+
+        // create program
+        auto& shaderParameters = mShader->getParameters();
         osg::Program* program = new osg::Program;
         program->addShader(frameworkVertexShader);
         program->addShader(frameworkFragmentShader);
@@ -206,21 +217,17 @@ namespace xxx
         else
         {
             std::string materialShaderSource = MaterialPreDefines;
-            for (auto& parameter : mShader->getParameters())
+            for (auto& parameter : shaderParameters)
                 materialShaderSource += "uniform " + getParameterTypeString(parameter.second) + " u" + parameter.first + ";\n";
             materialShaderSource += mShader->getSource();
             program->addShader(new osg::Shader(osg::Shader::FRAGMENT, materialShaderSource));
         }
         mOsgStateSet->setAttribute(program, osg::StateAttribute::ON);
 
-        setRenderingPath(mShader->getRenderingPath());
-        setShadingModel(mShader->getShadingModel());
-        setAlphaMode(mShader->getAlphaMode());
-        setDoubleSided(mShader->getDoubleSided());
-
+        // add uniforms
         int textureUnit = 0;
-        const auto& parameters = mShader->getParameters();
-        for (const auto& param : parameters)
+        std::unordered_map<std::string, int> parameterTextureUnitMap;
+        for (const auto& param : shaderParameters)
         {
             std::string uniformName = "u" + param.first;
             osg::Uniform* uniform = nullptr;
@@ -246,6 +253,7 @@ namespace xxx
                 break;
             case 6:
             {
+                parameterTextureUnitMap.emplace(param.first, textureUnit);
                 Texture* texture = std::get<osg::ref_ptr<Texture>>(param.second);
                 uniform = new osg::Uniform(uniformName.c_str(), textureUnit);
                 mOsgStateSet->setTextureAttribute(textureUnit, texture->getOsgTexture(), osg::StateAttribute::ON);
@@ -258,21 +266,70 @@ namespace xxx
             mOsgStateSet->addUniform(uniform, osg::StateAttribute::ON);
         }
 
-    }
-
-    void Material::setRenderingPath(RenderingPath renderingPath)
-    {
-
+        // remove material's unvalid parameters and set valid parameters
+        auto it = mParameters.begin();
+        while (it != mParameters.end())
+        {
+            auto findResult = shaderParameters.find(it->first);
+            if (findResult == shaderParameters.end())
+            {
+                // case 1: not find same name parameter, unvalid
+                mParameters.erase(it++);
+            }
+            else if (it->second.index() != findResult->second.index())
+            {
+                // case 2: find same name parameter with different type, unvalid
+                mParameters.erase(it++);
+            }
+            else
+            {
+                // case 3: find same name parameter with same type, valid
+                std::string uniformName = "u" + it->first;
+                osg::Uniform* uniform = mOsgStateSet->getUniform(uniformName);
+                switch (it->second.index())
+                {
+                case 0:
+                    uniform->set(std::get<bool>(it->second));
+                    break;
+                case 1:
+                    uniform->set(std::get<int>(it->second));
+                    break;
+                case 2:
+                    uniform->set(std::get<float>(it->second));
+                    break;
+                case 3:
+                    uniform->set(std::get<osg::Vec2f>(it->second));
+                    break;
+                case 4:
+                    uniform->set(std::get<osg::Vec3f>(it->second));
+                    break;
+                case 5:
+                    uniform->set(std::get<osg::Vec4f>(it->second));
+                    break;
+                case 6:
+                {
+                    Texture* texture = std::get<osg::ref_ptr<Texture>>(it->second);
+                    mOsgStateSet->setTextureAttribute(parameterTextureUnitMap.at(it->first), texture->getOsgTexture(), osg::StateAttribute::ON);
+                    break;
+                }
+                default:
+                    break;
+                }
+                it++;
+            }
+        }
     }
 
     void Material::setShadingModel(ShadingModel shadingModel)
     {
-        mOsgStateSet->setDefine("SHADING_MODEL", std::to_string(int(shadingModel)));
+        mShadingModel = shadingModel;
+        mOsgStateSet->setDefine("SHADING_MODEL", std::to_string(int(mShadingModel)));
     }
 
     void Material::setAlphaMode(AlphaMode alphaMode)
     {
-        switch (alphaMode)
+        mAlphaMode = alphaMode;
+        switch (mAlphaMode)
         {
         case AlphaMode::Opaque:
         case AlphaMode::Mask:
@@ -286,14 +343,52 @@ namespace xxx
         default:
             break;
         }
-        mOsgStateSet->setDefine("ALPHA_MODE", std::to_string(int(alphaMode)));
+        mOsgStateSet->setDefine("ALPHA_MODE", std::to_string(int(mAlphaMode)));
     }
 
     void Material::setDoubleSided(bool doubleSided)
     {
-        if (doubleSided)
+        mDoubleSided = doubleSided;
+        if (mDoubleSided)
             mOsgStateSet->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
         else
             mOsgStateSet->setMode(GL_CULL_FACE, osg::StateAttribute::ON);
+    }
+
+    std::string Material::getParameterTypeString(const Shader::Parameter& parameter)
+    {
+        switch (parameter.index())
+        {
+        case 0:
+            return "bool";
+        case 1:
+            return "int";
+        case 2:
+            return "float";
+        case 3:
+            return "vec2";
+        case 4:
+            return "vec3";
+        case 5:
+            return "vec4";
+        case 6:
+        {
+            switch (std::get<osg::ref_ptr<Texture>>(parameter)->getOsgTexture()->getTextureTarget())
+            {
+            case GL_TEXTURE_2D:
+                return "sampler2D";
+            case GL_TEXTURE_2D_ARRAY:
+                return "sampler2DArray";
+            case GL_TEXTURE_3D:
+                return "sampler3D";
+            case GL_TEXTURE_CUBE_MAP:
+                return "samplerCube";
+            default:
+                return "";
+            }
+        }
+        default:
+            return "";
+        }
     }
 }

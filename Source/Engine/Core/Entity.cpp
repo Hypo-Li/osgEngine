@@ -183,7 +183,6 @@ namespace xxx::refl
         Property* propParent = clazz->addProperty("Parent", &Entity::mParent);
         Property* propChildren = clazz->addProperty("Children", &Entity::mChildren);
         Property* propComponents = clazz->addProperty("Components", &Entity::mComponents);
-        getClassMap().emplace("Entity", clazz);
         return clazz;
     }
 }
