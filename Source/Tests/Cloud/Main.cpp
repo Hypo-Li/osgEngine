@@ -533,9 +533,9 @@ int main()
     tmsImageLayer->setURL(R"(C:\Users\admin\Downloads\wenhualou\tms.xml)");
     map->addLayer(tmsImageLayer);
 
-    osgEarth::GDALElevationLayer* elevationLayer = new osgEarth::GDALElevationLayer;
-    elevationLayer->setURL(R"(C:\Users\Public\Nwt\cache\recv\lhc\30m.tif)");
-    map->addLayer(elevationLayer);
+    //osgEarth::GDALElevationLayer* elevationLayer = new osgEarth::GDALElevationLayer;
+    //elevationLayer->setURL(R"(C:\Users\Public\Nwt\cache\recv\lhc\30m.tif)");
+    //map->addLayer(elevationLayer);
 
     osgEarth::ProfileOptions po;
     po.srsString() = "+proj=latlong +a=6371000 +b=6371000 +towgs84=0,0,0,0,0,0,0";

@@ -64,7 +64,7 @@ namespace xxx
 
     void Asset::load()
     {
-        if (!mIsLoaded)
+        if (mIsLoaded)
             return;
 
         std::ifstream ifs(mPath, std::ios::binary);
@@ -85,15 +85,11 @@ namespace xxx
         assetLoader->serialize(&rootObject);
         setRootObject(rootObject);
 
-        mNeedSave = false;
         mIsLoaded = true;
     }
 
     void Asset::save()
     {
-        if (!mNeedSave)
-            return;
-
         std::ofstream ofs(mPath, std::ios::binary);
         AssetSerializer* assetSaver = new AssetSaver(this);
         AssetHeader header;
@@ -112,7 +108,6 @@ namespace xxx
         writeExportTable(ofs, assetSaver, header);
         writeObjectBuffers(ofs, assetSaver, header);
 
-        mNeedSave = false;
         mIsLoaded = true;
     }
 }

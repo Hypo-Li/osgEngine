@@ -1,5 +1,6 @@
 #pragma once
 #include "Serializer.h"
+#include "../Guid.h"
 #include <stack>
 
 namespace xxx

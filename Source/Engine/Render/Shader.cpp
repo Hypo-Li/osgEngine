@@ -2,5 +2,8 @@
 
 namespace xxx
 {
-    
+    Shader::Shader()
+    {
+
+    }
 }

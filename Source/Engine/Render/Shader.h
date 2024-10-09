@@ -41,7 +41,14 @@ namespace xxx
         friend class Material;
         REFLECT_CLASS(Shader)
     public:
-        Shader() = default;
+        Shader();
+
+        using Parameter = std::variant<bool, int, float, osg::Vec2f, osg::Vec3f, osg::Vec4f, osg::ref_ptr<Texture>>;
+
+        void setSource(const std::string& source)
+        {
+            mSource = source;
+        }
 
         template <typename T, typename = std::enable_if_t<is_shader_parameter_v<T>>>
         void addParameter(const std::string& name, T defaultValue)
@@ -55,14 +62,47 @@ namespace xxx
         template <typename T, typename = std::enable_if_t<is_shader_parameter_v<T>>>
         void setParameter(const std::string& name, T value)
         {
+            Shader::Parameter parameterValue;
+            if constexpr (std::is_base_of_v<xxx::Texture, std::remove_pointer_t<T>>)
+                parameterValue = osg::ref_ptr<Texture>(value);
+            else
+                parameterValue = value;
+
             auto findResult = mParameters.find(name);
-            if (findResult != mParameters.end())
-                findResult->second = value;
+            if (findResult != mParameters.end() && findResult->second.index() == parameterValue.index())
+            {
+                findResult->second = parameterValue;
+            }
+        }
+
+        const std::string& getSource() const
+        {
+            return mSource;
         }
 
         const auto& getParameters() const
         {
             return mParameters;
+        }
+
+        void setRenderingPath(RenderingPath renderingPath)
+        {
+            mRenderingPath = renderingPath;
+        }
+
+        void setShadingModel(ShadingModel shadingModel)
+        {
+            mShadingModel = shadingModel;
+        }
+
+        void setAlphaMode(AlphaMode alphaMode)
+        {
+            mAlphaMode = alphaMode;
+        }
+
+        void setDoubleSided(bool doubleSided)
+        {
+            mDoubleSided = doubleSided;
         }
 
         RenderingPath getRenderingPath() const
@@ -85,21 +125,13 @@ namespace xxx
             return mDoubleSided;
         }
 
-        osg::Shader* getOsgShader() const
-        {
-            return mOsgShader;
-        }
-
     protected:
-        using Parameter = std::variant<bool, int, float, osg::Vec2f, osg::Vec3f, osg::Vec4f, osg::ref_ptr<Texture>>;
         std::map<std::string, Parameter> mParameters;
         std::string mSource;
         RenderingPath mRenderingPath = RenderingPath::Deferred;
-        ShadingModel mShadingModel = ShadingModel::Unlit;
+        ShadingModel mShadingModel = ShadingModel::Standard;
         AlphaMode mAlphaMode = AlphaMode::Opaque;
         bool mDoubleSided = false;
-
-        osg::ref_ptr<osg::Shader> mOsgShader;
     };
 
     namespace refl

@@ -40,6 +40,31 @@ namespace xxx
 
         virtual void postSerialize(Serializer* serializer) override;
 
+        std::vector<osg::Geometry*> generateGeometries()
+        {
+            std::vector<osg::Geometry*> geometries;
+            for (OsgGeometryData& geomData : mOsgGeometryDatas)
+            {
+                osg::Geometry* geometry = new osg::Geometry;
+                for (auto& vertexAttribute : geomData.vertexAttributes)
+                {
+                    if (vertexAttribute.first == 0)
+                        geometry->setVertexArray(vertexAttribute.second);
+                    else if (vertexAttribute.first == 2)
+                        geometry->setNormalArray(vertexAttribute.second);
+                    else if (vertexAttribute.first == 3)
+                        geometry->setColorArray(vertexAttribute.second);
+                    else if (vertexAttribute.first >= 8 && vertexAttribute.first < 12)
+                        geometry->setTexCoordArray(vertexAttribute.first - 8, vertexAttribute.second);
+                    else
+                        geometry->setVertexAttribArray(vertexAttribute.first, vertexAttribute.second);
+                }
+                geometry->addPrimitiveSet(geomData.drawElements);
+                geometries.push_back(geometry);
+            }
+            return geometries;
+        }
+
     protected:
         std::vector<uint8_t> mData;
         std::vector<SubmeshView> mSubmeshViews;

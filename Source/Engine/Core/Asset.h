@@ -50,11 +50,6 @@ namespace xxx
             return mIsLoaded;
         }
 
-        inline bool needSave() const
-        {
-            return mNeedSave;
-        }
-
         inline std::string& getPath()
         {
             return mPath;
@@ -96,7 +91,6 @@ namespace xxx
         std::string mPath;
         Guid mGuid;
         bool mIsLoaded = false;
-        bool mNeedSave = false;
 
         osg::ref_ptr<Object> mRootObject;
 

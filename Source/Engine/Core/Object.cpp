@@ -34,16 +34,6 @@ namespace xxx
 
     namespace refl
     {
-        template <> Type* Reflection::createType<Guid>()
-        {
-            Struct* structGuid = new StructInstance<Guid>("Guid");
-            Property* propA = structGuid->addProperty("A", &Guid::A);
-            Property* propB = structGuid->addProperty("B", &Guid::B);
-            Property* propC = structGuid->addProperty("C", &Guid::C);
-            Property* propD = structGuid->addProperty("D", &Guid::D);
-            return structGuid;
-        }
-
         template <> Type* Reflection::createType<Object>()
         {
             Class* clazz = new ClassInstance<Object>("Object");

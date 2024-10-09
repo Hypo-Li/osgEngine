@@ -63,9 +63,17 @@ namespace xxx
             if (!_matrixStack.empty())
             {
                 osg::Matrix modelMatrix = _matrixStack.top();
-                osg::Matrix inverseModelMatrix = osg::Matrix::inverse(modelMatrix);
-                osg::Matrix normalMatrix;
-                normalMatrix.transpose(inverseModelMatrix);
+
+                osg::Matrix m(modelMatrix);
+                m.setTrans(0.0, 0.0, 0.0);
+
+                osg::Matrix matrix;
+                matrix.invert(m);
+
+                osg::Matrix normalMatrix(matrix(0, 0), matrix(1, 0), matrix(2, 0), 0,
+                                    matrix(0, 1), matrix(1, 1), matrix(2, 1), 0,
+                                    matrix(0, 2), matrix(1, 2), matrix(2, 2), 0,
+                                    0, 0, 0, 1);
                 for (unsigned int i = 0; i < geode.getNumDrawables(); ++i)
                 {
                     osg::Geometry* geom = dynamic_cast<osg::Geometry*>(geode.getDrawable(i));
@@ -94,13 +102,24 @@ namespace xxx
 
             osg::Vec3Array* normals = dynamic_cast<osg::Vec3Array*>(geom->getNormalArray());
             if (normals)
+            {
                 for (osg::Vec3& nor : *normals)
+                {
                     nor = nor * normalMatrix;
+                    nor.normalize();
+                }
+            }
 
             osg::Vec4Array* tangents = dynamic_cast<osg::Vec4Array*>(geom->getVertexAttribArray(_tangentVertexAttributeIndex));
             if (tangents)
+            {
                 for (osg::Vec4& tan : *tangents)
-                    tan = osg::Vec4(osg::Vec3(tan.x(), tan.y(), tan.z()) * normalMatrix, tan.w());
+                {
+                    osg::Vec3 tanTemp = osg::Vec3(tan.x(), tan.y(), tan.z()) * normalMatrix;
+                    tanTemp.normalize();
+                    tan = osg::Vec4(tanTemp, tan.w());
+                }
+            }
         }
 
         std::stack<osg::Matrix> _matrixStack;
@@ -108,7 +127,7 @@ namespace xxx
 
         std::map<osg::ref_ptr<osg::Material>, osg::ref_ptr<osg::StateSet>> _materialStateSetMap;
 
-        static const uint32_t _tangentVertexAttributeIndex = 11;
+        static const uint32_t _tangentVertexAttributeIndex = 6;
     };
 
     Mesh::Mesh(const std::string& meshPath)
@@ -132,12 +151,16 @@ namespace xxx
                 OsgGeometryData osgGeometryData;
                 osgGeometryData.vertexAttributes.emplace_back(0, geom->getVertexArray());
                 if (geom->getNormalArray())
-                    osgGeometryData.vertexAttributes.emplace_back(1, geom->getNormalArray());
+                    osgGeometryData.vertexAttributes.emplace_back(2, geom->getNormalArray());
                 if (geom->getColorArray())
-                    osgGeometryData.vertexAttributes.emplace_back(2, geom->getColorArray());
-                uint32_t texcoordIndex = 3;
+                    osgGeometryData.vertexAttributes.emplace_back(3, geom->getColorArray());
+                uint32_t texcoordIndex = 8;
                 for (osg::Array* texcoordArray : geom->getTexCoordArrayList())
-                    osgGeometryData.vertexAttributes.emplace_back(texcoordIndex++, texcoordArray);
+                {
+                    if (texcoordArray)
+                        osgGeometryData.vertexAttributes.emplace_back(texcoordIndex, texcoordArray);
+                    ++texcoordIndex;
+                }
                 uint32_t vertexAttributeIndex = 0;
                 for (osg::Array* vertexAttributeArray : geom->getVertexAttribArrayList())
                 {
@@ -213,8 +236,8 @@ namespace xxx
                 for (VertexAttributeView& vav : submeshView.vertexAttributeViews)
                 {
                     osg::Array* osgArray = createOsgArrayByVertexAttributeView(vav, mData.data());
-                    if (osgArray->getNumElements() == 1)
-                        osgArray->setBinding(osg::Array::BIND_OVERALL);
+                    //if (osgArray->getNumElements() == 1)
+                    //    osgArray->setBinding(osg::Array::BIND_OVERALL);
                     geomData.vertexAttributes.emplace_back(vav.location, osgArray);
                 }
 
