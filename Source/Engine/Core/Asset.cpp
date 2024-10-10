@@ -15,6 +15,13 @@ namespace xxx
             AssetHeader header;
             ifs.read((char*)&header, sizeof(AssetHeader));
             {
+                ifs.seekg(sizeof(AssetHeader) + sizeof(uint32_t));
+                uint32_t classNameLength;
+                ifs.read((char*)(&classNameLength), sizeof(classNameLength));
+                std::string className(classNameLength, ' ');
+                ifs.read(className.data(), classNameLength);
+                mClass = Reflection::getClass(className);
+
                 // load import table
                 ifs.seekg(sizeof(AssetHeader) + header.stringTableSize);
                 std::vector<uint8_t> buffer(header.importTableSize);
@@ -30,25 +37,29 @@ namespace xxx
                     dataPtr += sizeof(ImportItem);
                     mImportedObjects.insert(importItem.objectGuid);
                 }
-            }
 
-            mGuid = header.guid;
+                ifs.seekg(sizeof(AssetHeader) + header.stringTableSize + header.importTableSize + sizeof(uint32_t));
+                ExportItem rootObjectItem;
+                ifs.read((char*)(&rootObjectItem), sizeof(ExportItem));
+                mGuid = rootObjectItem.objectGuid;
+            }
         }
     }
 
     void Asset::setRootObject(Object* rootObject)
     {
+        if (mRootObject == rootObject)
+            return;
+
         mRootObject = rootObject;
         if (rootObject)
         {
             Guid newGuid = rootObject->getGuid();
-            if (mGuid != newGuid)
-            {
-                AssetManager& am = AssetManager::get();
-                am.mGuidAssetMap.erase(mGuid);
-                am.mGuidAssetMap.emplace(newGuid, this);
-                mGuid = newGuid;
-            }
+            AssetManager& am = AssetManager::get();
+            am.mGuidAssetMap.erase(mGuid);
+            am.mGuidAssetMap.emplace(newGuid, this);
+            mGuid = newGuid;
+            mClass = mRootObject->getClass();
         }
     }
 
@@ -95,7 +106,6 @@ namespace xxx
         std::ofstream ofs(convertAssetPathToFullPath(mPath), std::ios::binary);
         AssetSerializer* assetSaver = new AssetSaver(this);
         AssetHeader header;
-        header.guid = mGuid;
 
         mImportedObjects.clear();
         std::unordered_set<osg::ref_ptr<Object>> exportedObjectsTemp(mExportedObjects.begin(), mExportedObjects.end());

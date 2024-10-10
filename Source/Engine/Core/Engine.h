@@ -1,25 +1,31 @@
 #pragma once
 #include <Engine/Core/Context.h>
-#include <Engine/Asset/AssetManager.h>
+#include <Engine/Core/AssetManager.h>
 #include <Engine/Render/Pipeline.h>
+
 #include <osgViewer/Viewer>
-#include <set>
+
 namespace xxx
 {
+    enum class RunMode
+    {
+        Edit,
+        Run,
+    };
+
     struct EngineSetupConfig
     {
         int width, height;
         std::string glContextVersion;
         bool fullScreen;
-
-        bool isEditorMode;
-        std::set<std::string> assetPaths;
+        RunMode runMode;
     };
 
     class Engine
     {
     public:
-        Engine(osgViewer::ViewerBase* viewer, const EngineSetupConfig& setupConfig) : _viewer(viewer)
+        Engine(const EngineSetupConfig& setupConfig) :
+            mViewer(new osgViewer::Viewer)
         {
             initContext(setupConfig);
             initPipeline(setupConfig);
@@ -27,17 +33,22 @@ namespace xxx
 
         void run()
         {
-            while (!_viewer->done())
+            while (!mViewer->done())
             {
-                _viewer->frame();
+                mViewer->frame();
             }
         }
 
-    private:
-        osg::ref_ptr<osgViewer::ViewerBase> _viewer;
-        osg::ref_ptr<Pipeline> _pipeline;
+        osgViewer::ViewerBase* getViewer() const
+        {
+            return mViewer;
+        }
 
-        static osg::ref_ptr<osg::GraphicsContext> createGraphicsContext(int width, int height, const char* glContextVersion)
+    private:
+        osg::ref_ptr<osgViewer::ViewerBase> mViewer;
+        osg::ref_ptr<Pipeline> mPipeline;
+
+        static osg::GraphicsContext* createGraphicsContext(int width, int height, const std::string& glContextVersion)
         {
             osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits();
             traits->width = width; traits->height = height;
@@ -46,7 +57,7 @@ namespace xxx
             traits->glContextVersion = glContextVersion;
             traits->readDISPLAY();
             traits->setUndefinedScreenDetailsToDefaultScreen();
-            osg::ref_ptr<osg::GraphicsContext> graphicsContext = osg::GraphicsContext::createGraphicsContext(traits);
+            osg::GraphicsContext* graphicsContext = osg::GraphicsContext::createGraphicsContext(traits);
             graphicsContext->getState()->setUseModelViewAndProjectionUniforms(true);
             graphicsContext->getState()->setUseVertexAttributeAliasing(true);
             return graphicsContext;
@@ -55,17 +66,14 @@ namespace xxx
         void initContext(const EngineSetupConfig& setupConfig)
         {
             Context& context = Context::get();
-            context._isEditorMode = setupConfig.isEditorMode;
-            context._assetsPaths = setupConfig.assetPaths;
         }
 
         void initPipeline(const EngineSetupConfig& setupConfig)
         {
-            osg::ref_ptr<osg::GraphicsContext> graphicsContext = createGraphicsContext(setupConfig.width, setupConfig.height, setupConfig.glContextVersion.c_str());
+            osg::ref_ptr<osg::GraphicsContext> graphicsContext = createGraphicsContext(setupConfig.width, setupConfig.height, setupConfig.glContextVersion);
             osgViewer::Viewer::Views views;
-            _viewer->getViews(views);
-            assert(views.size() && "Can't find valid view");
-            _pipeline = new Pipeline(views.at(0), graphicsContext);
+            mViewer->getViews(views);
+            mPipeline = new Pipeline(views.at(0), graphicsContext);
         }
     };
 }

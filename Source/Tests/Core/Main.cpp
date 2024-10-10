@@ -24,10 +24,12 @@ using namespace xxx::refl;
 int main()
 {
     AssetManager& am = AssetManager::get();
+
     /*
     Texture2D* texture2d = new Texture2D(TEMP_DIR "awesomeface.png");
-    Asset* textureAsset = AssetManager::get().createAsset(texture2d, ASSET_DIR "Texture/AwesomeFace.xast");
-    textureAsset->save();*/
+    Asset* textureAsset = AssetManager::get().createAsset(texture2d, "Engine/Texture/AwesomeFace.xast");
+    textureAsset->save();
+    */
 
     /*
     Mesh* mesh = new Mesh(TEMP_DIR "test.obj");
@@ -78,7 +80,7 @@ void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
 
     Asset* entityAsset = am.createAsset(entity, "Engine/TestEntity.xast");
     entityAsset->save();
-    */
+    //*/
 
     const int width = 1280, height = 720;
     osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits();

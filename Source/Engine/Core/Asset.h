@@ -25,7 +25,6 @@ namespace xxx
         uint64_t magic = 0x5445535341585858; // XXXASSET
         uint32_t version = 0;
         uint32_t flags = 0;
-        Guid     guid;
         uint32_t stringTableSize;
         uint32_t importTableSize;
         uint32_t exportTableSize;
@@ -50,11 +49,6 @@ namespace xxx
             return mIsLoaded;
         }
 
-        inline std::string& getPath()
-        {
-            return mPath;
-        }
-
         inline const std::string& getPath() const
         {
             return mPath;
@@ -64,6 +58,19 @@ namespace xxx
         {
             return mGuid;
         }
+
+        inline refl::Class* getClass() const
+        {
+            return mClass;
+        }
+
+        void setRootObject(Object* rootObject);
+
+        void setPath(const std::string& path);
+
+        void load();
+
+        void save();
 
         inline void addImportedObject(Object* object)
         {
@@ -79,20 +86,13 @@ namespace xxx
             mExportedObjects.insert(object);
         }
 
-        void setRootObject(Object* rootObject);
-
-        void setPath(const std::string& path);
-
-        void load();
-
-        void save();
-
         static std::string convertFullPathToAssetPath(const std::filesystem::path& fullPath);
 
         static std::filesystem::path convertAssetPathToFullPath(const std::string& assetPath);
 
     protected:
         std::string mPath;
+        refl::Class* mClass;
         Guid mGuid;
         bool mIsLoaded = false;
 
