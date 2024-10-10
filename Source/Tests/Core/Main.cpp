@@ -6,6 +6,7 @@
 #include "Engine/Core/Prefab.h"
 #include "Engine/Core/AssetManager.h"
 #include "Engine/Render/Pipeline.h"
+#include "Engine/Component/MeshRenderer.h"
 
 #include "DebugCallback.h"
 
@@ -20,103 +21,18 @@
 using namespace xxx;
 using namespace xxx::refl;
 
-class TestComponent : public Component
-{
-    REFLECT_CLASS(TestComponent)
-public:
-    TestComponent() :
-        mOsgImplGroup(new osg::Group)
-    {
-        mOsgComponentGroup->addChild(mOsgImplGroup);
-    }
-
-    TestComponent(const TestComponent& other) :
-        mOsgImplGroup(new osg::Group(*other.mOsgImplGroup))
-    {
-        mOsgComponentGroup->addChild(mOsgImplGroup);
-    }
-
-    virtual Type getType() const override
-    {
-        return Type::MeshRenderer;
-    }
-
-    void setShader(Shader* shader)
-    {
-        mShader = shader;
-    }
-
-protected:
-    osg::ref_ptr<Shader> mShader;
-
-    osg::ref_ptr<osg::Group> mOsgImplGroup;
-};
-
-namespace xxx::refl
-{
-    template <> Type* Reflection::createType<TestComponent>()
-    {
-        Class* clazz = new ClassInstance<TestComponent, Component>("TestComponent");
-        clazz->addProperty("TestShader", &TestComponent::mShader);
-        return clazz;
-    }
-}
-
 int main()
 {
-    /*AssetManager::get();
-    Shader* shader = new Shader;
-    shader->addParameter("BaseColor", osg::Vec3f(0.8, 0.8, 0.8));
-    shader->addParameter("Roughness", 0.5f);
-    shader->addParameter("Metallic", 0.0f);
-    shader->addParameter("Specular", 0.5f);
-    Class* clazz = shader->getClass();
-    Method* setParameterFloatMethod = clazz->getMethod("setParameter<float>");
-    setParameterFloatMethod->invoke(shader, std::string("Roughness"), 0.01f);
-    {
-        Asset* shaderAsset = AssetManager::get().createAsset(shader, ASSET_DIR "Shader.xast");
-        shaderAsset->save();
-    }
-
-    Entity* entity = new Entity;
-    TestComponent* testComponent = new TestComponent;
-    testComponent->setShader(shader);
-    entity->addComponent(testComponent);
-    entity->addChild(new Entity);
-    {
-        Asset* entityAsset = AssetManager::get().createAsset(entity, ASSET_DIR "Entity.xast");
-        entityAsset->save();
-    }
-
-    {
-        Asset* entityAsset = AssetManager::get().getAsset(ASSET_DIR "Entity.xast");
-        entityAsset->load();
-        Object* object = entityAsset->getRootObject();
-        std::string guid = object->getGuid().toString();
-        std::cout << guid << std::endl;
-    }
-
+    AssetManager& am = AssetManager::get();
+    /*
     Texture2D* texture2d = new Texture2D(TEMP_DIR "awesomeface.png");
-    Asset* textureAsset = AssetManager::get().createAsset(texture2d, ASSET_DIR "Texture/Awesomeface.xast");
+    Asset* textureAsset = AssetManager::get().createAsset(texture2d, ASSET_DIR "Texture/AwesomeFace.xast");
     textureAsset->save();*/
 
-    /*AssetManager& am = AssetManager::get();
-
-    Asset* shaderAsset = am.getAsset(ASSET_DIR "Shader.xast");
-    shaderAsset->load();
-    Shader* shader = shaderAsset->getRootObject<Shader>();
-
-    Asset* textureAsset = am.getAsset(ASSET_DIR "Texture/Awesomeface.xast");
-    textureAsset->load();
-    Texture* texture = textureAsset->getRootObject<Texture>();
-
-    shader->addParameter("BaseColorTexture", texture);
-    shaderAsset->save();*/
-
+    /*
     Mesh* mesh = new Mesh(TEMP_DIR "test.obj");
 
-    AssetManager& am = AssetManager::get();
-    Asset* textureAsset = am.getAsset(ASSET_DIR "Texture/AwesomeFace.xast");
+    Asset* textureAsset = am.getAsset("Engine/Texture/AwesomeFace.xast");
     textureAsset->load();
     Texture* texture = textureAsset->getRootObject<Texture>();
 
@@ -152,20 +68,17 @@ void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
     material->setParameter("BaseColor", osg::Vec3f(1.0, 0.5, 0.0));
 
     shader->addParameter("EmissiveFactor", osg::Vec3(1, 0.5, 0));
-    material->syncShader();
+    material->syncShaderState();
 
-    /*Asset* asset = AssetManager::get().getAsset(ASSET_DIR "Mesh.xast");
-    asset->load();
-    Mesh* mesh = asset->getRootObject<Mesh>();*/
+    mesh->setDefaultMaterial(0, material);
 
-    osg::Geode* geode = new osg::Geode;
-    
-    std::vector<osg::Geometry*> geometries = mesh->generateGeometries();
-    for (osg::Geometry* geometry : geometries)
-    {
-        geode->addDrawable(geometry);
-        geometry->setStateSet(material->getOsgStateSet());
-    }
+    Entity* entity = new Entity;
+    MeshRenderer* meshRenderer = entity->addComponent<MeshRenderer>();
+    meshRenderer->setMesh(mesh);
+
+    Asset* entityAsset = am.createAsset(entity, "Engine/TestEntity.xast");
+    entityAsset->save();
+    */
 
     const int width = 1280, height = 720;
     osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits();
@@ -187,16 +100,19 @@ void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
     camera->setViewport(0, 0, width, height);
     camera->setProjectionMatrixAsPerspective(90.0, double(width) / double(height), 0.1, 400.0);
 
-    rootGroup->addChild(geode);
+    Asset* asset = am.getAsset("Engine/TestEntity.xast");
+    asset->load();
+    
+    rootGroup->addChild(dynamic_cast<Entity*>(asset->getRootObject())->getOsgNode());
 
     osg::ref_ptr<xxx::Pipeline> pipeline = new xxx::Pipeline(viewer, gc);
 
     using BufferType = xxx::Pipeline::Pass::BufferType;
     osg::ref_ptr<xxx::Pipeline::Pass> gbufferPass = pipeline->addInputPass("GBuffer", 0x00000001, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    gbufferPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA8);
-    gbufferPass->attach(BufferType::COLOR_BUFFER1, GL_RGBA8);
-    gbufferPass->attach(BufferType::COLOR_BUFFER2, GL_RGBA8);
-    gbufferPass->attach(BufferType::COLOR_BUFFER3, GL_RGBA8);
+    gbufferPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F);
+    gbufferPass->attach(BufferType::COLOR_BUFFER1, GL_RGBA16F);
+    gbufferPass->attach(BufferType::COLOR_BUFFER2, GL_RGBA16F);
+    gbufferPass->attach(BufferType::COLOR_BUFFER3, GL_RGBA16F);
     gbufferPass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT, false, osg::Texture::NEAREST, osg::Texture::NEAREST);
     osg::Shader* screenQuadShader = osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Common/ScreenQuad.vert.glsl");
     osg::Program* finalProgram = new osg::Program;

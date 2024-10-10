@@ -1,6 +1,6 @@
 #pragma once
 #include <Engine/Core/Component.h>
-#include <Engine/Asset/Mesh.h>
+#include <Engine/Render/Mesh.h>
 
 #include <osg/Geode>
 #include <osg/Geometry>
@@ -14,106 +14,94 @@ namespace xxx
 {
     class MeshRenderer : public Component
     {
+        REFLECT_CLASS(MeshRenderer)
     public:
-        MeshRenderer() : Component(Type::MeshRenderer) {}
+        MeshRenderer() :
+            mOsgGeode(new osg::Geode)
+        {
+            mOsgComponentGroup->addChild(mOsgGeode);
+        }
         virtual ~MeshRenderer() = default;
 
-        void setMesh(AStaticMesh* mesh)
+        virtual void postSerialize(Serializer* serializer) override
         {
-            if (!mesh || _mesh == mesh)
-                return;
-
-            _materials.clear();
-            _groups.clear();
-            _geometries.clear();
-
-            _mesh = mesh;
-            uint32_t submeshCount = _mesh->getSubmeshesCount();
-            _materials.resize(submeshCount);
-            _groups.resize(submeshCount);
-            _geometries.resize(submeshCount);
-
-            for (uint32_t i = 0; i < submeshCount; ++i)
+            if (serializer->isLoader())
             {
-                // set vertices and indices
-                AMesh::Submesh& submesh = _mesh->_submeshes[i];
-
-                _materials[i].first = submesh._previewMaterial;
-                _materials[i].second = false;
-
-                _groups[i] = new osg::Group;
-                Group::addChild(_groups[i]);
-
-                osg::ref_ptr<osg::Geometry> geometry = new osg::Geometry;
-                for (auto& vertexAttribute : submesh._vertexAttributes)
-                {
-                    geometry->setVertexAttribArray(vertexAttribute.first, vertexAttribute.second, osg::Array::BIND_PER_VERTEX);
-                    geometry->setVertexAttribBinding(vertexAttribute.first, osg::Geometry::BIND_PER_VERTEX);
-                }
-                geometry->addPrimitiveSet(submesh._drawElements);
-                _geometries[i] = geometry;
-
-                osg::ref_ptr<osg::Geode> gbufferGeode = new osg::Geode;
-                _groups[i]->addChild(gbufferGeode);
-                gbufferGeode->addDrawable(_geometries[i]);
-                gbufferGeode->setNodeMask(0x00000001);
-                osg::ref_ptr<osg::Program> gbufferProgram = new osg::Program;
-                gbufferProgram->addShader(getGBufferVertexShader());
-                gbufferProgram->addShader(getGBufferFragmentShader());
-                gbufferProgram->addShader(_materials[i].first->getShader());
-                gbufferGeode->getOrCreateStateSet()->setAttribute(gbufferProgram, osg::StateAttribute::ON);
-
-                // shadow, outline...
+                syncMeshState();
             }
         }
 
-        void setMaterial(uint32_t index, AMaterial* material)
+        virtual Type getType() const override
         {
-            if (_materials.size() <= index)
-                return;
-            _materials[index].first = material;
-            _materials[index].second = true;
-
-            osg::StateSet* gbufferGeodeStateSet = _groups[index]->getChild(0)->getStateSet();
-            gbufferGeodeStateSet->removeAttribute(osg::StateAttribute::PROGRAM, 0);
-            osg::ref_ptr<osg::Program> gbufferProgram = new osg::Program;
-            gbufferProgram->addShader(getGBufferVertexShader());
-            gbufferProgram->addShader(getGBufferFragmentShader());
-            gbufferProgram->addShader(_materials[index].first->getShader());
-            gbufferGeodeStateSet->setAttribute(gbufferProgram, osg::StateAttribute::ON);
+            return Type::MeshRenderer;
         }
 
-        AMesh* getMesh()
+        void setMesh(Mesh* mesh)
         {
-            return _mesh;
+            if (!mesh)
+                return;
+
+            mMesh = mesh;
+            syncMeshState();
+        }
+
+        void syncMeshState()
+        {
+            if (!mMesh)
+                return;
+
+            mOsgGeometries = mMesh->generateGeometries();
+            mMaterials.resize(mOsgGeometries.size());
+
+            for (uint32_t i = 0; i < mOsgGeometries.size(); ++i)
+            {
+                mOsgGeode->addDrawable(mOsgGeometries[i]);
+                mOsgGeometries[i]->setStateSet(getMaterial(i)->getOsgStateSet());
+            }
+        }
+
+        void setMaterial(uint32_t index, Material* material)
+        {
+            if (index >= mOsgGeometries.size())
+                return;
+
+            mMaterials[index] = material;
+            mOsgGeometries[index]->setStateSet(material->getOsgStateSet());
+        }
+
+        Mesh* getMesh()
+        {
+            return mMesh;
         }
 
         size_t getSubmeshesCount()
         {
-            return _mesh ? _mesh->getSubmeshesCount() : 0;
+            return mOsgGeometries.size();
         }
 
-        AMaterial* getMaterial(uint32_t index)
+        Material* getMaterial(uint32_t index)
         {
-            return _materials.size() > index ? _materials[index].first : nullptr;
+            if (index >= mOsgGeometries.size())
+                return nullptr;
+            return mMaterials[index] ? mMaterials[index] : mMesh->getDefaultMaterial(index);
         }
 
     private:
-        osg::ref_ptr<AMesh> _mesh;
-        // first is material asset, second means whether the material has been set
-        std::vector<std::pair<osg::ref_ptr<AMaterial>, bool>> _materials;
-        std::vector<osg::ref_ptr<osg::Group>> _groups;
-        std::vector<osg::ref_ptr<osg::Geometry>> _geometries;
+        osg::ref_ptr<Mesh> mMesh;
+        std::vector<osg::ref_ptr<Material>> mMaterials;
 
-        static osg::ref_ptr<osg::Shader> getGBufferVertexShader()
-        {
-            static osg::ref_ptr<osg::Shader> gbufferVertexShader = osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Mesh/Mesh.vert.glsl");
-            return gbufferVertexShader;
-        }
-        static osg::ref_ptr<osg::Shader> getGBufferFragmentShader()
-        {
-            static osg::ref_ptr<osg::Shader> gbufferFragmentShader = osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Mesh/Mesh.frag.glsl");
-            return gbufferFragmentShader;
-        }
+        osg::ref_ptr<osg::Geode> mOsgGeode;
+        std::vector<osg::ref_ptr<osg::Geometry>> mOsgGeometries;
     };
+
+    namespace refl
+    {
+        template <> inline Type* Reflection::createType<MeshRenderer>()
+        {
+            Class* clazz = new ClassInstance<MeshRenderer, Component>("MeshRenderer");
+            clazz->addProperty("Mesh", &MeshRenderer::mMesh);
+            clazz->addProperty("Materials", &MeshRenderer::mMaterials);
+            return clazz;
+        }
+    }
 }

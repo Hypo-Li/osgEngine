@@ -172,6 +172,8 @@ namespace xxx
                 // fixed only use PrimitiveSet(0), so that we can assign an IndexBufferView to each Geometry
                 osgGeometryData.drawElements = dynamic_cast<osg::DrawElements*>(geom->getPrimitiveSet(0));
                 mOsgGeometryDatas.emplace_back(osgGeometryData);
+
+                mDefaultMaterials.resize(mOsgGeometryDatas.size());
             }
         }
         return;
@@ -236,8 +238,10 @@ namespace xxx
                 for (VertexAttributeView& vav : submeshView.vertexAttributeViews)
                 {
                     osg::Array* osgArray = createOsgArrayByVertexAttributeView(vav, mData.data());
-                    //if (osgArray->getNumElements() == 1)
-                    //    osgArray->setBinding(osg::Array::BIND_OVERALL);
+                    if (osgArray->getNumElements() == 1)
+                        osgArray->setBinding(osg::Array::BIND_OVERALL);
+                    else
+                        osgArray->setBinding(osg::Array::BIND_PER_VERTEX);
                     geomData.vertexAttributes.emplace_back(vav.location, osgArray);
                 }
 
@@ -248,6 +252,31 @@ namespace xxx
         }
         mData.clear();
         mSubmeshViews.clear();
+    }
+
+    std::vector<osg::ref_ptr<osg::Geometry>> Mesh::generateGeometries()
+    {
+        std::vector<osg::ref_ptr<osg::Geometry>> geometries;
+        for (OsgGeometryData& geomData : mOsgGeometryDatas)
+        {
+            osg::Geometry* geometry = new osg::Geometry;
+            for (auto& vertexAttribute : geomData.vertexAttributes)
+            {
+                if (vertexAttribute.first == 0)
+                    geometry->setVertexArray(vertexAttribute.second);
+                else if (vertexAttribute.first == 2)
+                    geometry->setNormalArray(vertexAttribute.second);
+                else if (vertexAttribute.first == 3)
+                    geometry->setColorArray(vertexAttribute.second);
+                else if (vertexAttribute.first >= 8 && vertexAttribute.first < 12)
+                    geometry->setTexCoordArray(vertexAttribute.first - 8, vertexAttribute.second);
+                else
+                    geometry->setVertexAttribArray(vertexAttribute.first, vertexAttribute.second);
+            }
+            geometry->addPrimitiveSet(geomData.drawElements);
+            geometries.push_back(geometry);
+        }
+        return geometries;
     }
 
     osg::Array* Mesh::createOsgArrayByVertexAttributeView(VertexAttributeView& vav, uint8_t* data)
@@ -357,6 +386,46 @@ namespace xxx
         case GL_UNSIGNED_INT: return new osg::DrawElementsUInt(GL_TRIANGLES, ibv.size / sizeof(GLuint), (GLuint*)(data + ibv.offset));
         default:
             return nullptr;
+        }
+    }
+
+    namespace refl
+    {
+        template <> Type* Reflection::createType<VertexAttributeView>()
+        {
+            Struct* structure = new StructInstance<VertexAttributeView>("VertexAttributeView");
+            structure->addProperty("Location", &VertexAttributeView::location);
+            structure->addProperty("Dimension", &VertexAttributeView::dimension);
+            structure->addProperty("Type", &VertexAttributeView::type);
+            structure->addProperty("Offset", &VertexAttributeView::offset);
+            structure->addProperty("Size", &VertexAttributeView::size);
+            return structure;
+        }
+
+        template <> Type* Reflection::createType<IndexBufferView>()
+        {
+            Struct* structure = new StructInstance<IndexBufferView>("IndexBufferView");
+            structure->addProperty("Type", &IndexBufferView::type);
+            structure->addProperty("Offset", &IndexBufferView::offset);
+            structure->addProperty("Size", &IndexBufferView::size);
+            return structure;
+        }
+
+        template <> Type* Reflection::createType<SubmeshView>()
+        {
+            Struct* structure = new StructInstance<SubmeshView>("SubmeshView");
+            structure->addProperty("VertexAttributeViews", &SubmeshView::vertexAttributeViews);
+            structure->addProperty("IndexBufferView", &SubmeshView::indexBufferView);
+            return structure;
+        }
+
+        template <> Type* Reflection::createType<Mesh>()
+        {
+            Class* clazz = new ClassInstance<Mesh>("Mesh");
+            clazz->addProperty("Data", &Mesh::mData);
+            clazz->addProperty("SubmeshViews", &Mesh::mSubmeshViews);
+            clazz->addProperty("DefaultMaterials", &Mesh::mDefaultMaterials);
+            return clazz;
         }
     }
 }

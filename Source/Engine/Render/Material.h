@@ -26,6 +26,17 @@ namespace xxx
 
         }
 
+        virtual void postSerialize(Serializer* serializer)
+        {
+            if (serializer->isLoader())
+            {
+                setShadingModel(mShadingModel);
+                setAlphaMode(mAlphaMode);
+                setDoubleSided(mDoubleSided);
+                syncShaderState();
+            }
+        }
+
         osg::StateSet* getOsgStateSet() const
         {
             return mOsgStateSet;
@@ -33,7 +44,7 @@ namespace xxx
 
         void setShader(Shader* shader);
 
-        void syncShader();
+        void syncShaderState();
 
         Shader* getShader() const
         {
@@ -115,14 +126,6 @@ namespace xxx
 
     namespace refl
     {
-        template<> inline Type* Reflection::createType<Material>()
-        {
-            Class* clazz = new ClassInstance<Material>("Material");
-            clazz->addProperty("Shader", &Material::mShader);
-            clazz->addProperty("Parameters", &Material::mParameters);
-            return clazz;
-        }
-
         template <>
         inline Type* Reflection::createType<ShadingModel>()
         {
@@ -142,6 +145,17 @@ namespace xxx
                 {"Blend", AlphaMode::Blend},
             });
             return enumerate;
+        }
+
+        template<> inline Type* Reflection::createType<Material>()
+        {
+            Class* clazz = new ClassInstance<Material>("Material");
+            clazz->addProperty("Shader", &Material::mShader);
+            clazz->addProperty("Parameters", &Material::mParameters);
+            clazz->addProperty("ShadingModel", &Material::mShadingModel);
+            clazz->addProperty("AlphaMode", &Material::mAlphaMode);
+            clazz->addProperty("DoubleSided", &Material::mDoubleSided);
+            return clazz;
         }
     }
 }

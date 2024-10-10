@@ -37,12 +37,6 @@ namespace xxx
 
     namespace refl
     {
-        template <>
-        inline Type* Reflection::createType<Component>()
-        {
-            Class* clazz = new ClassInstance<Component>("Component");
-            Property* propOwner = clazz->addProperty("Entity", &Component::mEntity);
-            return clazz;
-        }
+        template <> Type* Reflection::createType<Component>();
     }
 }

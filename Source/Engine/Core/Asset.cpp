@@ -7,9 +7,11 @@ namespace xxx
 
     Asset::Asset(const std::string& path) : mPath(path)
     {
-        if (std::filesystem::exists(mPath))
+        std::filesystem::path fullPath = convertAssetPathToFullPath(mPath);
+
+        if (std::filesystem::exists(fullPath))
         {
-            std::ifstream ifs(mPath, std::ios::binary);
+            std::ifstream ifs(fullPath, std::ios::binary);
             AssetHeader header;
             ifs.read((char*)&header, sizeof(AssetHeader));
             {
@@ -67,7 +69,7 @@ namespace xxx
         if (mIsLoaded)
             return;
 
-        std::ifstream ifs(mPath, std::ios::binary);
+        std::ifstream ifs(convertAssetPathToFullPath(mPath), std::ios::binary);
         AssetSerializer* assetLoader = new AssetLoader(this);
         AssetHeader header;
 
@@ -90,7 +92,7 @@ namespace xxx
 
     void Asset::save()
     {
-        std::ofstream ofs(mPath, std::ios::binary);
+        std::ofstream ofs(convertAssetPathToFullPath(mPath), std::ios::binary);
         AssetSerializer* assetSaver = new AssetSaver(this);
         AssetHeader header;
         header.guid = mGuid;
@@ -109,5 +111,47 @@ namespace xxx
         writeObjectBuffers(ofs, assetSaver, header);
 
         mIsLoaded = true;
+    }
+
+    std::string Asset::convertFullPathToAssetPath(const std::filesystem::path& fullPath)
+    {
+        const std::filesystem::path& engineAssetPath = Context::get().getEngineAssetPath();
+        if (fullPath.compare(engineAssetPath) > 0)
+        {
+            std::string assetPath = "Engine/" + fullPath.lexically_relative(engineAssetPath).string();
+            std::replace(assetPath.begin(), assetPath.end(), '\\', '/');
+            return assetPath;
+        }
+
+        const std::filesystem::path& projectAssetPath = Context::get().getProjectAssetPath();
+        if (fullPath.compare(projectAssetPath) > 0)
+        {
+            std::string assetPath = "/" + fullPath.lexically_relative(projectAssetPath).string();
+            std::replace(assetPath.begin(), assetPath.end(), '\\', '/');
+            return assetPath;
+        }
+
+        return std::string();
+    }
+
+    std::filesystem::path Asset::convertAssetPathToFullPath(const std::string& assetPath)
+    {
+        std::filesystem::path fullPath;
+        if (assetPath.substr(0, 7) == "Engine/")
+        {
+            fullPath = Context::get().getEngineAssetPath();
+            fullPath /= assetPath.substr(7);
+            return fullPath;
+        }
+
+        if (assetPath.substr(0, 1) == "/")
+        {
+            fullPath = Context::get().getProjectAssetPath();
+            fullPath /= assetPath.substr(1);
+            return fullPath;
+        }
+
+        // LogError illegal path
+        return std::filesystem::path();
     }
 }

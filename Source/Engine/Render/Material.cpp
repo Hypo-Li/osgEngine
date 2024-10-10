@@ -186,7 +186,7 @@ namespace xxx
 {
     void Material::setShader(Shader* shader)
     {
-        if (!shader || shader == mShader)
+        if (!shader)
             return;
 
         mOsgStateSet->clear();
@@ -196,10 +196,10 @@ namespace xxx
         setDoubleSided(mDoubleSided);
 
         mShader = shader;
-        syncShader();
+        syncShaderState();
     }
 
-    void Material::syncShader()
+    void Material::syncShaderState()
     {
         static osg::ref_ptr<osg::Shader> frameworkVertexShader = new osg::Shader(osg::Shader::VERTEX, FrameworkVertexShaderSource);
         static osg::ref_ptr<osg::Shader> frameworkFragmentShader = new osg::Shader(osg::Shader::FRAGMENT, FrameworkFragmentShaderSource);

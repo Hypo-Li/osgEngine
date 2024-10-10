@@ -30,6 +30,17 @@ namespace xxx
         Entity(const Entity& other);
 		virtual ~Entity() = default;
 
+        virtual void postSerialize(Serializer* serializer) override
+        {
+            if (serializer->isLoader())
+            {
+                for (Entity* child : mChildren)
+                    mOsgChildrenGroup->addChild(child->mOsgEntityNode);
+                for (Component* component : mComponents)
+                    mOsgComponentsGroup->addChild(component->mOsgComponentGroup);
+            }
+        }
+
         void setName(const std::string& name)
         {
             mName = name;
@@ -38,6 +49,11 @@ namespace xxx
         const std::string& getName() const
         {
             return mName;
+        }
+
+        osg::Node* getOsgNode() const
+        {
+            return mOsgEntityNode;
         }
 
         void setParent(Entity* entity);
@@ -75,7 +91,7 @@ namespace xxx
         T* addComponent()
         {
             T* component = new T;
-            appendComponent(component);
+            this->addComponent(component);
             return component;
         }
 

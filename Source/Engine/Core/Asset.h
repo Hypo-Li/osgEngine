@@ -87,6 +87,10 @@ namespace xxx
 
         void save();
 
+        static std::string convertFullPathToAssetPath(const std::filesystem::path& fullPath);
+
+        static std::filesystem::path convertAssetPathToFullPath(const std::string& assetPath);
+
     protected:
         std::string mPath;
         Guid mGuid;

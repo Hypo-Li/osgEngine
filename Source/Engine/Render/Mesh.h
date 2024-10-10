@@ -24,7 +24,6 @@ namespace xxx
     {
         std::vector<VertexAttributeView> vertexAttributeViews;
         IndexBufferView indexBufferView;
-        osg::ref_ptr<Material> defaultMaterial;
     };
 
     class MeshRenderer;
@@ -40,34 +39,31 @@ namespace xxx
 
         virtual void postSerialize(Serializer* serializer) override;
 
-        std::vector<osg::Geometry*> generateGeometries()
+        uint32_t getSubmeshCount() const
         {
-            std::vector<osg::Geometry*> geometries;
-            for (OsgGeometryData& geomData : mOsgGeometryDatas)
-            {
-                osg::Geometry* geometry = new osg::Geometry;
-                for (auto& vertexAttribute : geomData.vertexAttributes)
-                {
-                    if (vertexAttribute.first == 0)
-                        geometry->setVertexArray(vertexAttribute.second);
-                    else if (vertexAttribute.first == 2)
-                        geometry->setNormalArray(vertexAttribute.second);
-                    else if (vertexAttribute.first == 3)
-                        geometry->setColorArray(vertexAttribute.second);
-                    else if (vertexAttribute.first >= 8 && vertexAttribute.first < 12)
-                        geometry->setTexCoordArray(vertexAttribute.first - 8, vertexAttribute.second);
-                    else
-                        geometry->setVertexAttribArray(vertexAttribute.first, vertexAttribute.second);
-                }
-                geometry->addPrimitiveSet(geomData.drawElements);
-                geometries.push_back(geometry);
-            }
-            return geometries;
+            return mOsgGeometryDatas.size();
         }
+
+        void setDefaultMaterial(uint32_t index, Material* material)
+        {
+            if (index >= mDefaultMaterials.size())
+                return;
+            mDefaultMaterials[index] = material;
+        }
+
+        Material* getDefaultMaterial(uint32_t index)
+        {
+            if (index >= mDefaultMaterials.size())
+                return nullptr;
+            return mDefaultMaterials[index];
+        }
+
+        std::vector<osg::ref_ptr<osg::Geometry>> generateGeometries();
 
     protected:
         std::vector<uint8_t> mData;
         std::vector<SubmeshView> mSubmeshViews;
+        std::vector<osg::ref_ptr<Material>> mDefaultMaterials;
 
         struct OsgGeometryData
         {
@@ -82,41 +78,12 @@ namespace xxx
 
     namespace refl
     {
-        template <> inline Type* Reflection::createType<VertexAttributeView>()
-        {
-            Struct* structure = new StructInstance<VertexAttributeView>("VertexAttributeView");
-            structure->addProperty("Location", &VertexAttributeView::location);
-            structure->addProperty("Dimension", &VertexAttributeView::dimension);
-            structure->addProperty("Type", &VertexAttributeView::type);
-            structure->addProperty("Offset", &VertexAttributeView::offset);
-            structure->addProperty("Size", &VertexAttributeView::size);
-            return structure;
-        }
+        template <> Type* Reflection::createType<VertexAttributeView>();
 
-        template <> inline Type* Reflection::createType<IndexBufferView>()
-        {
-            Struct* structure = new StructInstance<IndexBufferView>("IndexBufferView");
-            structure->addProperty("Type", &IndexBufferView::type);
-            structure->addProperty("Offset", &IndexBufferView::offset);
-            structure->addProperty("Size", &IndexBufferView::size);
-            return structure;
-        }
+        template <> Type* Reflection::createType<IndexBufferView>();
 
-        template <> inline Type* Reflection::createType<SubmeshView>()
-        {
-            Struct* structure = new StructInstance<SubmeshView>("SubmeshView");
-            structure->addProperty("VertexAttributeViews", &SubmeshView::vertexAttributeViews);
-            structure->addProperty("IndexBufferView", &SubmeshView::indexBufferView);
-            structure->addProperty("DefaultMaterial", &SubmeshView::defaultMaterial);
-            return structure;
-        }
+        template <> Type* Reflection::createType<SubmeshView>();
 
-        template <> inline Type* Reflection::createType<Mesh>()
-        {
-            Class* clazz = new ClassInstance<Mesh>("Mesh");
-            clazz->addProperty("Data", &Mesh::mData);
-            clazz->addProperty("SubmeshViews", &Mesh::mSubmeshViews);
-            return clazz;
-        }
+        template <> Type* Reflection::createType<Mesh>();
     }
 }

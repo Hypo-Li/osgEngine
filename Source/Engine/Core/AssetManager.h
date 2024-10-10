@@ -17,9 +17,22 @@ namespace xxx
             {
                 if (file.is_regular_file())
                 {
-                    createAsset(nullptr, file.path().string());
+                    createAsset(nullptr, Asset::convertFullPathToAssetPath(file.path()));
                 }
             }
+
+            /*const std::filesystem::path& projectAssetPath = Context::get().getProjectAssetPath();
+            for (const auto& file : std::filesystem::recursive_directory_iterator(projectAssetPath))
+            {
+                if (file.is_regular_file())
+                {
+                    std::filesystem::path fullPath = file.path();
+                    std::filesystem::path relativePath = fullPath.lexically_relative(projectAssetPath);
+
+                    createAsset(nullptr, "/" + relativePath.string());
+                }
+            }*/
+
             return;
         }
 

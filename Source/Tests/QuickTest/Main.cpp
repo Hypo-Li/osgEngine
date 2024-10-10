@@ -48,7 +48,7 @@ int main()
     osg::ref_ptr<osg::Texture3D> colorGradingLutTexture = new osg::Texture3D;
     colorGradingLutTexture->setTextureSize(32, 32, 32);
     colorGradingLutTexture->setInternalFormat(GL_RGBA16F_ARB);
-    osg::ref_ptr<osg::BindImageTexture> colorGradingLutImage = new osg::BindImageTexture(0, colorGradingLutTexture, osg::BindImageTexture::WRITE_ONLY, GL_RGBA16F_ARB);
+    osg::ref_ptr<osg::BindImageTexture> colorGradingLutImage = new osg::BindImageTexture(0, colorGradingLutTexture, osg::BindImageTexture::WRITE_ONLY, GL_RGBA16F_ARB, 0, GL_TRUE);
     osg::ref_ptr<osg::DispatchCompute> colorGradingLutDispatch = new osg::DispatchCompute(4, 4, 4);
     colorGradingLutDispatch->getOrCreateStateSet()->setAttributeAndModes(colorGradingLutProgram);
     colorGradingLutDispatch->getOrCreateStateSet()->setAttributeAndModes(colorGradingLutImage);

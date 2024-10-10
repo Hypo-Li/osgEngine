@@ -16,4 +16,14 @@ namespace xxx
     {
 
     }
+
+    namespace refl
+    {
+        template <> Type* Reflection::createType<Component>()
+        {
+            Class* clazz = new ClassInstance<Component>("Component");
+            clazz->addProperty("Entity", &Component::mEntity);
+            return clazz;
+        }
+    }
 }

@@ -1,8 +1,6 @@
 #include "Object.h"
 #include "AssetManager.h"
 
-#include <objbase.h>
-
 namespace xxx
 {
     Object::Object() :
@@ -17,14 +15,6 @@ namespace xxx
         mOwner(other.mOwner)
     {
 
-    }
-
-    Guid Guid::newGuid()
-    {
-        Guid result;
-        if (CoCreateGuid((GUID*)&result) == S_OK)
-            return result;
-        return result;
     }
 
     Asset* Object::getAsset() const

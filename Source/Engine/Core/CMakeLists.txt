@@ -31,4 +31,4 @@ add_library (
     "Context.h"
 
     "Serialization/Serializer.h"
- "Reflection/Metadata.h" "Asset.h" "Object.cpp" "AssetManager.h" "Serialization/AssetSaver.h" "Serialization/Serializer.cpp" "Serialization/AssetSaver.cpp" "Scene.h" "Serialization/AssetSerializer.h" "Serialization/AssetSerializer.cpp" "Serialization/JsonSerializer.h" "Prefab.h" "Prefab.cpp" "Asset.cpp" "AssetManager.cpp" "Serialization/AssetLoader.cpp"  "MeshRenderer.h" "Guid.h")
+ "Reflection/Metadata.h" "Asset.h" "Object.cpp" "AssetManager.h" "Serialization/AssetSaver.h" "Serialization/Serializer.cpp" "Serialization/AssetSaver.cpp" "Scene.h" "Serialization/AssetSerializer.h" "Serialization/AssetSerializer.cpp" "Serialization/JsonSerializer.h" "Prefab.h" "Prefab.cpp" "Asset.cpp" "AssetManager.cpp" "Serialization/AssetLoader.cpp"   "Guid.h" "Guid.cpp")
