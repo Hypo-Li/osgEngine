@@ -143,14 +143,6 @@ namespace xxx
         mComponents.erase(mComponents.begin() + index);
     }
 
-    template <>
-    Component* Entity::getComponent(uint32_t index)
-    {
-        if (index >= mComponents.size())
-            return nullptr;
-        return mComponents[index].get();
-    }
-
     void Entity::clearComponents()
     {
         for (auto it : mComponents)

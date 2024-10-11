@@ -64,7 +64,7 @@ namespace xxx::refl
         virtual bool compare(const void* instance1, const void* instance2) const = 0;
 
     protected:
-        Type() = default;
+        Type() : mName(), mSize(0) {}
         Type(std::string_view name, size_t size) : mName(name), mSize(size) {}
         virtual ~Type() = default;
 

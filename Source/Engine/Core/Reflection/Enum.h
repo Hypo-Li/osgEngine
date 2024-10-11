@@ -20,6 +20,11 @@ namespace xxx::refl
             return mUnderlyingType;
         }
 
+        size_t getValueCount() const
+        {
+            return mValues.size();
+        }
+
         size_t getIndexByName(std::string_view name) const
         {
             size_t count = mValues.size();
@@ -82,7 +87,8 @@ namespace xxx::refl
 
     protected:
         Enum(std::string_view name, size_t size) :
-            Type(name, size)
+            Type(name, size),
+            mUnderlyingType(nullptr)
         {}
 
         std::vector<std::pair<std::string_view, int64_t>> mValues;

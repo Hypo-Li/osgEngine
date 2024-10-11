@@ -23,10 +23,10 @@ namespace xxx
     {
         class ResizedCallback;
     public:
-        Pipeline(osg::View* view, osg::GraphicsContext* graphicsContext) : _view(view), _graphicsContext(graphicsContext)
+        Pipeline(osg::View* view, osg::GraphicsContext* graphicsContext) : mView(view), mGraphicsContext(graphicsContext)
         {
-            _graphicsContext->setResizedCallback(new ResizedCallback(this));
-            _view->getCamera()->setGraphicsContext(nullptr);
+            mGraphicsContext->setResizedCallback(new ResizedCallback(this));
+            mView->getCamera()->setGraphicsContext(nullptr);
         }
         virtual ~Pipeline() = default;
 
@@ -35,18 +35,18 @@ namespace xxx
             friend class Pipeline;
             friend class Pipeline::ResizedCallback;
         public:
-            Pass(osg::Camera* camera, bool fixedSize, osg::Vec2 sizeScale) : _camera(camera), _fixedSize(fixedSize), _sizeScale(sizeScale)
+            Pass(osg::Camera* camera, bool fixedSize, osg::Vec2 sizeScale) : mCamera(camera), mFixedSize(fixedSize), mSizeScale(sizeScale)
             {
-                osg::Viewport* viewport = _camera->getViewport();
-                _resolutionUniform = new osg::Uniform("uResolution", osg::Vec4(viewport->width(), viewport->height(), 1.0f / viewport->width(), 1.0f / viewport->height()));
-                _camera->getOrCreateStateSet()->addUniform(_resolutionUniform);
+                osg::Viewport* viewport = mCamera->getViewport();
+                mResolutionUniform = new osg::Uniform("uResolution", osg::Vec4(viewport->width(), viewport->height(), 1.0f / viewport->width(), 1.0f / viewport->height()));
+                mCamera->getOrCreateStateSet()->addUniform(mResolutionUniform);
             }
 
             using BufferType = osg::Camera::BufferComponent;
 
             void attach(BufferType buffer, osg::Texture* texture, int level = 0, int face = 0, bool mipmapGeneration = false)
             {
-                _camera->attach(buffer, texture, level, face, mipmapGeneration);
+                mCamera->attach(buffer, texture, level, face, mipmapGeneration);
             }
 
             void attach(BufferType buffer, GLenum internalFormat, bool multisampling = false,
@@ -64,7 +64,7 @@ namespace xxx
                     { GL_R11F_G11F_B10F, GL_RGB },
                     { GL_RGB10_A2, GL_RGBA },
                 };
-                osg::Viewport* viewport = _camera->getViewport();
+                osg::Viewport* viewport = mCamera->getViewport();
                 osg::Texture* texture;
                 if (multisampling)
                 {
@@ -89,53 +89,61 @@ namespace xxx
                 texture->setFilter(osg::Texture::MAG_FILTER, magFilter);
                 texture->setWrap(osg::Texture::WRAP_S, wrapS);
                 texture->setWrap(osg::Texture::WRAP_T, wrapT);
-                _camera->attach(buffer, texture);
+                mCamera->attach(buffer, texture);
             }
 
             osg::Texture* getBufferTexture(BufferType buffer)
             {
-                return _camera->getBufferAttachmentMap().at(buffer)._texture.get();
+                return mCamera->getBufferAttachmentMap().at(buffer)._texture.get();
             }
 
             void applyUniform(osg::Uniform* uniform)
             {
-                _camera->getOrCreateStateSet()->addUniform(uniform, osg::StateAttribute::ON);
+                mCamera->getOrCreateStateSet()->addUniform(uniform, osg::StateAttribute::ON);
             }
 
             void applyTexture(osg::Texture* texture, const std::string& name, int unit)
             {
-                _camera->getOrCreateStateSet()->addUniform(new osg::Uniform(name.c_str(), unit));
-                _camera->getOrCreateStateSet()->setTextureAttribute(unit, texture, osg::StateAttribute::ON);
+                mCamera->getOrCreateStateSet()->addUniform(new osg::Uniform(name.c_str(), unit));
+                mCamera->getOrCreateStateSet()->setTextureAttribute(unit, texture, osg::StateAttribute::ON);
             }
 
             void setAttribute(osg::StateAttribute* attribute, osg::StateAttribute::OverrideValue value = osg::StateAttribute::ON)
             {
-                _camera->getOrCreateStateSet()->setAttribute(attribute, value);
+                mCamera->getOrCreateStateSet()->setAttribute(attribute, value);
             }
 
             void setMode(osg::StateAttribute::GLMode mode, osg::StateAttribute::GLModeValue value = osg::StateAttribute::ON)
             {
-                _camera->getOrCreateStateSet()->setMode(mode, value);
+                mCamera->getOrCreateStateSet()->setMode(mode, value);
             }
 
             osg::Camera* getCamera() const
             {
-                return _camera;
+                return mCamera;
             }
 
             osg::Vec2 getSizeScale() const
             {
-                return _sizeScale;
+                return mSizeScale;
             }
 
         private:
-            osg::ref_ptr<osg::Camera> _camera;
-            bool _fixedSize;
-            osg::Vec2 _sizeScale;
-            osg::ref_ptr<osg::Uniform> _resolutionUniform;
+            osg::ref_ptr<osg::Camera> mCamera;
+            bool mFixedSize;
+            osg::Vec2 mSizeScale;
+            osg::ref_ptr<osg::Uniform> mResolutionUniform;
         };
 
-        osg::View* getView() const { return _view.get(); }
+        osg::View* getView() const
+        {
+            return mView;
+        }
+
+        const std::vector<osg::ref_ptr<Pass>> getPasses() const
+        {
+            return mPasses;
+        }
 
         // fixedSize: 是否为固定大小
         // sizeScale: 当fixedSize为true时为相较于默认FBO viewport大小的缩放比例, 否则为固定的viewport大小
@@ -149,24 +157,24 @@ namespace xxx
         {
             // set new aspect
             double fovy, aspect, zNear, zFar;
-            _view->getCamera()->getProjectionMatrixAsPerspective(fovy, aspect, zNear, zFar);
-            _view->getCamera()->setProjectionMatrixAsPerspective(fovy, double(width) / double(height), zNear, zFar);
+            mView->getCamera()->getProjectionMatrixAsPerspective(fovy, aspect, zNear, zFar);
+            mView->getCamera()->setProjectionMatrixAsPerspective(fovy, double(width) / double(height), zNear, zFar);
             // resize passes expect final pass
             // final pass will resize by osg automatically
-            for (Pass* pass : _passes)
+            for (Pass* pass : mPasses)
             {
-                bool isDisplayPass = pass->_camera->getRenderTargetImplementation() != osg::Camera::FRAME_BUFFER_OBJECT;
-                if (!pass->_fixedSize && ( !isDisplayPass || (isDisplayPass && resizeDisplayPass) ) )
+                bool isDisplayPass = pass->mCamera->getRenderTargetImplementation() != osg::Camera::FRAME_BUFFER_OBJECT;
+                if (!pass->mFixedSize && ( !isDisplayPass || (isDisplayPass && resizeDisplayPass) ) )
                 {
                     // get real size
-                    int realWidth = width * pass->_sizeScale.x();
-                    int realHeight = height * pass->_sizeScale.y();
+                    int realWidth = width * pass->mSizeScale.x();
+                    int realHeight = height * pass->mSizeScale.y();
 
                     // resize viewport
-                    pass->_camera->setViewport(0, 0, realWidth, realHeight);
+                    pass->mCamera->setViewport(0, 0, realWidth, realHeight);
 
                     // resize attachment texture
-                    auto& bufferAttachmentMap = pass->_camera->getBufferAttachmentMap();
+                    auto& bufferAttachmentMap = pass->mCamera->getBufferAttachmentMap();
                     for (auto itr : bufferAttachmentMap)
                     {
                         osg::Texture2D* texture2d = dynamic_cast<osg::Texture2D*>(itr.second._texture.get());
@@ -183,8 +191,8 @@ namespace xxx
                             texture2dMs->dirtyTextureObject();
                         }
                     }
-                    pass->_camera->dirtyAttachmentMap();
-                    pass->_resolutionUniform->set(osg::Vec4(realWidth, realHeight, 1.0f / realWidth, 1.0f / realHeight));
+                    pass->mCamera->dirtyAttachmentMap();
+                    pass->mResolutionUniform->set(osg::Vec4(realWidth, realHeight, 1.0f / realWidth, 1.0f / realHeight));
                 }
             }
         }
@@ -204,7 +212,7 @@ namespace xxx
                     { GL_R11F_G11F_B10F, GL_RGB },
                     { GL_RGB10_A2, GL_RGBA },
             };
-            osg::Viewport* viewport = _view->getCamera()->getViewport();
+            osg::Viewport* viewport = mView->getCamera()->getViewport();
             osg::Texture2D* texture = new osg::Texture2D;
             texture->setTextureSize(viewport->width(), viewport->height());
             texture->setInternalFormat(internalFormat);
@@ -223,9 +231,9 @@ namespace xxx
         }
 
     private:
-        osg::ref_ptr<osg::View> _view;
-        osg::ref_ptr<osg::GraphicsContext> _graphicsContext;
-        std::vector<osg::ref_ptr<Pass>> _passes;
+        osg::ref_ptr<osg::View> mView;
+        osg::ref_ptr<osg::GraphicsContext> mGraphicsContext;
+        std::vector<osg::ref_ptr<Pass>> mPasses;
 
         static osg::Geometry* Pipeline::getScreenGeometry()
         {
@@ -247,22 +255,22 @@ namespace xxx
 
         class ResizedCallback : public osg::GraphicsContext::ResizedCallback
         {
-            osg::ref_ptr<xxx::Pipeline> _pipeline;
-            int _width, _height;
+            osg::ref_ptr<xxx::Pipeline> mPipeline;
+            int mWidth, mHeight;
         public:
-            ResizedCallback(xxx::Pipeline* pipeline) : _pipeline(pipeline)
+            ResizedCallback(xxx::Pipeline* pipeline) : mPipeline(pipeline)
             {
                 osg::Viewport* viewport = pipeline->getView()->getCamera()->getViewport();
-                _width = viewport->width();
-                _height = viewport->height();
+                mWidth = viewport->width();
+                mHeight = viewport->height();
             }
 
             virtual void resizedImplementation(osg::GraphicsContext* gc, int x, int y, int width, int height)
             {
-                if ((width == _width && height == _height) || (width == 1 && height == 1))
+                if ((width == mWidth && height == mHeight) || (width == 1 && height == 1))
                     return;
-                _width = width, _height = height;
-                _pipeline->resize(width, height, true);
+                mWidth = width, mHeight = height;
+                mPipeline->resize(width, height, true);
             }
         };
     };

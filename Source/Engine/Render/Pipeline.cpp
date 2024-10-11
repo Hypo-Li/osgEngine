@@ -62,7 +62,7 @@ namespace xxx
     {
         osg::Camera* camera = new osg::Camera;
         camera->setName(name);
-        camera->setGraphicsContext(_graphicsContext);
+        camera->setGraphicsContext(mGraphicsContext);
         camera->setCullMask(cullMask);
         camera->setClearColor(osg::Vec4(0.0, 0.0, 0.0, 1.0));
         camera->setClearMask(clearMask);
@@ -76,13 +76,13 @@ namespace xxx
         }
         else
         {
-            osg::Viewport* nativeViewport = _view->getCamera()->getViewport();
+            osg::Viewport* nativeViewport = mView->getCamera()->getViewport();
             camera->setViewport(nativeViewport->x(), nativeViewport->y(), nativeViewport->width() * sizeScale.x(), nativeViewport->height() * sizeScale.y());
         }
 
-        _view->addSlave(camera, true);
+        mView->addSlave(camera, true);
         Pass* newPass = new Pass(camera, fixedSize, sizeScale);
-        _passes.push_back(newPass);
+        mPasses.push_back(newPass);
         return newPass;
     }
 
@@ -100,7 +100,7 @@ namespace xxx
     {
         osg::Camera* camera = new osg::Camera;
         camera->setName(name);
-        camera->setGraphicsContext(_graphicsContext);
+        camera->setGraphicsContext(mGraphicsContext);
         camera->setClearColor(osg::Vec4(0.0, 0.0, 0.0, 1.0));
         camera->setClearMask(clearMask);
         camera->setRenderOrder(osg::Camera::PRE_RENDER);
@@ -116,7 +116,7 @@ namespace xxx
         }
         else
         {
-            osg::Viewport* nativeViewport = _view->getCamera()->getViewport();
+            osg::Viewport* nativeViewport = mView->getCamera()->getViewport();
             camera->setViewport(nativeViewport->x(), nativeViewport->y(), nativeViewport->width() * sizeScale.x(), nativeViewport->height() * sizeScale.y());
         }
         osg::Geode* geode = new osg::Geode;
@@ -126,9 +126,9 @@ namespace xxx
         geode->getOrCreateStateSet()->setAttribute(program, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
         camera->addChild(geode);
 
-        _view->addSlave(camera, false);
+        mView->addSlave(camera, false);
         Pass* newPass = new Pass(camera, fixedSize, sizeScale);
-        _passes.push_back(newPass);
+        mPasses.push_back(newPass);
         return newPass;
     }
 
@@ -136,11 +136,11 @@ namespace xxx
     {
         osg::Camera* camera = new osg::Camera;
         camera->setName(name);
-        camera->setGraphicsContext(_graphicsContext);
+        camera->setGraphicsContext(mGraphicsContext);
         camera->setClearColor(osg::Vec4(0.0, 0.0, 0.0, 1.0));
         camera->setClearMask(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         camera->setRenderOrder(osg::Camera::POST_RENDER);
-        camera->setViewport(_view->getCamera()->getViewport());
+        camera->setViewport(mView->getCamera()->getViewport());
         camera->setReferenceFrame(osg::Transform::ABSOLUTE_RF);
         camera->setViewMatrix(osg::Matrixd::identity());
         camera->setProjectionMatrix(osg::Matrix::ortho2D(0.0, 1.0, 0.0, 1.0));
@@ -151,9 +151,9 @@ namespace xxx
             program->getShader(i)->setName(name);
         geode->getOrCreateStateSet()->setAttribute(program, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
         camera->addChild(geode);
-        _view->addSlave(camera, false);
+        mView->addSlave(camera, false);
         Pass* newPass = new Pass(camera, false, osg::Vec2(1.0, 1.0));
-        _passes.push_back(newPass);
+        mPasses.push_back(newPass);
         return newPass;
     }
 }

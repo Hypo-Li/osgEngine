@@ -52,6 +52,30 @@ namespace xxx::refl
             return mDefaultObject;
         }
 
+        bool isDerivedFrom(Class* clazz) const
+        {
+            Class* baseClass = mBaseClass;
+            while (baseClass)
+            {
+                if (baseClass == clazz)
+                    return true;
+                baseClass = baseClass->mBaseClass;
+            }
+            return false;
+        }
+
+        bool isBaseOf(Class* clazz) const
+        {
+            Class* baseClass = clazz->mBaseClass;
+            while (baseClass)
+            {
+                if (baseClass == this)
+                    return true;
+                baseClass = baseClass->mBaseClass;
+            }
+            return false;
+        }
+
     protected:
         template <std::size_t Index = 0, typename Owner, typename Declared>
         Property* addProperty(std::string_view name, Declared Owner::* member)
@@ -71,7 +95,9 @@ namespace xxx::refl
 
     protected:
         Class(std::string_view name, size_t size) :
-            Type(name, size)
+            Type(name, size),
+            mBaseClass(nullptr),
+            mDefaultObject(nullptr)
         {}
 
         Class* mBaseClass;

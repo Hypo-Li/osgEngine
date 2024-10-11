@@ -49,7 +49,15 @@ namespace xxx
             return mProjectAssetPath;
         }
 
+        osg::ref_ptr<Entity> getActivedEntity() const
+        {
+            return mActivedEntity;
+        }
 
+        void setActivedEntity(Entity* entity)
+        {
+            mActivedEntity = entity;
+        }
 
         /*void appendEntity(Entity* entity, Entity* parent = nullptr)
         {
@@ -105,7 +113,7 @@ namespace xxx
         std::filesystem::path mEngineAssetPath;
         std::filesystem::path mProjectAssetPath;
 
-        //osg::observer_ptr<Entity> _activedEntity;
+        Entity* mActivedEntity;
         //std::set<osg::observer_ptr<Entity>> _selectedEntities;
 
 

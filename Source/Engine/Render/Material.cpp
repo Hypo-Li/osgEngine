@@ -224,99 +224,55 @@ namespace xxx
         }
         mOsgStateSet->setAttribute(program, osg::StateAttribute::ON);
 
-        // add uniforms
-        int textureUnit = 0;
-        std::unordered_map<std::string, int> parameterTextureUnitMap;
-        for (const auto& param : shaderParameters)
+        // set parameters and add uniforms
+        for (const auto& shaderParam : shaderParameters)
         {
-            std::string uniformName = "u" + param.first;
+            bool materialParamEnable = false;
+            auto materialParamIt = mParameters.find(shaderParam.first);
+            if (materialParamIt == mParameters.end() ||
+                (materialParamIt != mParameters.end() && materialParamIt->second.first.index() != shaderParam.second.index()))
+            {
+                mParameters[shaderParam.first] = std::make_pair(shaderParam.second, false);
+            }
+            else
+            {
+                materialParamEnable = materialParamIt->second.second;
+            }
+
+            std::string uniformName = "u" + shaderParam.first;
             osg::Uniform* uniform = nullptr;
-            switch (param.second.index())
+            const Shader::ParameterValue& parameterValue = materialParamEnable ? materialParamIt->second.first : shaderParam.second;
+            switch (parameterValue.index())
             {
-            case 0:
-                uniform = new osg::Uniform(uniformName.c_str(), std::get<bool>(param.second));
+            case size_t(Shader::ParameterIndex::Bool):
+                uniform = new osg::Uniform(uniformName.c_str(), std::get<bool>(parameterValue));
                 break;
-            case 1:
-                uniform = new osg::Uniform(uniformName.c_str(), std::get<int>(param.second));
+            case size_t(Shader::ParameterIndex::Int):
+                uniform = new osg::Uniform(uniformName.c_str(), std::get<int>(parameterValue));
                 break;
-            case 2:
-                uniform = new osg::Uniform(uniformName.c_str(), std::get<float>(param.second));
+            case size_t(Shader::ParameterIndex::Float):
+                uniform = new osg::Uniform(uniformName.c_str(), std::get<float>(parameterValue));
                 break;
-            case 3:
-                uniform = new osg::Uniform(uniformName.c_str(), std::get<osg::Vec2f>(param.second));
+            case size_t(Shader::ParameterIndex::Vec2f):
+                uniform = new osg::Uniform(uniformName.c_str(), std::get<osg::Vec2f>(parameterValue));
                 break;
-            case 4:
-                uniform = new osg::Uniform(uniformName.c_str(), std::get<osg::Vec3f>(param.second));
+            case size_t(Shader::ParameterIndex::Vec3f):
+                uniform = new osg::Uniform(uniformName.c_str(), std::get<osg::Vec3f>(parameterValue));
                 break;
-            case 5:
-                uniform = new osg::Uniform(uniformName.c_str(), std::get<osg::Vec4f>(param.second));
+            case size_t(Shader::ParameterIndex::Vec4f):
+                uniform = new osg::Uniform(uniformName.c_str(), std::get<osg::Vec4f>(parameterValue));
                 break;
-            case 6:
+            case size_t(Shader::ParameterIndex::Texture):
             {
-                parameterTextureUnitMap.emplace(param.first, textureUnit);
-                Texture* texture = std::get<osg::ref_ptr<Texture>>(param.second);
-                uniform = new osg::Uniform(uniformName.c_str(), textureUnit);
-                mOsgStateSet->setTextureAttribute(textureUnit, texture->getOsgTexture(), osg::StateAttribute::ON);
-                ++textureUnit;
+                const Shader::TextureAndUnit& textureAndUnit = std::get<Shader::TextureAndUnit>(parameterValue);
+                uniform = new osg::Uniform(uniformName.c_str(), textureAndUnit.second);
+                mOsgStateSet->setTextureAttribute(textureAndUnit.second, textureAndUnit.first->getOsgTexture(), osg::StateAttribute::ON);
                 break;
             }
             default:
                 break;
             }
             mOsgStateSet->addUniform(uniform, osg::StateAttribute::ON);
-        }
-
-        // remove material's unvalid parameters and set valid parameters
-        auto it = mParameters.begin();
-        while (it != mParameters.end())
-        {
-            auto findResult = shaderParameters.find(it->first);
-            if (findResult == shaderParameters.end())
-            {
-                // case 1: not find same name parameter, unvalid
-                mParameters.erase(it++);
-            }
-            else if (it->second.index() != findResult->second.index())
-            {
-                // case 2: find same name parameter with different type, unvalid
-                mParameters.erase(it++);
-            }
-            else
-            {
-                // case 3: find same name parameter with same type, valid
-                std::string uniformName = "u" + it->first;
-                osg::Uniform* uniform = mOsgStateSet->getUniform(uniformName);
-                switch (it->second.index())
-                {
-                case 0:
-                    uniform->set(std::get<bool>(it->second));
-                    break;
-                case 1:
-                    uniform->set(std::get<int>(it->second));
-                    break;
-                case 2:
-                    uniform->set(std::get<float>(it->second));
-                    break;
-                case 3:
-                    uniform->set(std::get<osg::Vec2f>(it->second));
-                    break;
-                case 4:
-                    uniform->set(std::get<osg::Vec3f>(it->second));
-                    break;
-                case 5:
-                    uniform->set(std::get<osg::Vec4f>(it->second));
-                    break;
-                case 6:
-                {
-                    Texture* texture = std::get<osg::ref_ptr<Texture>>(it->second);
-                    mOsgStateSet->setTextureAttribute(parameterTextureUnitMap.at(it->first), texture->getOsgTexture(), osg::StateAttribute::ON);
-                    break;
-                }
-                default:
-                    break;
-                }
-                it++;
-            }
         }
     }
 
@@ -355,25 +311,25 @@ namespace xxx
             mOsgStateSet->setMode(GL_CULL_FACE, osg::StateAttribute::ON);
     }
 
-    std::string Material::getParameterTypeString(const Shader::Parameter& parameter)
+    std::string Material::getParameterTypeString(const Shader::ParameterValue& parameter)
     {
         switch (parameter.index())
         {
-        case 0:
+        case size_t(Shader::ParameterIndex::Bool):
             return "bool";
-        case 1:
+        case size_t(Shader::ParameterIndex::Int):
             return "int";
-        case 2:
+        case size_t(Shader::ParameterIndex::Float):
             return "float";
-        case 3:
+        case size_t(Shader::ParameterIndex::Vec2f):
             return "vec2";
-        case 4:
+        case size_t(Shader::ParameterIndex::Vec3f):
             return "vec3";
-        case 5:
+        case size_t(Shader::ParameterIndex::Vec4f):
             return "vec4";
-        case 6:
+        case size_t(Shader::ParameterIndex::Texture):
         {
-            switch (std::get<osg::ref_ptr<Texture>>(parameter)->getOsgTexture()->getTextureTarget())
+            switch (std::get<Shader::TextureAndUnit>(parameter).first->getOsgTexture()->getTextureTarget())
             {
             case GL_TEXTURE_2D:
                 return "sampler2D";

@@ -14,6 +14,26 @@ static constexpr bool is_shader_parameter_v =
     std::is_same_v<T, osg::Vec4f> ||
     std::is_base_of_v<xxx::Texture, std::remove_pointer_t<T>>;
 
+template<typename T, typename V, size_t I = 0>
+constexpr size_t variant_index()
+{
+    if constexpr (I >= std::variant_size_v<V>)
+    {
+        return (std::variant_size_v<V>);
+    }
+    else
+    {
+        if constexpr (std::is_same_v<std::variant_alternative_t<I, V>, T>)
+        {
+            return (I);
+        }
+        else
+        {
+            return (variant_index<T, V, I + 1>());
+        }
+    }
+}
+
 namespace xxx
 {
 
@@ -23,11 +43,28 @@ namespace xxx
     public:
         Shader();
 
-        using Parameter = std::variant<bool, int, float, osg::Vec2f, osg::Vec3f, osg::Vec4f, osg::ref_ptr<Texture>>;
+        using TextureAndUnit = std::pair<osg::ref_ptr<Texture>, int>;
+        using ParameterValue = std::variant<bool, int, float, osg::Vec2f, osg::Vec3f, osg::Vec4f, TextureAndUnit>;
+        enum class ParameterIndex
+        {
+            Bool,
+            Int,
+            Float,
+            Vec2f,
+            Vec3f,
+            Vec4f,
+            Texture,
+        };
+        using Parameters = std::map<std::string, ParameterValue>;
 
         void setSource(const std::string& source)
         {
             mSource = source;
+        }
+
+        std::string& getSource()
+        {
+            return mSource;
         }
 
         const std::string& getSource() const
@@ -39,7 +76,7 @@ namespace xxx
         void addParameter(const std::string& name, T defaultValue)
         {
             if constexpr (std::is_base_of_v<xxx::Texture, std::remove_pointer_t<T>>)
-                mParameters.emplace(name, osg::ref_ptr<Texture>(defaultValue));
+                mParameters.emplace(name, std::make_pair(osg::ref_ptr<Texture>(defaultValue), getAvailableTextureUnit()));
             else
                 mParameters.emplace(name, defaultValue);
         }
@@ -47,27 +84,53 @@ namespace xxx
         template <typename T, typename = std::enable_if_t<is_shader_parameter_v<T>>>
         void setParameter(const std::string& name, T value)
         {
-            Shader::Parameter parameterValue;
-            if constexpr (std::is_base_of_v<xxx::Texture, std::remove_pointer_t<T>>)
-                parameterValue = osg::ref_ptr<Texture>(value);
-            else
-                parameterValue = value;
-
             auto findResult = mParameters.find(name);
-            if (findResult != mParameters.end() && findResult->second.index() == parameterValue.index())
+            if constexpr (std::is_base_of_v<xxx::Texture, std::remove_pointer_t<T>>)
             {
-                findResult->second = parameterValue;
+                if (findResult != mParameters.end() && findResult->second.index() == size_t(ParameterIndex::Texture))
+                    findResult->second = std::make_pair(osg::ref_ptr<Texture>(value), std::get<TextureAndUnit>(findResult->second).second);
+            }
+            else
+            {
+                if (findResult != mParameters.end() && findResult->second.index() == variant_index<T, ParameterValue>())
+                    findResult->second = value;
             }
         }
 
-        const auto& getParameters() const
+        const Parameters& getParameters() const
         {
             return mParameters;
         }
 
     protected:
-        std::map<std::string, Parameter> mParameters;
+        Parameters mParameters;
         std::string mSource;
+
+        int getAvailableTextureUnit()
+        {
+            std::unordered_set<int> unavailableTextureUnit;
+            for (const auto& param : mParameters)
+            {
+                if (param.second.index() == size_t(ParameterIndex::Texture))
+                {
+                    int unit = std::get<TextureAndUnit>(param.second).second;
+                    unavailableTextureUnit.insert(unit);
+                }
+            }
+
+            int availableTextureUnit = 0;
+            while (unavailableTextureUnit.count(availableTextureUnit))
+                availableTextureUnit++;
+
+            const int MaxTextureCount = 16;
+            if (availableTextureUnit >= MaxTextureCount)
+            {
+                // LogError
+                ;
+            }
+
+            return availableTextureUnit;
+        }
     };
 
     namespace refl

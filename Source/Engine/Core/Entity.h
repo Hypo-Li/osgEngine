@@ -99,22 +99,28 @@ namespace xxx
 
         void removeComponent(uint32_t index);
         
-		template<typename T, typename = std::enable_if_t<std::is_base_of_v<Component, T>>>
+		template<typename T = Component, typename = std::enable_if_t<std::is_base_of_v<Component, T>>>
 		T* getComponent(uint32_t index)
 		{
-			uint32_t count = 0;
-            const uint32_t componentCount = mComponents.size();
-			for (uint32_t i = 0; i < componentCount; ++i)
-			{
-				T* component = dynamic_cast<T*>(mComponents[i].get());
-				if (component && count++ == index)
-					return component;
-			}
-			return nullptr;
+            if constexpr (std::is_same_v<T, Component>)
+            {
+                if (index >= mComponents.size())
+                    return nullptr;
+                return mComponents[index].get();
+            }
+            else
+            {
+                uint32_t count = 0;
+                const uint32_t componentCount = mComponents.size();
+                for (uint32_t i = 0; i < componentCount; ++i)
+                {
+                    T* component = dynamic_cast<T*>(mComponents[i].get());
+                    if (component && count++ == index)
+                        return component;
+                }
+                return nullptr;
+            }
 		}
-
-        template <>
-        Component* getComponent(uint32_t index);
 
         const std::vector<osg::ref_ptr<Component>>& getComponents() const
         {
@@ -128,66 +134,68 @@ namespace xxx
 
         void clearComponents();
 
-        /*void setPosition(osg::Vec3d position)
+        void setPosition(osg::Vec3d position)
         {
-            _position = position;
-            _needUpdateMatrix = true;
+            mPosition = position;
+            updateMatrix();
         }
 
         osg::Vec3d getPosition() const
         {
-            return _position;
+            return mPosition;
         }
 
-        void translate(osg::Vec3d delta, osg::Transform::ReferenceFrame mode)
+        /*void translate(osg::Vec3d delta, osg::Transform::ReferenceFrame mode)
         {
             if (mode == osg::Transform::ReferenceFrame::RELATIVE_RF)
             {
-                _position += delta;
-                _needUpdateMatrix = true;
+                mPosition += delta;
+                updateMatrix();
             }
             else
             {
 
             }
-        }
+        }*/
 
         void setRotation(osg::Vec3d rotation)
         {
-            _rotation = osg::Vec3d(
+            mRotation = osg::Vec3d(
                 std::fmod(rotation.x() + 360.0, 360.0),
                 std::fmod(rotation.y() + 360.0, 360.0),
                 std::fmod(rotation.z() + 360.0, 360.0)
             );
-            _needUpdateMatrix = true;
+            updateMatrix();
         }
 
         osg::Vec3d getRotation()
         {
-            return _rotation;
+            return mRotation;
         }
 
         void setScale(osg::Vec3d scale)
         {
-            _scale = scale;
-            _needUpdateMatrix = true;
+            mScale = scale;
+            updateMatrix();
         }
 
         osg::Vec3d getScale() const
         {
-            return _scale;
+            return mScale;
         }
 
         void setMatrix(const osg::Matrixd& matrix)
         {
-            osg::MatrixTransform::setMatrix(matrix);
+            mOsgEntityNode->setMatrix(matrix);
+            //osg::MatrixTransform::setMatrix(matrix);
         }
 
         const osg::Matrixd& getMatrix()
         {
-            updateMatrix();
-            return osg::MatrixTransform::getMatrix();
-        }*/
+            //updateMatrix();
+            //return osg::MatrixTransform::getMatrix();
+            return mOsgEntityNode->getMatrix();
+        }
 
         /*osg::Matrixd getWorldToLocalMatrix()
         {
@@ -207,35 +215,35 @@ namespace xxx
             return osg::computeLocalToWorld(nodePath);
         }*/
 
-        //void updateMatrix()
-        //{
-        //    if (_needUpdateMatrix)
-        //    {
-        //        double halfRoll = osg::DegreesToRadians(_rotation.x()) * 0.5;
-        //        double halfPitch = osg::DegreesToRadians(_rotation.y()) * 0.5;
-        //        double halfYaw = osg::DegreesToRadians(_rotation.z()) * 0.5;
-        //        double cr = std::cos(halfRoll);
-        //        double sr = std::sin(halfRoll);
-        //        double cp = std::cos(halfPitch);
-        //        double sp = std::sin(halfPitch);
-        //        double cy = std::cos(halfYaw);
-        //        double sy = std::sin(halfYaw);
+        void updateMatrix()
+        {
+            //if (_needUpdateMatrix)
+            {
+                double halfRoll = osg::DegreesToRadians(mRotation.x()) * 0.5;
+                double halfPitch = osg::DegreesToRadians(mRotation.y()) * 0.5;
+                double halfYaw = osg::DegreesToRadians(mRotation.z()) * 0.5;
+                double cr = std::cos(halfRoll);
+                double sr = std::sin(halfRoll);
+                double cp = std::cos(halfPitch);
+                double sp = std::sin(halfPitch);
+                double cy = std::cos(halfYaw);
+                double sy = std::sin(halfYaw);
 
-        //        osg::Quat q(
-        //            cy * cp * sr - sy * sp * cr, // x
-        //            sy * cp * sr + cy * sp * cr, // y
-        //            sy * cp * cr - cy * sp * sr, // z
-        //            cy * cp * cr + sy * sp * sr  // w
-        //        );
+                osg::Quat q(
+                    cy * cp * sr - sy * sp * cr, // x
+                    sy * cp * sr + cy * sp * cr, // y
+                    sy * cp * cr - cy * sp * sr, // z
+                    cy * cp * cr + sy * sp * sr  // w
+                );
 
-        //        osg::MatrixTransform::setMatrix(
-        //            osg::Matrixd::scale(_scale) *
-        //            osg::Matrixd::rotate(q) *
-        //            osg::Matrixd::translate(_position)
-        //        );
-        //        _needUpdateMatrix = false;
-        //    }
-        //}
+                mOsgEntityNode->setMatrix(
+                    osg::Matrixd::scale(mScale) *
+                    osg::Matrixd::rotate(q) *
+                    osg::Matrixd::translate(mPosition)
+                );
+                //_needUpdateMatrix = false;
+            }
+        }
 
 	protected:
         std::string mName;
@@ -243,6 +251,10 @@ namespace xxx
 		Entity* mParent;
 		std::vector<osg::ref_ptr<Entity>> mChildren;
         std::vector<osg::ref_ptr<Component>> mComponents;
+
+        osg::Vec3d mPosition;
+        osg::Vec3d mRotation;
+        osg::Vec3d mScale = osg::Vec3d(1, 1, 1);
 
         osg::ref_ptr<EntityNode> mOsgEntityNode;
         osg::ref_ptr<osg::Group> mOsgChildrenGroup;

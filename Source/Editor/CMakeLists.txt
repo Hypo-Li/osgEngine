@@ -1,4 +1,4 @@
-add_executable (Editor "Editor.h" "Editor.cpp" "ImGuiHandler.h" "Main.cpp")
+add_executable (Editor "Editor.h" "Editor.cpp" "ImGuiHandler.h" "Main.cpp" "PickEventHandler.h")
 
 LINK_WITH_VARIABLES(Editor OPENTHREADS_LIBRARY OSG_LIBRARY OSGDB_LIBRARY OSGUTIL_LIBRARY OSGGA_LIBRARY OSGVIEWER_LIBRARY OSGEARTH_LIBRARY)
-target_link_libraries(Editor PRIVATE imgui ${OPENGL_LIBRARIES})
+target_link_libraries(Editor PRIVATE ThirdParty Core Component Render ${OPENGL_LIBRARIES})

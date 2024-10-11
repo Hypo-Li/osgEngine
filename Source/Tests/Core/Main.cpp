@@ -25,13 +25,13 @@ int main()
 {
     AssetManager& am = AssetManager::get();
 
-    /*
-    Texture2D* texture2d = new Texture2D(TEMP_DIR "awesomeface.png");
-    Asset* textureAsset = AssetManager::get().createAsset(texture2d, "Engine/Texture/AwesomeFace.xast");
-    textureAsset->save();
-    */
+    
+    /*Texture2D* texture2d = new Texture2D(TEMP_DIR "T_Perlin_Noise_M.PNG");
+    Asset* textureAsset = AssetManager::get().createAsset(texture2d, "Engine/Texture/T_Perlin_Noise_M.xast");
+    textureAsset->save();*/
+    
 
-    /*
+    ///*
     Mesh* mesh = new Mesh(TEMP_DIR "test.obj");
 
     Asset* textureAsset = am.getAsset("Engine/Texture/AwesomeFace.xast");
@@ -74,7 +74,7 @@ void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
 
     mesh->setDefaultMaterial(0, material);
 
-    Entity* entity = new Entity;
+    Entity* entity = new Entity("TestEntity");
     MeshRenderer* meshRenderer = entity->addComponent<MeshRenderer>();
     meshRenderer->setMesh(mesh);
 

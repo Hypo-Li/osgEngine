@@ -61,7 +61,7 @@ namespace xxx::refl
             const void* first2 = &(static_cast<const std::pair<First, Second>*>(instance2)->first);
             const void* second1 = &(static_cast<const std::pair<First, Second>*>(instance1)->second);
             const void* second2 = &(static_cast<const std::pair<First, Second>*>(instance2)->second);
-            return Reflection::getType<First>()->compare(first1, first2) && Type::getType<Second>()->compare(second1, second2);
+            return Reflection::getType<First>()->compare(first1, first2) && Reflection::getType<Second>()->compare(second1, second2);
         }
 
         virtual Type* getFirstType() const override

@@ -48,6 +48,12 @@ namespace xxx
 
         Asset* getAsset(Guid guid);
 
+        void foreachAsset(const std::function<void(Asset*)>& func)
+        {
+            for (Asset* asset : mAssets)
+                func(asset);
+        }
+
     private:
         std::unordered_set<osg::ref_ptr<Asset>> mAssets;
         std::unordered_map<std::string, Asset*> mPathAssetMap;

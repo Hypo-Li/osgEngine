@@ -4,6 +4,7 @@
 #include <Engine/Render/Pipeline.h>
 
 #include <osgViewer/Viewer>
+#include <osgDB/ReadFile>
 
 namespace xxx
 {
@@ -24,28 +25,30 @@ namespace xxx
     class Engine
     {
     public:
-        Engine(const EngineSetupConfig& setupConfig) :
-            mViewer(new osgViewer::Viewer)
+        Engine(osgViewer::View* view, const EngineSetupConfig& setupConfig) :
+            mView(view)
         {
             initContext(setupConfig);
             initPipeline(setupConfig);
+
+            Asset* asset = AssetManager::get().getAsset("Engine/TestEntity.xast");
+            asset->load();
+
+            mView->setSceneData(dynamic_cast<Entity*>(asset->getRootObject())->getOsgNode());
         }
 
-        void run()
+        osgViewer::View* getView() const
         {
-            while (!mViewer->done())
-            {
-                mViewer->frame();
-            }
+            return mView;
         }
 
-        osgViewer::ViewerBase* getViewer() const
+        Pipeline* getPipeline() const
         {
-            return mViewer;
+            return mPipeline;
         }
 
     private:
-        osg::ref_ptr<osgViewer::ViewerBase> mViewer;
+        osg::ref_ptr<osgViewer::View> mView;
         osg::ref_ptr<Pipeline> mPipeline;
 
         static osg::GraphicsContext* createGraphicsContext(int width, int height, const std::string& glContextVersion)
@@ -71,9 +74,26 @@ namespace xxx
         void initPipeline(const EngineSetupConfig& setupConfig)
         {
             osg::ref_ptr<osg::GraphicsContext> graphicsContext = createGraphicsContext(setupConfig.width, setupConfig.height, setupConfig.glContextVersion);
-            osgViewer::Viewer::Views views;
-            mViewer->getViews(views);
-            mPipeline = new Pipeline(views.at(0), graphicsContext);
+
+            osg::ref_ptr<osg::Camera> camera = mView->getCamera();
+            camera->setViewport(0, 0, setupConfig.width, setupConfig.height);
+            camera->setProjectionMatrixAsPerspective(90.0, double(setupConfig.width) / double(setupConfig.height), 0.1, 400.0);
+
+            mPipeline = new Pipeline(mView, graphicsContext);
+
+            using BufferType = Pipeline::Pass::BufferType;
+            Pipeline::Pass* gbufferPass = mPipeline->addInputPass("GBuffer", 0x00000001, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            gbufferPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F);
+            gbufferPass->attach(BufferType::COLOR_BUFFER1, GL_RGBA16F);
+            gbufferPass->attach(BufferType::COLOR_BUFFER2, GL_RGBA16F);
+            gbufferPass->attach(BufferType::COLOR_BUFFER3, GL_RGBA16F);
+            gbufferPass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT, false, osg::Texture::NEAREST, osg::Texture::NEAREST);
+
+            osg::Shader* screenQuadShader = osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Common/ScreenQuad.vert.glsl");
+            osg::Program* emptyProgram = new osg::Program;
+            emptyProgram->addShader(screenQuadShader);
+            emptyProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/Empty.frag.glsl"));
+            Pipeline::Pass* displayPass = mPipeline->addDisplayPass("Display", emptyProgram);
         }
     };
 }

@@ -2,6 +2,8 @@
 #include <Engine/Render/Pipeline.h>
 #include <Engine/Core/Context.h>
 #include <Engine/Core/Component.h>
+#include <Engine/Core/Asset.h>
+#include <Engine/Core/AssetManager.h>
 #include <Engine/Component/MeshRenderer.h>
 #include <ThirdParty/imgui/imgui.h>
 #include <ThirdParty/imgui/imgui_impl_opengl3.h>
@@ -31,8 +33,13 @@ namespace xxx
 	class ImGuiHandler : public osgGA::GUIEventHandler
 	{
 	public:
-		ImGuiHandler(osgViewer::Viewer* viewer, osg::Camera* camera, osg::Texture2D* sceneColorTexture, Pipeline* pipeline) : _imguiCamera(camera), _sceneColorTexture(sceneColorTexture), _pipeline(pipeline)
+		ImGuiHandler(osgViewer::Viewer* viewer, Pipeline* pipeline) : mPipeline(pipeline), mSceneViewViewport(new osg::Viewport)
 		{
+            Pipeline::Pass* lastPass = mPipeline->getPasses().rbegin()->get();
+            Pipeline::Pass* penultimatePass = (mPipeline->getPasses().rbegin() + 1)->get();
+            mImGuiCamera = lastPass->getCamera();
+            mSceneColorTexture = dynamic_cast<osg::Texture2D*>(penultimatePass->getBufferTexture(Pipeline::Pass::BufferType::COLOR_BUFFER0));
+
 			IMGUI_CHECKVERSION();
 			ImGui::CreateContext();
 			ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -65,7 +72,7 @@ namespace xxx
 			style.WindowRounding = 6.0;
 			//style.Colors[ImGuiCol_WindowBg].w = 1.0;
             //style.ScaleAllSizes(1.0);
-			ImGui_ImplOsg_Init(viewer, camera);
+			ImGui_ImplOsg_Init(viewer, mImGuiCamera);
 		}
 
 		virtual bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa)
@@ -73,174 +80,284 @@ namespace xxx
 			static bool initialized = false;
 			if (!initialized)
 			{
-                _imguiCamera->setPostDrawCallback(new ImGuiNewFrameCallback(this));
+                mImGuiCamera->setPostDrawCallback(new ImGuiNewFrameCallback(this));
                 initialized = true;
 			}
 
-            return ImGui_ImplOsg_Handle(ea, aa, !(_sceneViewWindowIsFocused && _sceneViewItemIsHovered));
+            return ImGui_ImplOsg_Handle(ea, aa, !(mSceneViewWindowIsFocused && mSceneViewItemIsHovered));
 		}
 
-        osg::Matrixd getSceneViewViewportMatrix()
+        osg::Viewport* getSceneViewViewport() const
         {
-            double halfWidth = _sceneViewWidth / 2.0, halfHeight = _sceneViewHeight / 2.0;
-            return osg::Matrixd(
-                halfWidth, 0.0, 0.0, 0.0,
-                0.0, halfHeight, 0.0, 0.0,
-                0.0, 0.0, 0.5, 0.0,
-                _sceneViewX + halfWidth, _sceneViewY + halfHeight, 0.5, 1.0
-            );
+            return mSceneViewViewport;
         }
 
 	private:
-        osg::ref_ptr<osg::Camera> _imguiCamera;
-        osg::ref_ptr<osg::Texture2D> _sceneColorTexture;
-        osg::ref_ptr<Pipeline> _pipeline;
-        bool _sceneViewWindowIsFocused = false;
-        bool _sceneViewItemIsHovered = false;
-        int _sceneViewX, _sceneViewY;
-        int _sceneViewWidth, _sceneViewHeight;
-        bool _sceneViewSizeDirty = false;
+        osg::ref_ptr<osg::Camera> mImGuiCamera;
+        osg::ref_ptr<osg::Texture2D> mSceneColorTexture;
+        osg::ref_ptr<osg::Viewport> mSceneViewViewport;
+        osg::ref_ptr<Pipeline> mPipeline;
+        bool mSceneViewWindowIsFocused = false;
+        bool mSceneViewItemIsHovered = false;
+        int mSceneViewX, mSceneViewY;
+        int mSceneViewWidth, mSceneViewHeight;
+        bool mSceneViewSizeDirty = false;
 
 		class ImGuiNewFrameCallback : public osg::Camera::DrawCallback
 		{
-			ImGuiHandler* _handler;
+			ImGuiHandler* mHandler;
 		public:
-			ImGuiNewFrameCallback(ImGuiHandler* handler) : _handler(handler) {}
+			ImGuiNewFrameCallback(ImGuiHandler* handler) : mHandler(handler) {}
 
 			void operator()(osg::RenderInfo& renderInfo) const override
 			{
 				ImGui_ImplOpenGL3_NewFrame();
 				ImGui_ImplOsg_NewFrame();
 				ImGui::NewFrame();
-				_handler->draw();
-                _handler->updateSceneViewSize();
+				mHandler->draw();
+                mHandler->updateSceneViewSize();
 				ImGui::Render();
 				ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 			}
 		};
 
-        void drawMeshRendererInspector(CMeshRenderer* meshRenderer)
+        Asset* drawAssetSelectable(const char* label, Asset* currentAsset, refl::Class* clazz)
         {
-            static std::string paths[] = {
-                "Texture/AwesomeFace",
-                "Texture/Container",
-                "Texture/T_Ceramic_Tile_M",
-                "Texture/T_Ceramic_Tile_N",
-                "Texture/T_Perlin_Noise_M",
-                "Texture/T_Rock_Marble_Polished_D",
-            };
-            if (ImGui::TreeNode("MeshRenderer"))
+            Asset* result = nullptr;
+
+            const std::string& assetPath = currentAsset->getPath();
+            if (ImGui::BeginCombo(label, assetPath.c_str()))
+            {
+                AssetManager::get().foreachAsset([&assetPath, &result, clazz](Asset* asset) {
+                    if (asset->getClass()->isDerivedFrom(clazz))
+                    {
+                        const bool is_selected = (assetPath == asset->getPath());
+                        if (ImGui::Selectable(asset->getPath().c_str(), is_selected))
+                        {
+                            result = AssetManager::get().getAsset(asset->getPath());
+                        }
+
+                        if (is_selected)
+                            ImGui::SetItemDefaultFocus();
+                    }
+                });
+
+                ImGui::EndCombo();
+            }
+
+            return result;
+        }
+
+        bool drawShaderGUI(Shader* shader)
+        {
+            Asset* shaderAsset = shader->getAsset();
+            if (shaderAsset)
+                ImGui::Text(shaderAsset->getPath().c_str());
+
+            if (shaderAsset && ImGui::Button("Save"))
+                shaderAsset->save();
+
+            ImGui::InputTextMultiline("Source", &shader->getSource());
+
+            return ImGui::Button("Apply");
+        }
+
+        template <typename T>
+        T drawEnumSelectable(const std::string& label, T currentEnumValue)
+        {
+            T result = currentEnumValue;
+            refl::Enum* enumerate = refl::Reflection::getEnum<T>();
+            std::string currentValueName(enumerate->getNameByValue(int64_t(currentEnumValue)));
+            if (ImGui::BeginCombo(label.c_str(), currentValueName.c_str()))
+            {
+                size_t valueCount = enumerate->getValueCount();
+                for (int64_t i = 0; i < valueCount; ++i)
+                {
+                    const bool is_selected = (i == int64_t(currentEnumValue));
+                    std::string valueName(enumerate->getNameByIndex(i));
+                    if (ImGui::Selectable(valueName.c_str(), is_selected))
+                    {
+                        result = T(enumerate->getValueByIndex(i));
+                    }
+
+                    if (is_selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+
+                ImGui::EndCombo();
+            }
+            return result;
+        }
+
+        void drawMaterialGUI(Material* material)
+        {
+            Asset* materialAsset = material->getAsset();
+            if (materialAsset)
+                ImGui::Text(materialAsset->getPath().c_str());
+
+            if (materialAsset && ImGui::Button("Save"))
+                materialAsset->save();
+
+            const Material::Parameters& materialParameters = material->getParameters();
+
+            int paramId = 0;
+
+            /*ShadingModel shadingModel = material->getShadingModel();
+            refl::Enum* shadingModelEnum = refl::Reflection::getEnum<ShadingModel>();
+            std::string shadingModelName(shadingModelEnum->getNameByValue(int64_t(shadingModel)));
+            if (ImGui::BeginCombo("ShadingModel", shadingModelName.c_str()))
+            {
+                size_t valueCount = shadingModelEnum->getValueCount();
+                for (int64_t i = 0; i < valueCount; ++i)
+                {
+                    const bool is_selected = (i == int64_t(shadingModel));
+                    std::string valueName(shadingModelEnum->getNameByIndex(i));
+                    if (ImGui::Selectable(valueName.c_str(), is_selected))
+                    {
+                        material->setShadingModel(ShadingModel(shadingModelEnum->getValueByIndex(i)));
+                    }
+
+                    if (is_selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                
+                ImGui::EndCombo();
+            }*/
+
+            ShadingModel shadingModel = material->getShadingModel();
+            ShadingModel newShadingModel = drawEnumSelectable<ShadingModel>("ShadingModel", shadingModel);
+            if (shadingModel != newShadingModel)
+                material->setShadingModel(newShadingModel);
+
+            AlphaMode alphaMode = material->getAlphaMode();
+            AlphaMode newAlphaMode = drawEnumSelectable<AlphaMode>("AlphaMode", alphaMode);
+            if (alphaMode != newAlphaMode)
+                material->setAlphaMode(newAlphaMode);
+
+            bool doubleSided = material->getDoubleSided();
+            if (ImGui::Checkbox("Double Sided", &doubleSided))
+                material->setDoubleSided(doubleSided);
+
+            for (auto materialParamIt = materialParameters.begin(); materialParamIt != materialParameters.end(); ++materialParamIt)
+            {
+                const std::string& parameterName = materialParamIt->first;
+                bool materialParamEnable = materialParamIt->second.second;
+                const Shader::ParameterValue& parameterValue = materialParamIt->second.first;
+
+                ImGui::PushID(paramId);
+                if (ImGui::Checkbox("", &materialParamEnable))
+                {
+                    material->setParameterEnable(parameterName, materialParamEnable);
+                }
+                ImGui::PopID();
+                ImGui::SameLine();
+
+                if (!materialParamEnable)
+                    ImGui::BeginDisabled();
+
+                switch (parameterValue.index())
+                {
+                case size_t(Shader::ParameterIndex::Bool):
+                {
+                    bool boolValue = std::get<bool>(parameterValue);
+                    if (ImGui::Checkbox(parameterName.c_str(), &boolValue))
+                        material->setParameter(parameterName, boolValue);
+                    break;
+                }
+                case size_t(Shader::ParameterIndex::Int):
+                {
+                    int intValue = std::get<int>(parameterValue);
+                    if (ImGui::DragInt(parameterName.c_str(), &intValue))
+                        material->setParameter(parameterName, intValue);
+                    break;
+                }
+                case size_t(Shader::ParameterIndex::Float):
+                {
+                    float floatValue = std::get<float>(parameterValue);
+                    if (ImGui::DragFloat(parameterName.c_str(), &floatValue))
+                        material->setParameter(parameterName, floatValue);
+                    break;
+                }
+                case size_t(Shader::ParameterIndex::Vec2f):
+                {
+                    osg::Vec2f vec2fValue = std::get<osg::Vec2f>(parameterValue);
+                    if (ImGui::DragFloat2(parameterName.c_str(), &vec2fValue.x()))
+                        material->setParameter(parameterName, vec2fValue);
+                    break;
+                }
+                case size_t(Shader::ParameterIndex::Vec3f):
+                {
+                    osg::Vec3f vec3fValue = std::get<osg::Vec3f>(parameterValue);
+                    if (ImGui::DragFloat3(parameterName.c_str(), &vec3fValue.x()))
+                        material->setParameter(parameterName, vec3fValue);
+                    break;
+                }
+                case size_t(Shader::ParameterIndex::Vec4f):
+                {
+                    osg::Vec4 vec4fValue = std::get<osg::Vec4f>(parameterValue);
+                    if (ImGui::DragFloat4(parameterName.c_str(), &vec4fValue.x()))
+                        material->setParameter(parameterName, vec4fValue);
+                    break;
+                }
+                case size_t(Shader::ParameterIndex::Texture):
+                {
+                    const Shader::TextureAndUnit& textureAndUnit = std::get<Shader::TextureAndUnit>(parameterValue);
+                    Asset* textureAsset = textureAndUnit.first->getAsset();
+                    if (textureAsset)
+                    {
+                        Asset* selectedAsset = drawAssetSelectable(parameterName.c_str(), textureAsset, refl::Reflection::getClass<Texture>());
+                        if (selectedAsset)
+                        {
+                            if (!selectedAsset->isLoaded())
+                                selectedAsset->load();
+                            material->setParameter(parameterName, selectedAsset->getRootObject<Texture>());
+                        }
+                    }
+                    break;
+                }
+                default:
+                    break;
+                }
+
+                if (!materialParamEnable)
+                    ImGui::EndDisabled();
+
+                paramId++;
+            }
+
+            if (ImGui::TreeNode("Shader"))
+            {
+                if (drawShaderGUI(material->getShader()))
+                {
+                    material->syncShaderState();
+                }
+                ImGui::TreePop();
+            }
+
+            //    ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - 30);
+            //    auto removedItr = itr++;
+            //    ImGui::PushID(buttonId);
+            //    if (ImGui::Button("×"))
+            //        materialTemplate->removeParameter(removedItr->first);
+            //    ImGui::PopID();
+            //    buttonId++;
+            //}
+        }
+
+        void drawMeshRendererGUI(MeshRenderer* meshRenderer)
+        {
+            if (ImGui::CollapsingHeader("MeshRenderer"))
             {
                 uint32_t submeshesCount = meshRenderer->getSubmeshesCount();
                 for (uint32_t i = 0; i < submeshesCount; ++i)
                 {
+                    Material* material = meshRenderer->getMaterial(i);
                     if (ImGui::TreeNode(("Material" + std::to_string(i)).c_str()))
                     {
-                        AMaterial* material = meshRenderer->getMaterial(i);
-                        ImGui::Text(material->getPath().c_str());
-
-                        AMaterialTemplate* materialTemplate;
-                        if (material->getType() == Asset::Type::MaterialTemplate)
-                            materialTemplate = reinterpret_cast<AMaterialTemplate*>(material);
-                        else if (material->getType() == Asset::Type::MaterialInstance)
-                            materialTemplate = dynamic_cast<AMaterialInstance*>(material)->getMaterialTemplate();
-
-                        auto itr = materialTemplate->_parameters.begin();
-                        uint32_t buttonId = 0;
-                        while (itr != materialTemplate->_parameters.end())
-                        {
-                            switch (itr->second.index())
-                            {
-                            case size_t(AMaterialTemplate::ParameterIndex::Bool):
-                            {
-                                bool boolValue = std::get<bool>(itr->second);
-                                if (ImGui::Checkbox(itr->first.c_str(), &boolValue))
-                                    materialTemplate->setParameter(itr->first, boolValue);
-                                break;
-                            }
-                            case size_t(AMaterialTemplate::ParameterIndex::Int):
-                            {
-                                int intValue = std::get<int>(itr->second);
-                                if (ImGui::DragInt(itr->first.c_str(), &intValue))
-                                    materialTemplate->setParameter(itr->first, intValue);
-                                break;
-                            }
-                            case size_t(AMaterialTemplate::ParameterIndex::Float):
-                            {
-                                float floatValue = std::get<float>(itr->second);
-                                if (ImGui::DragFloat(itr->first.c_str(), &floatValue))
-                                    materialTemplate->setParameter(itr->first, floatValue);
-                                break;
-                            }
-                            case size_t(AMaterialTemplate::ParameterIndex::Float2):
-                            {
-                                osg::Vec2 float2Value = std::get<osg::Vec2>(itr->second);
-                                if (ImGui::DragFloat2(itr->first.c_str(), &float2Value.x()))
-                                    materialTemplate->setParameter(itr->first, float2Value);
-                                break;
-                            }
-                            case size_t(AMaterialTemplate::ParameterIndex::Float3):
-                            {
-                                osg::Vec3 float3Value = std::get<osg::Vec3>(itr->second);
-                                if (ImGui::ColorEdit3(itr->first.c_str(), &float3Value.x()))
-                                    materialTemplate->setParameter(itr->first, float3Value);
-                                break;
-                            }
-                            case size_t(AMaterialTemplate::ParameterIndex::Float4):
-                            {
-                                osg::Vec4 float4Value = std::get<osg::Vec4>(itr->second);
-                                if (ImGui::ColorEdit4(itr->first.c_str(), &float4Value.x()))
-                                    materialTemplate->setParameter(itr->first, float4Value);
-                                break;
-                            }
-                            case size_t(AMaterialTemplate::ParameterIndex::Texture):
-                            {
-                                using TextureAndUnit = AMaterialTemplate::TextureAndUnit;
-                                TextureAndUnit& textureAndUnit = std::get<TextureAndUnit>(itr->second);
-
-                                if (ImGui::BeginCombo(itr->first.c_str(), textureAndUnit.first->getPath().c_str()))
-                                {
-                                    for (int n = 0; n < IM_ARRAYSIZE(paths); ++n)
-                                    {
-                                        const bool is_selected = (textureAndUnit.first->getPath() == paths[n]);
-                                        if (ImGui::Selectable(paths[n].c_str(), is_selected))
-                                            materialTemplate->setParameter(itr->first, xxx::AssetManager::loadAsset<xxx::ATexture>(paths[n]));
-
-                                        // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-                                        if (is_selected)
-                                            ImGui::SetItemDefaultFocus();
-                                    }
-                                    ImGui::EndCombo();
-                                }
-
-                                //ImGui::Text(textureAndUnit.first->getPath().c_str());
-                                break;
-                            }
-                            default:
-                                break;
-                            }
-
-                            ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - 30);
-                            auto removedItr = itr++;
-                            ImGui::PushID(buttonId);
-                            if (ImGui::Button("×"))
-                                materialTemplate->removeParameter(removedItr->first);
-                            ImGui::PopID();
-                            buttonId++;
-                        }
-
-                        if (ImGui::InputTextMultiline("Source", &materialTemplate->getSource()))
-                            materialTemplate->_shaderDirty = true;
-
-                        if (ImGui::Button("Apply"))
-                        {
-                            materialTemplate->apply();
-                        }
-
+                        drawMaterialGUI(material);
                         ImGui::TreePop();
                     }
                 }
-                ImGui::TreePop();
             }
         }
 
@@ -260,7 +377,7 @@ namespace xxx
 			window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
 			window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
-			ImGui::Begin("DockSpace Demo", nullptr, window_flags);
+			ImGui::Begin("DockSpace", nullptr, window_flags);
 			ImGui::PopStyleVar(3);
 			ImGuiIO& io = ImGui::GetIO();
 			if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
@@ -296,96 +413,87 @@ namespace xxx
 			//}
 			//ImGui::End();
 
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0, 0.0));
+            if (ImGui::Begin("SceneView"))
+            {
+                mSceneViewWindowIsFocused = ImGui::IsWindowFocused();
+
+                if (mSceneColorTexture->getTextureObject(0))
+                {
+                    ImVec2 regionMin = ImGui::GetWindowContentRegionMin();
+                    ImVec2 regionMax = ImGui::GetWindowContentRegionMax();
+                    ImGui::Image((void*)mSceneColorTexture->getTextureObject(0)->id(), ImVec2(regionMax.x - regionMin.x, regionMax.y - regionMin.y), ImVec2(0.0, 1.0), ImVec2(1.0, 0.0));
+                    mSceneViewItemIsHovered = ImGui::IsItemHovered();
+                    ImVec2 itemRectMin = ImGui::GetItemRectMin();
+                    ImVec2 itemRectMax = ImGui::GetItemRectMax();
+
+                    mSceneViewX = itemRectMin.x;
+                    mSceneViewY = io.DisplaySize.y - itemRectMax.y;
+                    int width = itemRectMax.x - itemRectMin.x;
+                    int height = itemRectMax.y - itemRectMin.y;
+                    if (width != mSceneColorTexture->getTextureWidth() || height != mSceneColorTexture->getTextureHeight())
+                    {
+                        mSceneViewWidth = width;
+                        mSceneViewHeight = height;
+                        mSceneViewSizeDirty = true;
+                    }
+                }
+                else
+                {
+                    mSceneViewWidth = mSceneViewHeight = 0;
+                }
+
+                mSceneViewViewport->setViewport(mSceneViewX, mSceneViewY, mSceneViewWidth, mSceneViewHeight);
+            }
+            ImGui::End();
+            ImGui::PopStyleVar();
+
             if (ImGui::Begin("Inspector"))
             {
                 Entity* activedEntity = Context::get().getActivedEntity();
                 if (activedEntity)
                 {
-                    ImGui::Text(activedEntity->getEntityName().c_str());
-                    if (ImGui::TreeNode("Transform"))
+                    ImGui::Text(activedEntity->getName().c_str());
+                    if (ImGui::CollapsingHeader("Transform"))
                     {
-                        /*static float position[3] = { 0.0f, 0.0f, 0.0f };
-                        static float rotation[3] = { 0.0f, 0.0f, 0.0f };
-                        static float scale[3] = { 1.0, 1.0, 1.0 };*/
-                        /*ImGui::DragFloat3("Position", position);
-                        ImGui::DragFloat3("Rotation", rotation);
-                        ImGui::DragFloat3("Scale", scale);*/
                         static osg::Vec3d entityPosition;
                         static osg::Vec3d entityRotation;
                         static osg::Vec3d entityScale;
                         entityPosition = activedEntity->getPosition();
                         entityRotation = activedEntity->getRotation();
                         entityScale = activedEntity->getScale();
-                        if (ImGui::DragScalarN("Position", ImGuiDataType_Double, &entityPosition.x(), 3, 0.05))
+                        if (ImGui::DragScalarN("Position", ImGuiDataType_Double, &entityPosition.x(), 3, 0.01))
                         {
                             activedEntity->setPosition(entityPosition);
-                            activedEntity->getMatrix();
                         }
                         if (ImGui::DragScalarN("Rotation", ImGuiDataType_Double, &entityRotation.x(), 3))
                         {
                             activedEntity->setRotation(entityRotation);
-                            activedEntity->getMatrix();
                         }
-                        if (ImGui::DragScalarN("Scale", ImGuiDataType_Double, &entityScale.x(), 3))
+                        if (ImGui::DragScalarN("Scale", ImGuiDataType_Double, &entityScale.x(), 3, 0.01))
                         {
                             activedEntity->setScale(entityScale);
-                            activedEntity->getMatrix();
                         }
-                        ImGui::TreePop();
                     }
                     uint32_t componentsCount = activedEntity->getComponentsCount();
                     for (uint32_t i = 0; i < componentsCount; ++i)
                     {
                         Component* component = activedEntity->getComponent(i);
                         if (component->getType() == Component::Type::MeshRenderer)
-                            drawMeshRendererInspector(dynamic_cast<CMeshRenderer*>(component));
+                            drawMeshRendererGUI(dynamic_cast<MeshRenderer*>(component));
                     }
                 }
                 
             }
             ImGui::End();
-
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0, 0.0));
-            if (ImGui::Begin("SceneView"))
-            {
-                _sceneViewWindowIsFocused = ImGui::IsWindowFocused();
-
-                if (_sceneColorTexture->getTextureObject(0))
-                {
-                    ImVec2 regionMin = ImGui::GetWindowContentRegionMin();
-                    ImVec2 regionMax = ImGui::GetWindowContentRegionMax();
-                    ImGui::Image((void*)_sceneColorTexture->getTextureObject(0)->id(), ImVec2(regionMax.x - regionMin.x, regionMax.y - regionMin.y), ImVec2(0.0, 1.0), ImVec2(1.0, 0.0));
-                    _sceneViewItemIsHovered = ImGui::IsItemHovered();
-                    ImVec2 itemRectMin = ImGui::GetItemRectMin();
-                    ImVec2 itemRectMax = ImGui::GetItemRectMax();
-
-                    _sceneViewX = itemRectMin.x;
-                    _sceneViewY = io.DisplaySize.y - itemRectMax.y;
-                    int width = itemRectMax.x - itemRectMin.x;
-                    int height = itemRectMax.y - itemRectMin.y;
-                    if (width != _sceneViewWidth || height != _sceneViewHeight)
-                    {
-                        _sceneViewWidth = width;
-                        _sceneViewHeight = height;
-                        _sceneViewSizeDirty = true;
-                    }
-                }
-                else
-                {
-                    _sceneViewWidth = _sceneViewHeight = 0;
-                }
-            }
-            ImGui::End();
-            ImGui::PopStyleVar();
-
 		}
 
         void updateSceneViewSize()
         {
-            if (_sceneViewSizeDirty)
+            if (mSceneViewSizeDirty)
             {
-                _pipeline->resize(_sceneViewWidth, _sceneViewHeight, false);
-                _sceneViewSizeDirty = false;
+                mPipeline->resize(mSceneViewWidth, mSceneViewHeight, false);
+                mSceneViewSizeDirty = false;
             }
         }
 	};
