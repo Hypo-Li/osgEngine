@@ -27,7 +27,7 @@ namespace xxx
         {
             if (serializer->isLoader())
             {
-                syncMeshState();
+                syncWithMesh();
             }
         }
 
@@ -42,10 +42,10 @@ namespace xxx
                 return;
 
             mMesh = mesh;
-            syncMeshState();
+            syncWithMesh();
         }
 
-        void syncMeshState()
+        void syncWithMesh()
         {
             if (!mMesh)
                 return;

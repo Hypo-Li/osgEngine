@@ -33,7 +33,7 @@ namespace xxx
                 setShadingModel(mShadingModel);
                 setAlphaMode(mAlphaMode);
                 setDoubleSided(mDoubleSided);
-                syncShaderState();
+                syncWithShader();
             }
         }
 
@@ -44,7 +44,7 @@ namespace xxx
 
         void setShader(Shader* shader);
 
-        void syncShaderState();
+        void syncWithShader();
 
         Shader* getShader() const
         {
@@ -62,7 +62,6 @@ namespace xxx
                     const Shader::TextureAndUnit& textureAndUnit = std::get<Shader::TextureAndUnit>(materialParamIt->second.first);
                     mParameters[name].first = std::make_pair(osg::ref_ptr<Texture>(value), textureAndUnit.second);
                     applyParameter(materialParamIt);
-                    //mOsgStateSet->setTextureAttribute(textureAndUnit.second, ((Texture*)(value))->getOsgTexture(), osg::StateAttribute::ON);
                 }
             }
             else
@@ -71,9 +70,6 @@ namespace xxx
                 {
                     mParameters[name].first = value;
                     applyParameter(materialParamIt);
-                    //std::string uniformName = "u" + name;
-                    //osg::Uniform* uniform = mOsgStateSet->getUniform(uniformName);
-                    //uniform->set(value);
                 }
             }
         }

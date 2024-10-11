@@ -32,8 +32,12 @@ namespace xxx
     {
         if (mParent == entity)
             return;
+        if (mParent)
+            mParent->removeChild(this);
         if (entity)
             entity->addChild(this);
+        else
+            mParent = nullptr;
     }
 
 	void Entity::addChild(Entity* child)

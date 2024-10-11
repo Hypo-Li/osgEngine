@@ -121,7 +121,7 @@ namespace xxx
 			}
 		};
 
-        Asset* drawAssetSelectable(const char* label, Asset* currentAsset, refl::Class* clazz)
+        static Asset* drawAssetCombo(const char* label, Asset* currentAsset, refl::Class* clazz)
         {
             Asset* result = nullptr;
 
@@ -148,22 +148,8 @@ namespace xxx
             return result;
         }
 
-        bool drawShaderGUI(Shader* shader)
-        {
-            Asset* shaderAsset = shader->getAsset();
-            if (shaderAsset)
-                ImGui::Text(shaderAsset->getPath().c_str());
-
-            if (shaderAsset && ImGui::Button("Save"))
-                shaderAsset->save();
-
-            ImGui::InputTextMultiline("Source", &shader->getSource());
-
-            return ImGui::Button("Apply");
-        }
-
         template <typename T>
-        T drawEnumSelectable(const std::string& label, T currentEnumValue)
+        static T drawEnumCombo(const std::string& label, T currentEnumValue)
         {
             T result = currentEnumValue;
             refl::Enum* enumerate = refl::Reflection::getEnum<T>();
@@ -189,6 +175,20 @@ namespace xxx
             return result;
         }
 
+        bool drawShaderGUI(Shader* shader)
+        {
+            Asset* shaderAsset = shader->getAsset();
+            if (shaderAsset)
+                ImGui::Text(shaderAsset->getPath().c_str());
+
+            if (shaderAsset && ImGui::Button("Save"))
+                shaderAsset->save();
+
+            ImGui::InputTextMultiline("Source", &shader->getSource());
+
+            return ImGui::Button("Apply");
+        }
+
         void drawMaterialGUI(Material* material)
         {
             Asset* materialAsset = material->getAsset();
@@ -200,37 +200,13 @@ namespace xxx
 
             const Material::Parameters& materialParameters = material->getParameters();
 
-            int paramId = 0;
-
-            /*ShadingModel shadingModel = material->getShadingModel();
-            refl::Enum* shadingModelEnum = refl::Reflection::getEnum<ShadingModel>();
-            std::string shadingModelName(shadingModelEnum->getNameByValue(int64_t(shadingModel)));
-            if (ImGui::BeginCombo("ShadingModel", shadingModelName.c_str()))
-            {
-                size_t valueCount = shadingModelEnum->getValueCount();
-                for (int64_t i = 0; i < valueCount; ++i)
-                {
-                    const bool is_selected = (i == int64_t(shadingModel));
-                    std::string valueName(shadingModelEnum->getNameByIndex(i));
-                    if (ImGui::Selectable(valueName.c_str(), is_selected))
-                    {
-                        material->setShadingModel(ShadingModel(shadingModelEnum->getValueByIndex(i)));
-                    }
-
-                    if (is_selected)
-                        ImGui::SetItemDefaultFocus();
-                }
-                
-                ImGui::EndCombo();
-            }*/
-
             ShadingModel shadingModel = material->getShadingModel();
-            ShadingModel newShadingModel = drawEnumSelectable<ShadingModel>("ShadingModel", shadingModel);
+            ShadingModel newShadingModel = drawEnumCombo("ShadingModel", shadingModel);
             if (shadingModel != newShadingModel)
                 material->setShadingModel(newShadingModel);
 
             AlphaMode alphaMode = material->getAlphaMode();
-            AlphaMode newAlphaMode = drawEnumSelectable<AlphaMode>("AlphaMode", alphaMode);
+            AlphaMode newAlphaMode = drawEnumCombo("AlphaMode", alphaMode);
             if (alphaMode != newAlphaMode)
                 material->setAlphaMode(newAlphaMode);
 
@@ -238,6 +214,7 @@ namespace xxx
             if (ImGui::Checkbox("Double Sided", &doubleSided))
                 material->setDoubleSided(doubleSided);
 
+            int paramId = 0;
             for (auto materialParamIt = materialParameters.begin(); materialParamIt != materialParameters.end(); ++materialParamIt)
             {
                 const std::string& parameterName = materialParamIt->first;
@@ -305,7 +282,7 @@ namespace xxx
                     Asset* textureAsset = textureAndUnit.first->getAsset();
                     if (textureAsset)
                     {
-                        Asset* selectedAsset = drawAssetSelectable(parameterName.c_str(), textureAsset, refl::Reflection::getClass<Texture>());
+                        Asset* selectedAsset = drawAssetCombo(parameterName.c_str(), textureAsset, refl::Reflection::getClass<Texture>());
                         if (selectedAsset)
                         {
                             if (!selectedAsset->isLoaded())
@@ -329,19 +306,10 @@ namespace xxx
             {
                 if (drawShaderGUI(material->getShader()))
                 {
-                    material->syncShaderState();
+                    material->syncWithShader();
                 }
                 ImGui::TreePop();
             }
-
-            //    ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - 30);
-            //    auto removedItr = itr++;
-            //    ImGui::PushID(buttonId);
-            //    if (ImGui::Button("×"))
-            //        materialTemplate->removeParameter(removedItr->first);
-            //    ImGui::PopID();
-            //    buttonId++;
-            //}
         }
 
         void drawMeshRendererGUI(MeshRenderer* meshRenderer)
@@ -359,6 +327,96 @@ namespace xxx
                     }
                 }
             }
+        }
+
+        void drawSceneView()
+        {
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0, 0.0));
+            if (ImGui::Begin("SceneView"))
+            {
+                ImGuiIO& io = ImGui::GetIO();
+                mSceneViewWindowIsFocused = ImGui::IsWindowFocused();
+
+                if (mSceneColorTexture->getTextureObject(0))
+                {
+                    ImVec2 regionMin = ImGui::GetWindowContentRegionMin();
+                    ImVec2 regionMax = ImGui::GetWindowContentRegionMax();
+                    ImGui::Image((void*)mSceneColorTexture->getTextureObject(0)->id(), ImVec2(regionMax.x - regionMin.x, regionMax.y - regionMin.y), ImVec2(0.0, 1.0), ImVec2(1.0, 0.0));
+                    mSceneViewItemIsHovered = ImGui::IsItemHovered();
+                    ImVec2 itemRectMin = ImGui::GetItemRectMin();
+                    ImVec2 itemRectMax = ImGui::GetItemRectMax();
+
+                    mSceneViewX = itemRectMin.x;
+                    mSceneViewY = io.DisplaySize.y - itemRectMax.y;
+                    int width = itemRectMax.x - itemRectMin.x;
+                    int height = itemRectMax.y - itemRectMin.y;
+                    if (width != mSceneColorTexture->getTextureWidth() || height != mSceneColorTexture->getTextureHeight())
+                    {
+                        mSceneViewWidth = width;
+                        mSceneViewHeight = height;
+                        mSceneViewSizeDirty = true;
+                    }
+                }
+                else
+                {
+                    mSceneViewWidth = mSceneViewHeight = 0;
+                }
+
+                mSceneViewViewport->setViewport(mSceneViewX, mSceneViewY, mSceneViewWidth, mSceneViewHeight);
+            }
+            ImGui::End();
+            ImGui::PopStyleVar();
+        }
+
+        void drawInspector()
+        {
+            if (ImGui::Begin("Inspector"))
+            {
+                Entity* activedEntity = Context::get().getActivedEntity();
+                if (activedEntity)
+                {
+                    ImGui::Text(activedEntity->getName().c_str());
+                    if (ImGui::CollapsingHeader("Transform"))
+                    {
+                        static osg::Vec3d entityPosition;
+                        static osg::Vec3d entityRotation;
+                        static osg::Vec3d entityScale;
+                        entityPosition = activedEntity->getPosition();
+                        entityRotation = activedEntity->getRotation();
+                        entityScale = activedEntity->getScale();
+                        if (ImGui::DragScalarN("Position", ImGuiDataType_Double, &entityPosition.x(), 3, 0.01))
+                        {
+                            activedEntity->setPosition(entityPosition);
+                        }
+                        if (ImGui::DragScalarN("Rotation", ImGuiDataType_Double, &entityRotation.x(), 3))
+                        {
+                            activedEntity->setRotation(entityRotation);
+                        }
+                        if (ImGui::DragScalarN("Scale", ImGuiDataType_Double, &entityScale.x(), 3, 0.01))
+                        {
+                            activedEntity->setScale(entityScale);
+                        }
+                    }
+                    uint32_t componentsCount = activedEntity->getComponentsCount();
+                    for (uint32_t i = 0; i < componentsCount; ++i)
+                    {
+                        Component* component = activedEntity->getComponent(i);
+                        if (component->getType() == Component::Type::MeshRenderer)
+                            drawMeshRendererGUI(dynamic_cast<MeshRenderer*>(component));
+                    }
+                }
+
+            }
+            ImGui::End();
+        }
+
+        void drawAssetExplorer()
+        {
+            if (ImGui::Begin("AssetExplorer"))
+            {
+                
+            }
+            ImGui::End();
         }
 
 		virtual void draw()
@@ -413,79 +471,9 @@ namespace xxx
 			//}
 			//ImGui::End();
 
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0, 0.0));
-            if (ImGui::Begin("SceneView"))
-            {
-                mSceneViewWindowIsFocused = ImGui::IsWindowFocused();
-
-                if (mSceneColorTexture->getTextureObject(0))
-                {
-                    ImVec2 regionMin = ImGui::GetWindowContentRegionMin();
-                    ImVec2 regionMax = ImGui::GetWindowContentRegionMax();
-                    ImGui::Image((void*)mSceneColorTexture->getTextureObject(0)->id(), ImVec2(regionMax.x - regionMin.x, regionMax.y - regionMin.y), ImVec2(0.0, 1.0), ImVec2(1.0, 0.0));
-                    mSceneViewItemIsHovered = ImGui::IsItemHovered();
-                    ImVec2 itemRectMin = ImGui::GetItemRectMin();
-                    ImVec2 itemRectMax = ImGui::GetItemRectMax();
-
-                    mSceneViewX = itemRectMin.x;
-                    mSceneViewY = io.DisplaySize.y - itemRectMax.y;
-                    int width = itemRectMax.x - itemRectMin.x;
-                    int height = itemRectMax.y - itemRectMin.y;
-                    if (width != mSceneColorTexture->getTextureWidth() || height != mSceneColorTexture->getTextureHeight())
-                    {
-                        mSceneViewWidth = width;
-                        mSceneViewHeight = height;
-                        mSceneViewSizeDirty = true;
-                    }
-                }
-                else
-                {
-                    mSceneViewWidth = mSceneViewHeight = 0;
-                }
-
-                mSceneViewViewport->setViewport(mSceneViewX, mSceneViewY, mSceneViewWidth, mSceneViewHeight);
-            }
-            ImGui::End();
-            ImGui::PopStyleVar();
-
-            if (ImGui::Begin("Inspector"))
-            {
-                Entity* activedEntity = Context::get().getActivedEntity();
-                if (activedEntity)
-                {
-                    ImGui::Text(activedEntity->getName().c_str());
-                    if (ImGui::CollapsingHeader("Transform"))
-                    {
-                        static osg::Vec3d entityPosition;
-                        static osg::Vec3d entityRotation;
-                        static osg::Vec3d entityScale;
-                        entityPosition = activedEntity->getPosition();
-                        entityRotation = activedEntity->getRotation();
-                        entityScale = activedEntity->getScale();
-                        if (ImGui::DragScalarN("Position", ImGuiDataType_Double, &entityPosition.x(), 3, 0.01))
-                        {
-                            activedEntity->setPosition(entityPosition);
-                        }
-                        if (ImGui::DragScalarN("Rotation", ImGuiDataType_Double, &entityRotation.x(), 3))
-                        {
-                            activedEntity->setRotation(entityRotation);
-                        }
-                        if (ImGui::DragScalarN("Scale", ImGuiDataType_Double, &entityScale.x(), 3, 0.01))
-                        {
-                            activedEntity->setScale(entityScale);
-                        }
-                    }
-                    uint32_t componentsCount = activedEntity->getComponentsCount();
-                    for (uint32_t i = 0; i < componentsCount; ++i)
-                    {
-                        Component* component = activedEntity->getComponent(i);
-                        if (component->getType() == Component::Type::MeshRenderer)
-                            drawMeshRendererGUI(dynamic_cast<MeshRenderer*>(component));
-                    }
-                }
-                
-            }
-            ImGui::End();
+            drawSceneView();
+            drawInspector();
+            drawAssetExplorer();
 		}
 
         void updateSceneViewSize()

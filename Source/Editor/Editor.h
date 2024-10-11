@@ -31,6 +31,7 @@ namespace xxx
             osg::ref_ptr<ImGuiHandler> imguiHandler = new ImGuiHandler(mViewer, mEngine->getPipeline());
             mViewer->addEventHandler(imguiHandler);
             mViewer->addEventHandler(new PickEventHandler(mViewer->getCamera(), imguiHandler->getSceneViewViewport()));
+            mViewer->setThreadingModel(osgViewer::Viewer::SingleThreaded);
 
             mViewer->setCameraManipulator(new osgGA::TrackballManipulator);
         }

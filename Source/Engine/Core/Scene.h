@@ -10,26 +10,50 @@ namespace xxx
     public:
         Scene() = default;
 
-        void appendEntity(Entity* entity);
-
-        void removeEntity(Entity* entity);
-
-        void forEach(std::function<void(Entity*)> func)
+        virtual void postSerializer(Serializer* serializer)
         {
-            for (Entity* entity : mEntities)
-                forEachEntity(entity, func);
+            if (serializer->isLoader())
+            {
+                for (Entity* entity : mEntities)
+                {
+                    mOsgSceneRoot->addChild(entity->getOsgNode());
+                }
+            }
+        }
+
+        void addEntity(Entity* entity)
+        {
+            entity->setOwner(this);
+            entity->setParent(nullptr);
+            mEntities.emplace_back(entity);
+            mOsgSceneRoot->addChild(entity->getOsgNode());
+        }
+
+        void removeEntity(Entity* entity)
+        {
+            mOsgSceneRoot->removeChild(entity->getOsgNode());
+            auto findResult = std::find(mEntities.begin(), mEntities.end(), entity);
+            if (findResult != mEntities.end())
+            {
+                entity->setOwner(nullptr);
+                mEntities.erase(findResult);
+            }
+
         }
 
     protected:
         std::vector<osg::ref_ptr<Entity>> mEntities;
 
         osg::ref_ptr<osg::Group> mOsgSceneRoot;
-
-        static void forEachEntity(Entity* entity, std::function<void(Entity*)> func)
-        {
-            func(entity);
-            for (Entity* child : entity->getChildren())
-                forEachEntity(child, func);
-        }
     };
+
+    namespace refl
+    {
+        template <> inline Type* Reflection::createType<Scene>()
+        {
+            Class* clazz = new ClassInstance<Scene>("Scene");
+            clazz->addProperty("Entities", &Scene::mEntities);
+            return clazz;
+        }
+    }
 }

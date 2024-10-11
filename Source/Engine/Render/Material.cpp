@@ -84,13 +84,11 @@ struct MaterialOutputs
 {
     vec3 emissive;
     float opaque;
-#if (SHADING_MODEL >= STANDARD)
     vec3 baseColor;
     float metallic;
     float roughness;
     vec3 normal;
     float occlusion;
-#endif
 };
 
 void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo);
@@ -157,13 +155,11 @@ struct MaterialOutputs
 {
     vec3 emissive;
     float opaque;
-#if (SHADING_MODEL >= STANDARD)
     vec3 baseColor;
     float metallic;
     float roughness;
     vec3 normal;
     float occlusion;
-#endif
 };
 )";
 
@@ -196,10 +192,10 @@ namespace xxx
         setDoubleSided(mDoubleSided);
 
         mShader = shader;
-        syncShaderState();
+        syncWithShader();
     }
 
-    void Material::syncShaderState()
+    void Material::syncWithShader()
     {
         static osg::ref_ptr<osg::Shader> frameworkVertexShader = new osg::Shader(osg::Shader::VERTEX, FrameworkVertexShaderSource);
         static osg::ref_ptr<osg::Shader> frameworkFragmentShader = new osg::Shader(osg::Shader::FRAGMENT, FrameworkFragmentShaderSource);
