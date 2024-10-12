@@ -3,6 +3,8 @@
 #include <Engine/Core/AssetManager.h>
 #include <Engine/Render/Pipeline.h>
 
+#include <osg/BlendFunc>
+#include <osg/BufferIndexBinding>
 #include <osgViewer/Viewer>
 #include <osgDB/ReadFile>
 
@@ -22,6 +24,46 @@ namespace xxx
         RunMode runMode;
     };
 
+    struct ViewData
+    {
+        osg::Matrixf viewMatrix;
+        osg::Matrixf inverseViewMatrix;
+        osg::Matrixf projectionMatrix;
+        osg::Matrixf inverseProjectionMatrix;
+    };
+
+    struct RenderingData
+    {
+        ViewData viewData;
+        osg::ref_ptr<osg::UniformBufferBinding> viewDataUBB;
+    };
+
+    class GBufferPassPreDrawCallback : public osg::Camera::DrawCallback
+    {
+    public:
+        GBufferPassPreDrawCallback(RenderingData& renderingData) :
+            mRenderingData(renderingData)
+        {}
+
+        virtual void operator () (osg::RenderInfo& renderInfo) const
+        {
+            ViewData& viewData = mRenderingData.viewData;
+            osg::UniformBufferBinding* viewDataUBB = mRenderingData.viewDataUBB;
+
+            viewData.viewMatrix = renderInfo.getCurrentCamera()->getViewMatrix();
+            viewData.inverseViewMatrix = renderInfo.getCurrentCamera()->getInverseViewMatrix();
+            viewData.projectionMatrix = renderInfo.getCurrentCamera()->getProjectionMatrix();
+            viewData.inverseProjectionMatrix = osg::Matrixf::inverse(mRenderingData.viewData.projectionMatrix);
+
+            osg::FloatArray* buffer = static_cast<osg::FloatArray*>(viewDataUBB->getBufferData());
+            buffer->assign((float*)&viewData, (float*)(&viewData + 1));
+            buffer->dirty();
+        }
+
+    private:
+        RenderingData& mRenderingData;
+    };
+
     class Engine
     {
     public:
@@ -29,6 +71,7 @@ namespace xxx
             mView(view)
         {
             initContext(setupConfig);
+            initRenderingData();
             initPipeline(setupConfig);
 
             Asset* asset = AssetManager::get().getAsset("Engine/TestEntity.xast");
@@ -50,6 +93,7 @@ namespace xxx
     private:
         osg::ref_ptr<osgViewer::View> mView;
         osg::ref_ptr<Pipeline> mPipeline;
+        RenderingData mRenderingData;
 
         static osg::GraphicsContext* createGraphicsContext(int width, int height, const std::string& glContextVersion)
         {
@@ -71,6 +115,16 @@ namespace xxx
             Context& context = Context::get();
         }
 
+        void initRenderingData()
+        {
+            ViewData& viewData = mRenderingData.viewData;
+
+            osg::ref_ptr<osg::FloatArray> viewDataBuffer = new osg::FloatArray((float*)&viewData, (float*)(&viewData + 1));
+            osg::ref_ptr<osg::UniformBufferObject> viewDataUBO = new osg::UniformBufferObject;
+            viewDataBuffer->setBufferObject(viewDataUBO);
+            mRenderingData.viewDataUBB = new osg::UniformBufferBinding(0, viewDataBuffer, 0, sizeof(ViewData));
+        }
+
         void initPipeline(const EngineSetupConfig& setupConfig)
         {
             osg::ref_ptr<osg::GraphicsContext> graphicsContext = createGraphicsContext(setupConfig.width, setupConfig.height, setupConfig.glContextVersion);
@@ -83,13 +137,30 @@ namespace xxx
 
             using BufferType = Pipeline::Pass::BufferType;
             Pipeline::Pass* gbufferPass = mPipeline->addInputPass("GBuffer", 0x00000001, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            gbufferPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F);
-            gbufferPass->attach(BufferType::COLOR_BUFFER1, GL_RGBA16F);
-            gbufferPass->attach(BufferType::COLOR_BUFFER2, GL_RGBA16F);
-            gbufferPass->attach(BufferType::COLOR_BUFFER3, GL_RGBA16F);
+            gbufferPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F);     // Scene Color
+            gbufferPass->attach(BufferType::COLOR_BUFFER1, GL_RGB10_A2);    // GBufferA (RGB: Normal)
+            gbufferPass->attach(BufferType::COLOR_BUFFER2, GL_RGBA8);       // GBufferB (R: Metallic, G: Specular, B: Roughness, A: ShadingModel)
+            gbufferPass->attach(BufferType::COLOR_BUFFER3, GL_RGBA8);       // GBufferC (RGB: BaseColor, A: AO)
+            gbufferPass->attach(BufferType::COLOR_BUFFER4, GL_RGBA8);       // GBufferD (RGBA: Custom Data)
             gbufferPass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT, false, osg::Texture::NEAREST, osg::Texture::NEAREST);
+            gbufferPass->getCamera()->addPreDrawCallback(new GBufferPassPreDrawCallback(mRenderingData));
 
             osg::Shader* screenQuadShader = osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Common/ScreenQuad.vert.glsl");
+
+            osg::Program* lightingProgram = new osg::Program;
+            lightingProgram->addShader(screenQuadShader);
+            lightingProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/Lighting.frag.glsl"));
+            Pipeline::Pass* lightingPass = mPipeline->addWorkPass("Lighting", lightingProgram, 0);
+            lightingPass->attach(BufferType::COLOR_BUFFER0, gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER0));
+            lightingPass->applyTexture(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER1), "uGBufferATexture", 0);
+            lightingPass->applyTexture(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER2), "uGBufferBTexture", 1);
+            lightingPass->applyTexture(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER3), "uGBufferCTexture", 2);
+            lightingPass->applyTexture(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER4), "uGBufferDTexture", 3);
+            lightingPass->applyTexture(gbufferPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uDepthTexture", 4);
+            lightingPass->setMode(GL_BLEND, osg::StateAttribute::ON);
+            lightingPass->setAttribute(new osg::BlendFunc(GL_ONE, GL_SRC_ALPHA));
+            lightingPass->setAttribute(mRenderingData.viewDataUBB);
+
             osg::Program* emptyProgram = new osg::Program;
             emptyProgram->addShader(screenQuadShader);
             emptyProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/Empty.frag.glsl"));

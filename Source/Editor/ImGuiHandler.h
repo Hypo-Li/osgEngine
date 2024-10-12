@@ -1,4 +1,5 @@
 #pragma once
+#include "Widget.h"
 #include <Engine/Render/Pipeline.h>
 #include <Engine/Core/Context.h>
 #include <Engine/Core/Component.h>
@@ -9,6 +10,7 @@
 #include <ThirdParty/imgui/imgui_impl_opengl3.h>
 #include <ThirdParty/imgui/imgui_impl_osg.h>
 #include <ThirdParty/imgui/imgui_stdlib.h>
+#include <ThirdParty/imgui/imgui_internal.h>
 
 #include <osgViewer/ViewerEventHandlers>
 
@@ -121,60 +123,6 @@ namespace xxx
 			}
 		};
 
-        static Asset* drawAssetCombo(const char* label, Asset* currentAsset, refl::Class* clazz)
-        {
-            Asset* result = nullptr;
-
-            const std::string& assetPath = currentAsset->getPath();
-            if (ImGui::BeginCombo(label, assetPath.c_str()))
-            {
-                AssetManager::get().foreachAsset([&assetPath, &result, clazz](Asset* asset) {
-                    if (asset->getClass()->isDerivedFrom(clazz))
-                    {
-                        const bool is_selected = (assetPath == asset->getPath());
-                        if (ImGui::Selectable(asset->getPath().c_str(), is_selected))
-                        {
-                            result = AssetManager::get().getAsset(asset->getPath());
-                        }
-
-                        if (is_selected)
-                            ImGui::SetItemDefaultFocus();
-                    }
-                });
-
-                ImGui::EndCombo();
-            }
-
-            return result;
-        }
-
-        template <typename T>
-        static T drawEnumCombo(const std::string& label, T currentEnumValue)
-        {
-            T result = currentEnumValue;
-            refl::Enum* enumerate = refl::Reflection::getEnum<T>();
-            std::string currentValueName(enumerate->getNameByValue(int64_t(currentEnumValue)));
-            if (ImGui::BeginCombo(label.c_str(), currentValueName.c_str()))
-            {
-                size_t valueCount = enumerate->getValueCount();
-                for (int64_t i = 0; i < valueCount; ++i)
-                {
-                    const bool is_selected = (i == int64_t(currentEnumValue));
-                    std::string valueName(enumerate->getNameByIndex(i));
-                    if (ImGui::Selectable(valueName.c_str(), is_selected))
-                    {
-                        result = T(enumerate->getValueByIndex(i));
-                    }
-
-                    if (is_selected)
-                        ImGui::SetItemDefaultFocus();
-                }
-
-                ImGui::EndCombo();
-            }
-            return result;
-        }
-
         bool drawShaderGUI(Shader* shader)
         {
             Asset* shaderAsset = shader->getAsset();
@@ -201,12 +149,12 @@ namespace xxx
             const Material::Parameters& materialParameters = material->getParameters();
 
             ShadingModel shadingModel = material->getShadingModel();
-            ShadingModel newShadingModel = drawEnumCombo("ShadingModel", shadingModel);
+            ShadingModel newShadingModel = EnumCombo("ShadingModel", shadingModel);
             if (shadingModel != newShadingModel)
                 material->setShadingModel(newShadingModel);
 
             AlphaMode alphaMode = material->getAlphaMode();
-            AlphaMode newAlphaMode = drawEnumCombo("AlphaMode", alphaMode);
+            AlphaMode newAlphaMode = EnumCombo("AlphaMode", alphaMode);
             if (alphaMode != newAlphaMode)
                 material->setAlphaMode(newAlphaMode);
 
@@ -224,7 +172,7 @@ namespace xxx
                 ImGui::PushID(paramId);
                 if (ImGui::Checkbox("", &materialParamEnable))
                 {
-                    material->setParameterEnable(parameterName, materialParamEnable);
+                    material->enableParameter(parameterName, materialParamEnable);
                 }
                 ImGui::PopID();
                 ImGui::SameLine();
@@ -282,7 +230,7 @@ namespace xxx
                     Asset* textureAsset = textureAndUnit.first->getAsset();
                     if (textureAsset)
                     {
-                        Asset* selectedAsset = drawAssetCombo(parameterName.c_str(), textureAsset, refl::Reflection::getClass<Texture>());
+                        Asset* selectedAsset = AssetCombo<Texture>(parameterName.c_str(), textureAsset);
                         if (selectedAsset)
                         {
                             if (!selectedAsset->isLoaded())
@@ -332,20 +280,18 @@ namespace xxx
         void drawSceneView()
         {
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0, 0.0));
-            if (ImGui::Begin("SceneView"))
+            if (ImGui::Begin("Scene View"))
             {
                 ImGuiIO& io = ImGui::GetIO();
                 mSceneViewWindowIsFocused = ImGui::IsWindowFocused();
 
                 if (mSceneColorTexture->getTextureObject(0))
                 {
-                    ImVec2 regionMin = ImGui::GetWindowContentRegionMin();
-                    ImVec2 regionMax = ImGui::GetWindowContentRegionMax();
-                    ImGui::Image((void*)mSceneColorTexture->getTextureObject(0)->id(), ImVec2(regionMax.x - regionMin.x, regionMax.y - regionMin.y), ImVec2(0.0, 1.0), ImVec2(1.0, 0.0));
+                    ImGui::Image((void*)mSceneColorTexture->getTextureObject(0)->id(), ImGui::GetContentRegionAvail(), ImVec2(0.0, 1.0), ImVec2(1.0, 0.0));
                     mSceneViewItemIsHovered = ImGui::IsItemHovered();
+
                     ImVec2 itemRectMin = ImGui::GetItemRectMin();
                     ImVec2 itemRectMax = ImGui::GetItemRectMax();
-
                     mSceneViewX = itemRectMin.x;
                     mSceneViewY = io.DisplaySize.y - itemRectMax.y;
                     int width = itemRectMax.x - itemRectMin.x;
@@ -406,15 +352,82 @@ namespace xxx
                     }
                 }
 
+                static std::vector<std::string> items = {
+                    "Test",
+                    "SomeThings",
+                    "What",
+                    "Why",
+                    "Where",
+                    "How"
+                };
+                static int currentItem = 0;
+                ImGui::ComboWithFilter("ComboFilter", &currentItem, items, 6);
             }
             ImGui::End();
         }
 
-        void drawAssetExplorer()
+        GLenum getTextureId(osg::Texture2D* texture, osg::GraphicsContext* gc)
         {
-            if (ImGui::Begin("AssetExplorer"))
+            if (!texture->getTextureObject(gc->getState()->getContextID()))
+                texture->apply(*gc->getState());
+            return texture->getTextureObject(gc->getState()->getContextID())->id();
+        }
+
+        void drawAssetBrowser()
+        {
+            if (ImGui::Begin("Asset Browser"))
             {
-                
+                static std::filesystem::path currentPath = Context::get().getEngineAssetPath();
+                static osg::ref_ptr<osg::Texture2D> texture = new osg::Texture2D(osgDB::readImageFile(TEMP_DIR "awesomeface.png"));
+                static GLenum textureId = getTextureId(texture, mPipeline->getOsgGraphicsContext());
+
+                if (currentPath != Context::get().getEngineAssetPath())
+                {
+                    if (ImGui::Button("<-"))
+                        currentPath = currentPath.parent_path();
+                }
+
+                static float padding = 16.0f;
+                static float thumbnailSize = 64.0f;
+                float cellSize = thumbnailSize + padding;
+
+                float panelWidth = ImGui::GetContentRegionAvail().x;
+                int columnCount = (int)(panelWidth / cellSize);
+                if (columnCount < 1)
+                    columnCount = 1;
+
+                ImGuiIO& io = ImGui::GetIO();
+                ImGui::Columns(columnCount, 0, false);
+
+                for (auto& directoryEntry : std::filesystem::directory_iterator(currentPath))
+                {
+                    const auto& path = directoryEntry.path();
+                    if (directoryEntry.is_regular_file() && path.extension().string() != ".xast")
+                        continue;
+
+                    std::string stemString = path.stem().string();
+
+                    ImGui::PushID(stemString.c_str());
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+                    ImGui::ImageButton(ImTextureID(textureId), {thumbnailSize, thumbnailSize}, {0, 1}, {1, 0});
+                    ImGui::PopStyleColor();
+                    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                    {
+                        if (directoryEntry.is_directory())
+                            currentPath /= path.filename();
+                    }
+
+                    ImGui::TextWrapped(stemString.c_str());
+
+                    ImGui::NextColumn();
+
+                    ImGui::PopID();
+                }
+
+                ImGui::Columns(1);
+
+                ImGui::SliderFloat("Thumbnail Size", &thumbnailSize, 16, 512);
+                ImGui::SliderFloat("Padding", &padding, 0, 32);
             }
             ImGui::End();
         }
@@ -473,7 +486,7 @@ namespace xxx
 
             drawSceneView();
             drawInspector();
-            drawAssetExplorer();
+            drawAssetBrowser();
 		}
 
         void updateSceneViewSize()

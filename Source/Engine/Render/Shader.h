@@ -36,7 +36,6 @@ constexpr size_t variant_index()
 
 namespace xxx
 {
-
     class Shader : public Object
     {
         REFLECT_CLASS(Shader)
@@ -76,7 +75,7 @@ namespace xxx
         void addParameter(const std::string& name, T defaultValue)
         {
             if constexpr (std::is_base_of_v<xxx::Texture, std::remove_pointer_t<T>>)
-                mParameters.emplace(name, std::make_pair(osg::ref_ptr<Texture>(defaultValue), getAvailableTextureUnit()));
+                mParameters.emplace(name, std::make_pair(osg::ref_ptr<Texture>(defaultValue), assignTextureUnit()));
             else
                 mParameters.emplace(name, defaultValue);
         }
@@ -106,7 +105,7 @@ namespace xxx
         Parameters mParameters;
         std::string mSource;
 
-        int getAvailableTextureUnit()
+        int assignTextureUnit()
         {
             std::unordered_set<int> unavailableTextureUnit;
             for (const auto& param : mParameters)

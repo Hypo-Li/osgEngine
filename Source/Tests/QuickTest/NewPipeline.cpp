@@ -1,4 +1,4 @@
-#if 0
+#if 1
 
 #include <osgViewer/Viewer>
 #include <osg/BufferObject>
@@ -546,8 +546,8 @@ int main(int argc, char** argv)
     readFbo->setAttachment(BufferType::DEPTH_BUFFER, osg::FrameBufferAttachment(dynamic_cast<osg::Texture2D*>(combineForwardOpaquePass->getBufferTexture(BufferType::DEPTH_BUFFER))));
 
     osg::ref_ptr<xxx::Pipeline::Pass> forwardTransPass = pipeline->addInputPass("ForwardTrans", FORWARD_TRANS_MASK, 0);
-    forwardTransPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F, true);
-    forwardTransPass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT32, true);
+    forwardTransPass->attach(BufferType::COLOR_BUFFER0, forwardOpaquePass->getBufferTexture(BufferType::COLOR_BUFFER0));
+    forwardTransPass->attach(BufferType::DEPTH_BUFFER, forwardOpaquePass->getBufferTexture(BufferType::DEPTH_BUFFER));
 
     osg::ref_ptr<osg::FrameBufferObject> drawFbo = new osg::FrameBufferObject;
     drawFbo->setAttachment(BufferType::COLOR_BUFFER0, osg::FrameBufferAttachment(dynamic_cast<osg::Texture2DMultisample*>(forwardTransPass->getBufferTexture(BufferType::COLOR_BUFFER0))));

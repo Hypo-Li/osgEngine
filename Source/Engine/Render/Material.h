@@ -84,7 +84,7 @@ namespace xxx
             }
         }
 
-        void setParameterEnable(const std::string& name, bool enable)
+        void enableParameter(const std::string& name, bool enable)
         {
             auto materialParamIt = mParameters.find(name);
             if (materialParamIt != mParameters.end())
@@ -121,6 +121,8 @@ namespace xxx
             return mDoubleSided;
         }
 
+        uint32_t getOsgNodeMask();
+
     protected:
         osg::ref_ptr<Shader> mShader;
         // std::map<Name, std::pair<Value, Enable>>
@@ -133,46 +135,7 @@ namespace xxx
 
         std::string getParameterTypeString(const Shader::ParameterValue& parameter);
 
-        void applyParameter(Parameters::const_iterator materialParamIt)
-        {
-            std::string uniformName = "u" + materialParamIt->first;
-            osg::Uniform* uniform = mOsgStateSet->getUniform(uniformName);
-
-            bool materialParamEnable = materialParamIt->second.second;
-            auto shaderParamIt = mShader->getParameters().find(materialParamIt->first);
-
-            const Shader::ParameterValue& parameterValue = materialParamEnable ? materialParamIt->second.first : shaderParamIt->second;
-
-            switch (materialParamIt->second.first.index())
-            {
-            case size_t(Shader::ParameterIndex::Bool):
-                uniform->set(std::get<bool>(parameterValue));
-                return;
-            case size_t(Shader::ParameterIndex::Int):
-                uniform->set(std::get<int>(parameterValue));
-                return;
-            case size_t(Shader::ParameterIndex::Float):
-                uniform->set(std::get<float>(parameterValue));
-                return;
-            case size_t(Shader::ParameterIndex::Vec2f):
-                uniform->set(std::get<osg::Vec2f>(parameterValue));
-                return;
-            case size_t(Shader::ParameterIndex::Vec3f):
-                uniform->set(std::get<osg::Vec3f>(parameterValue));
-                return;
-            case size_t(Shader::ParameterIndex::Vec4f):
-                uniform->set(std::get<osg::Vec4f>(parameterValue));
-                return;
-            case size_t(Shader::ParameterIndex::Texture):
-            {
-                const Shader::TextureAndUnit& textureAndUnit = std::get<Shader::TextureAndUnit>(parameterValue);
-                mOsgStateSet->setTextureAttribute(textureAndUnit.second, textureAndUnit.first->getOsgTexture(), osg::StateAttribute::ON);
-                return;
-            }
-            default:
-                return;
-            }
-        }
+        void applyParameter(Parameters::const_iterator materialParamIt);
     };
 
     namespace refl

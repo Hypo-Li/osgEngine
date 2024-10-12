@@ -86,16 +86,6 @@ namespace xxx
         return newPass;
     }
 
-    class RunOnceCullCallback : public osg::NodeCallback
-    {
-    public:
-        virtual void operator()(osg::Node* node, osg::NodeVisitor* nv)
-        {
-            node->setNodeMask(0);
-            traverse(node, nv);
-        }
-    };
-
     Pipeline::Pass* Pipeline::addWorkPass(const std::string& name, osg::Program* program, GLbitfield clearMask, bool fixedSize, osg::Vec2 sizeScale)
     {
         osg::Camera* camera = new osg::Camera;

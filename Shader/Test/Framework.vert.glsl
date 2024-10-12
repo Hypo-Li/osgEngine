@@ -4,7 +4,7 @@ in vec3 osg_Normal;
 in vec4 osg_Color;
 in vec4 osg_MultiTexCoord0;
 in vec4 osg_MultiTexCoord1;
-layout(location = 11) in vec4 osg_Tangent;
+layout(location = 6) in vec4 osg_Tangent;
 
 out V2F
 {
@@ -30,5 +30,5 @@ void main()
     v2f.tangentWS = vec4(mat3(osg_ViewMatrixInverse) * osg_NormalMatrix * osg_Tangent.xyz, osg_Tangent.w);
     v2f.color = osg_Color;
     v2f.texcoord0 = osg_MultiTexCoord0;
-    v2f.texcoord0 = osg_MultiTexCoord1;
+    v2f.texcoord1 = osg_MultiTexCoord1;
 }

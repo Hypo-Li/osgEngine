@@ -67,6 +67,7 @@ namespace xxx
 
             mMaterials[index] = material;
             mOsgGeometries[index]->setStateSet(material->getOsgStateSet());
+            mOsgGeometries[index]->setNodeMask(material->getOsgNodeMask());
         }
 
         Mesh* getMesh()

@@ -1,4 +1,4 @@
-#if 1
+#if 0
 
 #include <Engine/Render/Pipeline.h>
 #include <osgViewer/Viewer>

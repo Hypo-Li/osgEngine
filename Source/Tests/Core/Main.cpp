@@ -49,16 +49,14 @@ R"(
 void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
 {
     vec4 texColor = texture(uBaseColorTexture, mi.texcoord0.xy);
+    mo.emissive = (mo.normal * 0.5 + 0.5) * uEmissiveFactor;
     mo.opaque = texColor.a;
-#if (SHADING_MODEL >= STANDARD)
     mo.baseColor = texColor.rgb * uBaseColor;
     mo.metallic = uMetallic;
     mo.roughness = uRoughness;
     mat3 tbn = mat3(mi.tangentWS, mi.bitangentWS, mi.normalWS);
     mo.normal = tbn * vec3(0, 0, 1);
     mo.occlusion = 1.0;
-#endif
-    mo.emissive = (mo.normal * 0.5 + 0.5) * uEmissiveFactor;
 }
 )"
     );
@@ -68,9 +66,10 @@ void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
     material->setAlphaMode(AlphaMode::Mask);
     material->setDoubleSided(true);
     material->setParameter("BaseColor", osg::Vec3f(1.0, 0.5, 0.0));
+    material->enableParameter("BaseColor", true);
 
     shader->addParameter("EmissiveFactor", osg::Vec3(1, 0.5, 0));
-    material->syncShaderState();
+    material->syncWithShader();
 
     mesh->setDefaultMaterial(0, material);
 
