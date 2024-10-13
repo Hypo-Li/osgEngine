@@ -5,8 +5,9 @@
 
 #include <osg/BlendFunc>
 #include <osg/BufferIndexBinding>
-#include <osgViewer/Viewer>
+#include <osgViewer/View>
 #include <osgDB/ReadFile>
+#include <osgGA/TrackballManipulator>
 
 namespace xxx
 {
@@ -67,8 +68,8 @@ namespace xxx
     class Engine
     {
     public:
-        Engine(osgViewer::View* view, const EngineSetupConfig& setupConfig) :
-            mView(view)
+        Engine(const EngineSetupConfig& setupConfig) :
+            mView(new osgViewer::View)
         {
             initContext(setupConfig);
             initRenderingData();
@@ -78,6 +79,7 @@ namespace xxx
             asset->load();
 
             mView->setSceneData(dynamic_cast<Entity*>(asset->getRootObject())->getOsgNode());
+            mView->setCameraManipulator(new osgGA::TrackballManipulator);
         }
 
         osgViewer::View* getView() const

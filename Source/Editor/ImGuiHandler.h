@@ -1,6 +1,5 @@
 #pragma once
 #include "Widget.h"
-#include <Engine/Render/Pipeline.h>
 #include <Engine/Core/Context.h>
 #include <Engine/Core/Component.h>
 #include <Engine/Core/Asset.h>
@@ -35,13 +34,9 @@ namespace xxx
 	class ImGuiHandler : public osgGA::GUIEventHandler
 	{
 	public:
-		ImGuiHandler(osgViewer::Viewer* viewer, Pipeline* pipeline) : mPipeline(pipeline), mSceneViewViewport(new osg::Viewport)
+		ImGuiHandler(osg::Camera* imguiCamera, osg::Texture2D* sceneColorTexture, const std::function<void(int, int)>& resizeCallback) :
+            mImGuiCamera(imguiCamera), mSceneColorTexture(sceneColorTexture), mSceneViewViewport(new osg::Viewport), mResizeCallback(resizeCallback)
 		{
-            Pipeline::Pass* lastPass = mPipeline->getPasses().rbegin()->get();
-            Pipeline::Pass* penultimatePass = (mPipeline->getPasses().rbegin() + 1)->get();
-            mImGuiCamera = lastPass->getCamera();
-            mSceneColorTexture = dynamic_cast<osg::Texture2D*>(penultimatePass->getBufferTexture(Pipeline::Pass::BufferType::COLOR_BUFFER0));
-
 			IMGUI_CHECKVERSION();
 			ImGui::CreateContext();
 			ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -74,7 +69,7 @@ namespace xxx
 			style.WindowRounding = 6.0;
 			//style.Colors[ImGuiCol_WindowBg].w = 1.0;
             //style.ScaleAllSizes(1.0);
-			ImGui_ImplOsg_Init(viewer, mImGuiCamera);
+			ImGui_ImplOsg_Init(mImGuiCamera);
 		}
 
 		virtual bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa)
@@ -98,7 +93,7 @@ namespace xxx
         osg::ref_ptr<osg::Camera> mImGuiCamera;
         osg::ref_ptr<osg::Texture2D> mSceneColorTexture;
         osg::ref_ptr<osg::Viewport> mSceneViewViewport;
-        osg::ref_ptr<Pipeline> mPipeline;
+        std::function<void(int, int)> mResizeCallback;
         bool mSceneViewWindowIsFocused = false;
         bool mSceneViewItemIsHovered = false;
         int mSceneViewX, mSceneViewY;
@@ -378,8 +373,10 @@ namespace xxx
             if (ImGui::Begin("Asset Browser"))
             {
                 static std::filesystem::path currentPath = Context::get().getEngineAssetPath();
-                static osg::ref_ptr<osg::Texture2D> texture = new osg::Texture2D(osgDB::readImageFile(TEMP_DIR "awesomeface.png"));
-                static GLenum textureId = getTextureId(texture, mPipeline->getOsgGraphicsContext());
+                static osg::ref_ptr<osg::Texture2D> fileTexture = new osg::Texture2D(osgDB::readImageFile(TEMP_DIR "file.png"));
+                static osg::ref_ptr<osg::Texture2D> folderTexture = new osg::Texture2D(osgDB::readImageFile(TEMP_DIR "folder.png"));
+                static GLenum fileTextureId = getTextureId(fileTexture, mImGuiCamera->getGraphicsContext());
+                static GLenum folderTextureId = getTextureId(folderTexture, mImGuiCamera->getGraphicsContext());
 
                 if (currentPath != Context::get().getEngineAssetPath())
                 {
@@ -388,7 +385,7 @@ namespace xxx
                 }
 
                 static float padding = 16.0f;
-                static float thumbnailSize = 64.0f;
+                static float thumbnailSize = 80.0f;
                 float cellSize = thumbnailSize + padding;
 
                 float panelWidth = ImGui::GetContentRegionAvail().x;
@@ -397,37 +394,67 @@ namespace xxx
                     columnCount = 1;
 
                 ImGuiIO& io = ImGui::GetIO();
-                ImGui::Columns(columnCount, 0, false);
+                //ImGui::Columns(columnCount, 0, false);
 
+                //for (auto& directoryEntry : std::filesystem::directory_iterator(currentPath))
+                //{
+                //    const auto& path = directoryEntry.path();
+                //    if (directoryEntry.is_regular_file() && path.extension().string() != ".xast")
+                //        continue;
+
+                //    std::string stemString = path.stem().string();
+
+                //    /*ImGui::PushID(stemString.c_str());
+                //    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+                //    ImGui::ImageButton(ImTextureID(directoryEntry.is_directory() ? folderTextureId : fileTextureId), {thumbnailSize, thumbnailSize}, {0, 1}, {1, 0});
+                //    ImGui::PopStyleColor();
+                //    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                //    {
+                //        if (directoryEntry.is_directory())
+                //            currentPath /= path.filename();
+                //    }
+
+                //    ImGui::TextWrapped(stemString.c_str());
+
+                //    ImGui::NextColumn();
+
+                //    ImGui::PopID();*/
+
+                //    FileIcon(stemString.c_str(), false, ImTextureID(directoryEntry.is_directory() ? folderTextureId : fileTextureId), { thumbnailSize, thumbnailSize }, true, thumbnailSize, thumbnailSize);
+
+                //    ImGui::NextColumn();
+                //}
+
+                //ImGui::Columns(1);
+
+                //ImGui::SliderFloat("Thumbnail Size", &thumbnailSize, 16, 512);
+                //ImGui::SliderFloat("Padding", &padding, 0, 32);
+
+                /*ImGui::BeginTable("asset_browser", columnCount);
+                uint32_t entryIndex = 0;
                 for (auto& directoryEntry : std::filesystem::directory_iterator(currentPath))
                 {
                     const auto& path = directoryEntry.path();
                     if (directoryEntry.is_regular_file() && path.extension().string() != ".xast")
                         continue;
 
-                    std::string stemString = path.stem().string();
+                    if (entryIndex % columnCount == 0)
+                        ImGui::TableNextRow();
 
+                    ImGui::TableSetColumnIndex(entryIndex % columnCount);
+
+                    std::string stemString = path.stem().string();
                     ImGui::PushID(stemString.c_str());
                     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-                    ImGui::ImageButton(ImTextureID(textureId), {thumbnailSize, thumbnailSize}, {0, 1}, {1, 0});
+                    ImGui::ImageButton(ImTextureID(directoryEntry.is_directory() ? folderTextureId : fileTextureId), { thumbnailSize, thumbnailSize }, { 0, 1 }, { 1, 0 });
                     ImGui::PopStyleColor();
-                    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-                    {
-                        if (directoryEntry.is_directory())
-                            currentPath /= path.filename();
-                    }
-
                     ImGui::TextWrapped(stemString.c_str());
-
-                    ImGui::NextColumn();
-
                     ImGui::PopID();
+                    entryIndex++;
                 }
 
-                ImGui::Columns(1);
+                ImGui::EndTable();*/
 
-                ImGui::SliderFloat("Thumbnail Size", &thumbnailSize, 16, 512);
-                ImGui::SliderFloat("Padding", &padding, 0, 32);
             }
             ImGui::End();
         }
@@ -493,7 +520,7 @@ namespace xxx
         {
             if (mSceneViewSizeDirty)
             {
-                mPipeline->resize(mSceneViewWidth, mSceneViewHeight, false);
+                mResizeCallback(mSceneViewWidth, mSceneViewHeight);
                 mSceneViewSizeDirty = false;
             }
         }

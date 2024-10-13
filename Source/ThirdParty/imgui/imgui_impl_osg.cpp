@@ -2,13 +2,12 @@
 #ifndef IMGUI_DISABLE
 #include "imgui_impl_osg.h"
 // OSG
-#include <osgViewer/Viewer>
+#include <osgViewer/ViewerBase>
 #include <osgGA/GUIEventHandler>
 #include <iostream>
 
 struct ImGui_ImplOsg_Data
 {
-	osgViewer::Viewer* Viewer;
     osg::Camera* Camera;
 	osgViewer::GraphicsWindow* Window;
 	double Time;
@@ -21,7 +20,7 @@ ImGui_ImplOsg_Data* ImGui_ImplOsg_GetBackendData()
 	return ImGui::GetCurrentContext() ? (ImGui_ImplOsg_Data*)ImGui::GetIO().BackendPlatformUserData : nullptr;
 }
 
-bool ImGui_ImplOsg_Init(osgViewer::Viewer* viewer, osg::Camera* camera)
+bool ImGui_ImplOsg_Init(osg::Camera* camera)
 {
 	ImGuiIO& io = ImGui::GetIO();
 	IM_ASSERT(io.BackendPlatformUserData == nullptr && "Already initialized a platform backend!");
@@ -32,7 +31,6 @@ bool ImGui_ImplOsg_Init(osgViewer::Viewer* viewer, osg::Camera* camera)
 	io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;
 	io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;
 	
-	bd->Viewer = viewer;
     bd->Camera = camera;
 	bd->Window = dynamic_cast<osgViewer::GraphicsWindow*>(camera->getGraphicsContext());
 	IM_ASSERT(bd->Window != nullptr);
@@ -79,7 +77,7 @@ void ImGui_ImplOsg_NewFrame()
 	osg::Viewport* viewport = bd->Camera->getViewport();
 	io.DisplaySize = ImVec2(viewport->width(), viewport->height());
 
-	double current_time = bd->Viewer->getFrameStamp()->getSimulationTime();
+	double current_time = bd->Camera->getView()->getFrameStamp()->getSimulationTime();
 	if (current_time <= bd->Time)
 		current_time = bd->Time + 0.0000001;
 	io.DeltaTime = bd->Time > 0.0 ? (float)(current_time - bd->Time) : (float)(1.0f / 60.0f);

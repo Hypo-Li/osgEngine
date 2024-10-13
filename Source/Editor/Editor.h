@@ -3,7 +3,7 @@
 #include "PickEventHandler.h"
 #include <Engine/Core/Engine.h>
 
-#include <osgGA/TrackballManipulator>
+#include <osgViewer/CompositeViewer>
 
 namespace xxx
 {
@@ -17,7 +17,7 @@ namespace xxx
     public:
         Editor()
         {
-            mViewer = new osgViewer::Viewer;
+            mViewer = new osgViewer::CompositeViewer;
 
             EngineSetupConfig engineSetupConfig;
             engineSetupConfig.width = 1024;
@@ -25,15 +25,21 @@ namespace xxx
             engineSetupConfig.glContextVersion = "4.6";
             engineSetupConfig.fullScreen = false;
             engineSetupConfig.runMode = RunMode::Edit;
-            mEngine = new Engine(static_cast<osgViewer::View*>(mViewer.get()), engineSetupConfig);
+            mEngine = new Engine(engineSetupConfig);
 
             mViewer->setRealizeOperation(new ImGuiInitOperation);
-            osg::ref_ptr<ImGuiHandler> imguiHandler = new ImGuiHandler(mViewer, mEngine->getPipeline());
-            mViewer->addEventHandler(imguiHandler);
-            mViewer->addEventHandler(new PickEventHandler(mViewer->getCamera(), imguiHandler->getSceneViewViewport()));
             mViewer->setThreadingModel(osgViewer::Viewer::SingleThreaded);
 
-            mViewer->setCameraManipulator(new osgGA::TrackballManipulator);
+            Pipeline* enginePipeline = mEngine->getPipeline();
+            uint32_t passCount = enginePipeline->getPassCount();
+            osg::Camera* imguiCamera = enginePipeline->getPass(passCount - 1)->getCamera();
+            osg::Texture2D* sceneColorTexture = dynamic_cast<osg::Texture2D*>(enginePipeline->getPass(passCount - 2)->getBufferTexture(Pipeline::Pass::BufferType::COLOR_BUFFER0));
+            osg::ref_ptr<ImGuiHandler> imguiHandler = new ImGuiHandler(imguiCamera, sceneColorTexture, [this](int w, int h) {mEngine->getPipeline()->resize(w, h, false); });
+            osgViewer::View* engineView = mEngine->getView();
+            engineView->addEventHandler(imguiHandler);
+            engineView->addEventHandler(new PickEventHandler(engineView->getCamera(), imguiHandler->getSceneViewViewport()));
+
+            mViewer->addView(engineView);
         }
 
         void run()
@@ -47,7 +53,7 @@ namespace xxx
 
     protected:
         Engine* mEngine;
-        osg::ref_ptr<osgViewer::Viewer> mViewer;
+        osg::ref_ptr<osgViewer::CompositeViewer> mViewer;
 
         //void drawSceneView();
         //void drawInspector();

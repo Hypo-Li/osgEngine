@@ -64,6 +64,60 @@ namespace xxx
     }
 }
 
+inline bool FileIcon(const char* label, bool isSelected, ImTextureID icon, ImVec2 size, bool hasPreview, int previewWidth, int previewHeight)
+{
+    ImGuiStyle& style = ImGui::GetStyle();
+    ImGuiContext& g = *GImGui;
+    ImGuiWindow* window = g.CurrentWindow;
+
+    float windowSpace = ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
+    ImVec2 pos = window->DC.CursorPos;
+    bool ret = false;
+
+    if (ImGui::InvisibleButton(label, size))
+        ret = true;
+
+    bool hovered = ImGui::IsItemHovered();
+    bool active = ImGui::IsItemActive();
+    bool doubleClick = ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
+    if (doubleClick && hovered)
+        ret = true;
+
+
+    float iconSize = size.y - g.FontSize * 2;
+    float iconPosX = pos.x + (size.x - iconSize) / 2.0f;
+    ImVec2 textSize = ImGui::CalcTextSize(label, 0, true, size.x);
+
+
+    if (hovered || active || isSelected)
+        window->DrawList->AddRectFilled(g.LastItemData.Rect.Min, g.LastItemData.Rect.Max, ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[active ? ImGuiCol_HeaderActive : (isSelected ? ImGuiCol_Header : ImGuiCol_HeaderHovered)]));
+
+    if (hasPreview) {
+        ImVec2 availSize = ImVec2(size.x, iconSize);
+
+        float scale = std::min<float>(availSize.x / previewWidth, availSize.y / previewHeight);
+        availSize.x = previewWidth * scale;
+        availSize.y = previewHeight * scale;
+
+        float previewPosX = pos.x + (size.x - availSize.x) / 2.0f;
+        float previewPosY = pos.y + (iconSize - availSize.y) / 2.0f;
+
+        window->DrawList->AddImage(icon, ImVec2(previewPosX, previewPosY), ImVec2(previewPosX + availSize.x, previewPosY + availSize.y));
+    }
+    else
+        window->DrawList->AddImage(icon, ImVec2(iconPosX, pos.y), ImVec2(iconPosX + iconSize, pos.y + iconSize));
+
+    window->DrawList->AddText(g.Font, g.FontSize, ImVec2(pos.x + (size.x - textSize.x) / 2.0f, pos.y + iconSize + 16), ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_Text]), label, 0, size.x);
+
+
+    float lastButtomPos = ImGui::GetItemRectMax().x;
+    float thisButtonPos = lastButtomPos + style.ItemSpacing.x + size.x; // Expected position if next button was on same line
+    if (thisButtonPos < windowSpace)
+        ImGui::SameLine();
+
+    return ret;
+}
+
 inline bool fuzzy_match_recursive(const char* pattern, const char* str, int& outScore,
         const char* strBegin, uint8_t const* srcMatches, uint8_t* matches, int maxMatches,
         int nextMatch, int& recursionCount, int recursionLimit)

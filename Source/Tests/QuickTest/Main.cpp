@@ -1,7 +1,11 @@
-#if 0
+#if 1
 
 #include <Engine/Render/Pipeline.h>
-#include <osgViewer/Viewer>
+#include <Engine/Core/Asset.h>
+#include <Engine/Core/AssetManager.h>
+#include <Engine/Component/MeshRenderer.h>
+
+#include <osgViewer/CompositeViewer>
 #include <osgDB/ReadFile>
 #include <osgGA/TrackballManipulator>
 #include <osg/MatrixTransform>
@@ -16,10 +20,11 @@
 
 #include <filesystem>
 
+using namespace xxx;
+
 int main()
 {
-    std::filesystem::path currentPath = std::filesystem::current_path();
-    const int width = 1920, height = 1080;
+    const int width = 1024, height = 768;
     osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits();
     traits->width = width; traits->height = height;
     traits->windowDecoration = true;
@@ -31,43 +36,49 @@ int main()
     gc->getState()->setUseModelViewAndProjectionUniforms(true);
     gc->getState()->setUseVertexAttributeAliasing(true);
 
-    osg::ref_ptr<osgViewer::Viewer> viewer = new osgViewer::Viewer;
-    osg::ref_ptr<osg::Group> rootGroup = new osg::Group;
-    viewer->setSceneData(rootGroup);
-    osg::ref_ptr<osg::Camera> camera = viewer->getCamera();
-    camera->setGraphicsContext(gc);
-    camera->setViewport(0, 0, width, height);
-    camera->setProjectionMatrixAsPerspective(90.0, double(width) / double(height), 0.1, 400.0);
+    Asset* asset = AssetManager::get().getAsset("Engine/TestEntity.xast");
+    asset->load();
 
-    osg::ref_ptr<xxx::Pipeline> pipeline = new xxx::Pipeline(viewer, gc);
+    osg::ref_ptr<osgViewer::CompositeViewer> viewer = new osgViewer::CompositeViewer;
+
+    osg::ref_ptr<osgViewer::View> view1 = new osgViewer::View;
+    viewer->addView(view1);
+    view1->setSceneData(dynamic_cast<Entity*>(asset->getRootObject())->getOsgNode());
+    view1->setCameraManipulator(new osgGA::TrackballManipulator);
+    view1->addEventHandler(new osgViewer::StatsHandler);
+    osg::ref_ptr<osg::Camera> camera1 = view1->getCamera();
+    camera1->setGraphicsContext(gc);
+    camera1->setViewport(0, 0, width, height);
+    camera1->setProjectionMatrixAsPerspective(90.0, double(width) / double(height), 0.1, 400.0);
+
+    osg::ref_ptr<xxx::Pipeline> pipeline1 = new xxx::Pipeline(view1, gc);
     using BufferType = xxx::Pipeline::Pass::BufferType;
-    osg::Shader* screenQuadShader = osgDB::readShaderFile(osg::Shader::VERTEX, (currentPath / "Shader/ScreenQuad.vert.glsl").string());
+    xxx::Pipeline::Pass* inputPass1 = pipeline1->addInputPass("Input1", 0xFFFFFFFF, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    inputPass1->attach(BufferType::COLOR_BUFFER0, GL_RGBA8);
+    inputPass1->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT24);
 
-    osg::ref_ptr<osg::Program> colorGradingLutProgram = new osg::Program;
-    colorGradingLutProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, (currentPath / "Shader/ColorGrading.comp.glsl").string()));
-    osg::ref_ptr<osg::Texture3D> colorGradingLutTexture = new osg::Texture3D;
-    colorGradingLutTexture->setTextureSize(32, 32, 32);
-    colorGradingLutTexture->setInternalFormat(GL_RGBA16F_ARB);
-    osg::ref_ptr<osg::BindImageTexture> colorGradingLutImage = new osg::BindImageTexture(0, colorGradingLutTexture, osg::BindImageTexture::WRITE_ONLY, GL_RGBA16F_ARB, 0, GL_TRUE);
-    osg::ref_ptr<osg::DispatchCompute> colorGradingLutDispatch = new osg::DispatchCompute(4, 4, 4);
-    colorGradingLutDispatch->getOrCreateStateSet()->setAttributeAndModes(colorGradingLutProgram);
-    colorGradingLutDispatch->getOrCreateStateSet()->setAttributeAndModes(colorGradingLutImage);
-    colorGradingLutDispatch->setCullingActive(false);
-    rootGroup->addChild(colorGradingLutDispatch);
+    osg::ref_ptr<osgViewer::View> view2 = new osgViewer::View;
+    viewer->addView(view2);
+    view2->setSceneData(dynamic_cast<Entity*>(asset->getRootObject())->getOsgNode());
+    view2->setCameraManipulator(new osgGA::TrackballManipulator);
+    view2->addEventHandler(new osgViewer::StatsHandler);
+    osg::ref_ptr<osg::Camera> camera2 = view2->getCamera();
+    camera2->setGraphicsContext(gc);
+    camera2->setViewport(0, 0, width * 2, height * 2);
+    camera2->setProjectionMatrixAsPerspective(30.0, double(width) / double(height), 0.1, 400.0);
 
-    osg::ref_ptr<xxx::Pipeline::Pass> input1Pass = pipeline->addInputPass("Input1", 0x00000001, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    input1Pass->attach(BufferType::COLOR_BUFFER, GL_RGBA8);
-    input1Pass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT24, osg::Texture::NEAREST, osg::Texture::NEAREST);
+    osg::ref_ptr<xxx::Pipeline> pipeline2 = new xxx::Pipeline(view2, gc);
+    xxx::Pipeline::Pass* inputPass2 = pipeline2->addInputPass("Input2", 0xFFFFFFFF, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    inputPass2->attach(BufferType::COLOR_BUFFER0, GL_RGBA8);
+    inputPass2->attach(BufferType::COLOR_BUFFER1, GL_RGBA8);
+    inputPass2->attach(BufferType::COLOR_BUFFER2, GL_RGBA8);
+    inputPass2->attach(BufferType::COLOR_BUFFER3, GL_RGBA8);
+    inputPass2->attach(BufferType::COLOR_BUFFER4, GL_RGBA8);
+    inputPass2->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT24);
 
-    osg::Program* displayProgram = new osg::Program;
-    displayProgram->addShader(screenQuadShader);
-    displayProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, (currentPath / "Shader/Display.frag.glsl").string()));
-    osg::ref_ptr<xxx::Pipeline::Pass> displayPass = pipeline->addDisplayPass("Display", displayProgram);
-    displayPass->applyTexture(colorGradingLutTexture, "uColorTexture", 0);
+    //osg::Shader* screenQuadShader = osgDB::readShaderFile(osg::Shader::VERTEX, (currentPath / "Shader/ScreenQuad.vert.glsl").string());
 
     viewer->setThreadingModel(osgViewer::Viewer::SingleThreaded);
-    viewer->setCameraManipulator(new osgGA::TrackballManipulator);
-    viewer->addEventHandler(new osgViewer::StatsHandler);
     viewer->setRealizeOperation(new EnableGLDebugOperation);
     viewer->realize();
     while (!viewer->done())

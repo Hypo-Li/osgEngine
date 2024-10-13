@@ -24,7 +24,7 @@ namespace xxx
             if (ea.getEventType() == osgGA::GUIEventAdapter::RELEASE &&
                 ea.getButton() == osgGA::GUIEventAdapter::LEFT_MOUSE_BUTTON)
             {
-                osgViewer::Viewer* viewer = dynamic_cast<osgViewer::Viewer*>(aa.asView());
+                osgViewer::View* view = dynamic_cast<osgViewer::View*>(aa.asView());
                 const float x = ea.getX(), y = ea.getY();
                 osg::Matrixd vpvMatrix; //Viewport * Projection * View
                 vpvMatrix.postMult(mCamera->getViewMatrix());
@@ -38,7 +38,7 @@ namespace xxx
                 osgUtil::LineSegmentIntersector* intersector = new osgUtil::LineSegmentIntersector(osgUtil::Intersector::MODEL, start, end);
 
                 osgUtil::IntersectionVisitor iv(intersector);
-                viewer->getSceneData()->accept(iv);
+                view->getSceneData()->accept(iv);
 
                 const osgUtil::LineSegmentIntersector::Intersections& intersections = intersector->getIntersections();
                 if (!intersections.empty())

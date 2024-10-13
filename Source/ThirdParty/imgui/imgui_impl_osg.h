@@ -9,7 +9,7 @@ namespace osg
 
 namespace osgViewer
 {
-	class Viewer;
+	class ViewerBase;
 }
 
 namespace osgGA
@@ -18,7 +18,7 @@ namespace osgGA
 	class GUIActionAdapter;
 }
 
-IMGUI_IMPL_API bool     ImGui_ImplOsg_Init(osgViewer::Viewer* viewer, osg::Camera* camera);
+IMGUI_IMPL_API bool     ImGui_ImplOsg_Init(osg::Camera* camera);
 //IMGUI_IMPL_API void     ImGui_ImplOsg_Shutdown();
 IMGUI_IMPL_API void     ImGui_ImplOsg_NewFrame();
 

@@ -140,9 +140,16 @@ namespace xxx
             return mView;
         }
 
-        const std::vector<osg::ref_ptr<Pass>> getPasses() const
+        uint32_t getPassCount() const
         {
-            return mPasses;
+            return mPasses.size();
+        }
+
+        Pass* getPass(uint32_t index)
+        {
+            if (index >= mPasses.size())
+                return nullptr;
+            return mPasses[index];
         }
 
         osg::GraphicsContext* getOsgGraphicsContext() const
@@ -158,7 +165,7 @@ namespace xxx
 
         Pass* addDisplayPass(const std::string& name, osg::Program* program);
 
-        void resize(int width, int height, bool resizeDisplayPass)
+        void resize(int width, int height, bool resizeDisplayPass = true)
         {
             // set new aspect
             double fovy, aspect, zNear, zFar;
