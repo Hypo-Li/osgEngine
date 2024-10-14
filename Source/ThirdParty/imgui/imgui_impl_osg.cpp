@@ -295,6 +295,7 @@ static unsigned char osgKeyToChar(int key)
 	}
 }
 
+// wantCaptureEvents means ImGui want capture events
 bool ImGui_ImplOsg_Handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa, bool wantCaptureEvents)
 {
 	ImGuiIO& io = ImGui::GetIO();

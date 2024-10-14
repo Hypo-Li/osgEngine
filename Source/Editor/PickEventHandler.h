@@ -5,7 +5,7 @@
 #include <osgUtil/LineSegmentIntersector>
 #include <osgViewer/Viewer>
 
-namespace xxx
+namespace xxx::editor
 {
     class PickEventHandler : public osgGA::GUIEventHandler
     {

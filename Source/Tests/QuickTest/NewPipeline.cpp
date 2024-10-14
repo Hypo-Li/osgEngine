@@ -1,4 +1,4 @@
-#if 0
+#if 1
 
 #include <osgViewer/Viewer>
 #include <osg/BufferObject>
@@ -260,14 +260,16 @@ public:
     {
         if (znear < zfar)
         {
-            /*double near = std::max(znear, 0.1);
+            double near = std::max(znear, 0.1);
             double far = std::min(zfar, near + 5000.0);
             projection(2, 2) = (near + far) / (near - far);
-            projection(3, 2) = 2.0f * near * far / (near - far);*/
-            double near = 0.1;
-            double far = 5000.0;
-            projection(2, 2) = (near + far) / (near - far);
             projection(3, 2) = 2.0f * near * far / (near - far);
+
+            // double near = 0.1;
+            // double far = 5000.0;
+            // projection(2, 2) = (near + far) / (near - far);
+            // projection(3, 2) = 2.0f * near * far / (near - far);
+
             return true;
         }
         return false;
@@ -276,14 +278,16 @@ public:
     {
         if (znear < zfar)
         {
-            /*double near = std::max(znear, 0.1);
+            double near = std::max(znear, 0.1);
             double far = std::min(zfar, near + 5000.0);
             projection(2, 2) = (near + far) / (near - far);
-            projection(3, 2) = 2.0f * near * far / (near - far);*/
-            double near = 0.1;
-            double far = 5000.0;
-            projection(2, 2) = (near + far) / (near - far);
             projection(3, 2) = 2.0f * near * far / (near - far);
+
+            // double near = 0.1;
+            // double far = 5000.0;
+            // projection(2, 2) = (near + far) / (near - far);
+            // projection(3, 2) = 2.0f * near * far / (near - far);
+
             return true;
         }
         return false;
@@ -416,6 +420,7 @@ int main(int argc, char** argv)
     tmsImagery->setURL(R"(C:\Users\admin\Downloads\wenhualou\tms.xml)");
     map->addLayer(tmsImagery);
     osgEarth::MapNode* mapNode = new osgEarth::MapNode(map);
+    mapNode->getTerrainOptions().setMinTileRangeFactor(3.0);
     mapNode->setNodeMask(EARTH_MASK);
     rootGroup->addChild(mapNode);
 
@@ -481,14 +486,14 @@ int main(int argc, char** argv)
     // CombineEarthAndGBuffer
     osg::Program* combineEarthAndGBufferProgram = new osg::Program;
     combineEarthAndGBufferProgram->addShader(screenQuadShader);
-    combineEarthAndGBufferProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CombineEarthAndGBuffer.frag.glsl"));
-    osg::ref_ptr<xxx::Pipeline::Pass> combineEarthAndGBufferPass = pipeline->addWorkPass("CombineEarthAndGBufferColor", combineEarthAndGBufferProgram, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    combineEarthAndGBufferPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F);
+    combineEarthAndGBufferProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CombineEarthAndGBuffer2.frag.glsl"));
+    osg::ref_ptr<xxx::Pipeline::Pass> combineEarthAndGBufferPass = pipeline->addWorkPass("CombineEarthAndGBufferColor", combineEarthAndGBufferProgram, 0);
+    combineEarthAndGBufferPass->attach(BufferType::COLOR_BUFFER0, earthPass->getBufferTexture(BufferType::COLOR_BUFFER0));
+    combineEarthAndGBufferPass->attach(BufferType::DEPTH_BUFFER, earthPass->getBufferTexture(BufferType::DEPTH_BUFFER));
     combineEarthAndGBufferPass->setAttribute(gViewDataUBB, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
-    combineEarthAndGBufferPass->applyTexture(earthPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uEarthColorTexture", 0);
-    combineEarthAndGBufferPass->applyTexture(earthPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uEarthDepthTexture", 1);
-    combineEarthAndGBufferPass->applyTexture(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uGBufferColorTexture", 2);
-    combineEarthAndGBufferPass->applyTexture(gbufferPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uGBufferDepthTexture", 3);
+    combineEarthAndGBufferPass->applyTexture(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uGBufferColorTexture", 0);
+    combineEarthAndGBufferPass->applyTexture(gbufferPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uGBufferDepthTexture", 1);
+    combineEarthAndGBufferPass->setAttribute(new osg::Depth(osg::Depth::LESS, 0.0, 1.0, false), osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
 
     // Atmosphere
     // Volumetric Cloud
@@ -517,17 +522,17 @@ int main(int argc, char** argv)
 
     osg::Program* combineColorAndDepthMsProgram = new osg::Program;
     combineColorAndDepthMsProgram->addShader(screenQuadShader);
-    combineColorAndDepthMsProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CombineColorAndDepthMs.frag.glsl"));
-    osg::ref_ptr<xxx::Pipeline::Pass> combineForwardOpaquePass = pipeline->addWorkPass("CombineForwardOpaque", combineColorAndDepthMsProgram, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    combineForwardOpaquePass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F);
+    combineColorAndDepthMsProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CombineColorAndDepthMs2.frag.glsl"));
+    osg::ref_ptr<xxx::Pipeline::Pass> combineForwardOpaquePass = pipeline->addWorkPass("CombineForwardOpaque", combineColorAndDepthMsProgram, GL_DEPTH_BUFFER_BIT);
+    combineForwardOpaquePass->attach(BufferType::COLOR_BUFFER0, combineEarthAndGBufferPass->getBufferTexture(BufferType::COLOR_BUFFER0));
     combineForwardOpaquePass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT32, false, osg::Texture::NEAREST, osg::Texture::NEAREST);
     combineForwardOpaquePass->setAttribute(new osg::Depth(osg::Depth::ALWAYS), osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
     combineForwardOpaquePass->setAttribute(gViewDataUBB, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
-    combineForwardOpaquePass->applyTexture(combineEarthAndGBufferPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorTexture", 0);
-    combineForwardOpaquePass->applyTexture(gbufferPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uDepthTexture", 1);
-    combineForwardOpaquePass->applyTexture(forwardOpaquePass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorMsTexture", 2);
-    combineForwardOpaquePass->applyTexture(forwardOpaquePass->getBufferTexture(BufferType::DEPTH_BUFFER), "uDepthMsTexture", 3);
-    combineForwardOpaquePass->applyTexture(earthPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uEarthDepthTexture", 4);
+    combineForwardOpaquePass->setMode(GL_BLEND, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+    combineForwardOpaquePass->applyTexture(gbufferPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uDepthTexture", 0);
+    combineForwardOpaquePass->applyTexture(forwardOpaquePass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorMsTexture", 1);
+    combineForwardOpaquePass->applyTexture(forwardOpaquePass->getBufferTexture(BufferType::DEPTH_BUFFER), "uDepthMsTexture", 2);
+    combineForwardOpaquePass->applyTexture(earthPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uEarthDepthTexture", 3);
 
     // 在合并ForwardOpaque时直接使用multisample texture附加到fbo会导致时间开销为原来的4倍(4xMSAA), 为了避免这种情况, 这里使用一次拷贝
     // 可以用glBlitFramebuffer替代

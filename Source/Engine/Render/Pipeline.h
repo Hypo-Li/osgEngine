@@ -152,7 +152,7 @@ namespace xxx
             return mPasses[index];
         }
 
-        osg::GraphicsContext* getOsgGraphicsContext() const
+        osg::GraphicsContext* getGraphicsContext() const
         {
             return mGraphicsContext;
         }

@@ -2,7 +2,7 @@
 
 int main()
 {
-    xxx::Editor editor;
+    xxx::editor::Editor editor;
     editor.run();
     return 0;
 }
