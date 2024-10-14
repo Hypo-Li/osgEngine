@@ -3,6 +3,7 @@
 #include <ThirdParty/imgui/imgui.h>
 #include <ThirdParty/imgui/imgui_impl_opengl3.h>
 #include <ThirdParty/imgui/imgui_impl_osg.h>
+#include <ThirdParty/imgui/ImGuizmo.h>
 
 #include <osgViewer/ViewerEventHandlers>
 
@@ -10,9 +11,9 @@ namespace xxx::editor
 {
     class ImGuiInitOperation : public osg::Operation
     {
-        const char* _glslVersion;
+        const char* mGlslVersion;
     public:
-        ImGuiInitOperation(const char* glslVersion = nullptr) : osg::Operation("ImGuiInitOperation", false), _glslVersion(glslVersion) {}
+        ImGuiInitOperation(const char* glslVersion = nullptr) : osg::Operation("ImGuiInitOperation", false), mGlslVersion(glslVersion) {}
 
         void operator()(osg::Object* object) override
         {
@@ -20,15 +21,15 @@ namespace xxx::editor
             if (!context)
                 return;
 
-            ImGui_ImplOpenGL3_Init(_glslVersion);
+            ImGui_ImplOpenGL3_Init(mGlslVersion);
         }
     };
 
 	class ImGuiHandler : public osgGA::GUIEventHandler
 	{
 	public:
-		ImGuiHandler(osg::Camera* imguiCamera) :
-            mImGuiCamera(imguiCamera)
+		ImGuiHandler(osg::Camera* imguiCamera, osg::Camera* engineCamera) :
+            mImGuiCamera(imguiCamera), mEngineCamera(engineCamera)
 		{
 			IMGUI_CHECKVERSION();
 			ImGui::CreateContext();
@@ -79,6 +80,7 @@ namespace xxx::editor
 
 	private:
         osg::ref_ptr<osg::Camera> mImGuiCamera;
+        osg::ref_ptr<osg::Camera> mEngineCamera;
 
 		class ImGuiNewFrameCallback : public osg::Camera::DrawCallback
 		{
@@ -97,9 +99,82 @@ namespace xxx::editor
 			}
 		};
 
+        static void EditTransform(const osg::Camera* camera, osg::Matrixf& matrix)
+        {
+            static ImGuizmo::OPERATION mCurrentGizmoOperation(ImGuizmo::ROTATE);
+            static ImGuizmo::MODE mCurrentGizmoMode(ImGuizmo::WORLD);
+            ImGuizmo::SetOrthographic(false);
+            ImGuizmo::SetDrawlist();
+            if (ImGui::IsKeyPressed(ImGuiKey_G))
+                mCurrentGizmoOperation = ImGuizmo::TRANSLATE;
+            if (ImGui::IsKeyPressed(ImGuiKey_R))
+                mCurrentGizmoOperation = ImGuizmo::ROTATE;
+            if (ImGui::IsKeyPressed(ImGuiKey_S)) // r Key
+                mCurrentGizmoOperation = ImGuizmo::SCALE;
+            if (ImGui::RadioButton("Translate", mCurrentGizmoOperation == ImGuizmo::TRANSLATE))
+                mCurrentGizmoOperation = ImGuizmo::TRANSLATE;
+            ImGui::SameLine();
+            if (ImGui::RadioButton("Rotate", mCurrentGizmoOperation == ImGuizmo::ROTATE))
+                mCurrentGizmoOperation = ImGuizmo::ROTATE;
+            ImGui::SameLine();
+            if (ImGui::RadioButton("Scale", mCurrentGizmoOperation == ImGuizmo::SCALE))
+                mCurrentGizmoOperation = ImGuizmo::SCALE;
+            float matrixTranslation[3], matrixRotation[3], matrixScale[3];
+            ImGuizmo::DecomposeMatrixToComponents(&matrix(0, 0), matrixTranslation, matrixRotation, matrixScale);
+            ImGui::InputFloat3("Tr", matrixTranslation);
+            ImGui::InputFloat3("Rt", matrixRotation);
+            ImGui::InputFloat3("Sc", matrixScale);
+            ImGuizmo::RecomposeMatrixFromComponents(matrixTranslation, matrixRotation, matrixScale, &matrix(0, 0));
+
+            if (mCurrentGizmoOperation != ImGuizmo::SCALE)
+            {
+                if (ImGui::RadioButton("Local", mCurrentGizmoMode == ImGuizmo::LOCAL))
+                    mCurrentGizmoMode = ImGuizmo::LOCAL;
+                ImGui::SameLine();
+                if (ImGui::RadioButton("World", mCurrentGizmoMode == ImGuizmo::WORLD))
+                    mCurrentGizmoMode = ImGuizmo::WORLD;
+            }
+            /*static bool useSnap(false);
+            ImGui::Checkbox("", &useSnap);
+            ImGui::SameLine();
+            vec_t snap;
+            switch (mCurrentGizmoOperation)
+            {
+            case ImGuizmo::TRANSLATE:
+                snap = config.mSnapTranslation;
+                ImGui::InputFloat3("Snap", &snap.x);
+                break;
+            case ImGuizmo::ROTATE:
+                snap = config.mSnapRotation;
+                ImGui::InputFloat("Angle Snap", &snap.x);
+                break;
+            case ImGuizmo::SCALE:
+                snap = config.mSnapScale;
+                ImGui::InputFloat("Scale Snap", &snap.x);
+                break;
+            }*/
+            ImGuiIO& io = ImGui::GetIO();
+            ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+            osg::Matrixf viewMatrix = camera->getViewMatrix();
+            osg::Matrixf projectionMatrix = camera->getProjectionMatrix();
+            ImGuizmo::Manipulate(&viewMatrix(0, 0), &projectionMatrix(0, 0), mCurrentGizmoOperation, mCurrentGizmoMode, &matrix(0, 0), NULL, NULL);
+        }
+
 		virtual void draw()
 		{
+            static osg::Matrixf modelMatrix;
+            //static bool initilized = false;
+            //if (!initilized)
+            //{
+            //    modelMatrix.setTrans(osg::Vec3f(1, 2, 3));
+            //    modelMatrix.makeScale(osg::Vec3f(4, 5, 6));
+            //    initilized = true;
+            //}
             WindowManager::get().draw();
+            //ImGui::Begin("Test");
+            //EditTransform(mEngineCamera, modelMatrix);
+            //ImGui::End();
+
 		}
 	};
 }

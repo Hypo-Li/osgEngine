@@ -1,5 +1,4 @@
 #pragma once
-#define IMGUI_DEFINE_MATH_OPERATORS
 #include "ThirdParty/imgui/imgui.h"
 
 namespace xxx::editor

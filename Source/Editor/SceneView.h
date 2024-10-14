@@ -1,7 +1,10 @@
 #pragma once
 #include "Window.h"
+#include <Engine/Core/Context.h>
+#include <ThirdParty/imgui/ImGuizmo.h>
 
 #include <osg/Texture2D>
+#include <osg/Camera>
 
 #include <functional>
 #include <iostream>
@@ -11,9 +14,9 @@ namespace xxx::editor
     class SceneView : public Window
     {
     public:
-        SceneView(const std::string& title, osg::Texture2D* sceneColorTexture, const std::function<void(int, int)>& resizeCallback, const std::function<void(void)>& getFocusCallback) :
-            mTitle(title),
+        SceneView(osg::Camera* camera, osg::Texture2D* sceneColorTexture, const std::function<void(int, int)>& resizeCallback, const std::function<void(void)>& getFocusCallback) :
             mViewport(new osg::Viewport),
+            mCamera(camera),
             mSceneColorTexture(sceneColorTexture),
             mResizeCallback(resizeCallback),
             mGetFocusCallback(getFocusCallback)
@@ -24,7 +27,7 @@ namespace xxx::editor
         virtual void draw() override
         {
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0, 0.0));
-            if (ImGui::Begin(mTitle.c_str()))
+            if (ImGui::Begin("Scene View"))
             {
                 ImGuiIO& io = ImGui::GetIO();
                 mIsFocused = ImGui::IsWindowFocused();
@@ -54,6 +57,37 @@ namespace xxx::editor
 
                 if (mIsFocused && mIsHovered)
                     mGetFocusCallback();
+
+                Context& context = Context::get();
+                Entity* activedEntity = context.getActivedEntity();
+                if (activedEntity)
+                {
+                    static ImGuizmo::OPERATION mCurrentGizmoOperation(ImGuizmo::ROTATE);
+                    static ImGuizmo::MODE mCurrentGizmoMode(ImGuizmo::WORLD);
+                    ImGuizmo::SetOrthographic(false);
+                    ImGuizmo::SetDrawlist();
+
+                    if (ImGui::IsKeyPressed(ImGuiKey_G))
+                        mCurrentGizmoOperation = ImGuizmo::TRANSLATE;
+                    if (ImGui::IsKeyPressed(ImGuiKey_R))
+                        mCurrentGizmoOperation = ImGuizmo::ROTATE;
+                    if (ImGui::IsKeyPressed(ImGuiKey_S))
+                        mCurrentGizmoOperation = ImGuizmo::SCALE;
+                    if (ImGui::IsKeyPressed(ImGuiKey_Q))
+                        mCurrentGizmoMode = mCurrentGizmoMode == ImGuizmo::WORLD ? ImGuizmo::LOCAL : ImGuizmo::WORLD;
+
+                    ImGuiIO& io = ImGui::GetIO();
+
+                    ImGuizmo::SetRect(mViewport->x(), io.DisplaySize.y - (mViewport->y() + mViewport->height()), mViewport->width(), mViewport->height());
+                    osg::Matrixf viewMatrix = mCamera->getViewMatrix();
+                    osg::Matrixf projectionMatrix = mCamera->getProjectionMatrix();
+                    osg::Matrixf modelMatrix = activedEntity->getMatrix();
+                    if (ImGuizmo::Manipulate(&viewMatrix(0, 0), &projectionMatrix(0, 0), mCurrentGizmoOperation, mCurrentGizmoMode, &modelMatrix(0, 0), NULL, NULL))
+                    {
+                        activedEntity->setMatrix(modelMatrix);
+                    }
+                }
+                
             }
             ImGui::End();
             ImGui::PopStyleVar();
@@ -70,8 +104,8 @@ namespace xxx::editor
         }
 
     protected:
-        std::string mTitle;
         osg::ref_ptr<osg::Viewport> mViewport;
+        osg::ref_ptr<osg::Camera> mCamera;
         osg::ref_ptr<osg::Texture2D> mSceneColorTexture;
         std::function<void(int, int)> mResizeCallback;
         std::function<void(void)> mGetFocusCallback;

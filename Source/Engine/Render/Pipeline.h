@@ -25,7 +25,6 @@ namespace xxx
     public:
         Pipeline(osg::View* view, osg::GraphicsContext* graphicsContext) : mView(view), mGraphicsContext(graphicsContext)
         {
-            mGraphicsContext->setResizedCallback(new ResizedCallback(this));
             mView->getCamera()->setGraphicsContext(nullptr);
         }
         virtual ~Pipeline() = default;
@@ -264,26 +263,5 @@ namespace xxx
             geometry->setCullingActive(false);
             return geometry;
         }
-
-        class ResizedCallback : public osg::GraphicsContext::ResizedCallback
-        {
-            osg::ref_ptr<xxx::Pipeline> mPipeline;
-            int mWidth, mHeight;
-        public:
-            ResizedCallback(xxx::Pipeline* pipeline) : mPipeline(pipeline)
-            {
-                osg::Viewport* viewport = pipeline->getView()->getCamera()->getViewport();
-                mWidth = viewport->width();
-                mHeight = viewport->height();
-            }
-
-            virtual void resizedImplementation(osg::GraphicsContext* gc, int x, int y, int width, int height)
-            {
-                if ((width == mWidth && height == mHeight) || (width == 1 && height == 1))
-                    return;
-                mWidth = width, mHeight = height;
-                mPipeline->resize(width, height, true);
-            }
-        };
     };
 }

@@ -127,6 +127,27 @@ namespace xxx
             mRenderingData.viewDataUBB = new osg::UniformBufferBinding(0, viewDataBuffer, 0, sizeof(ViewData));
         }
 
+        class ResizedCallback : public osg::GraphicsContext::ResizedCallback
+        {
+            osg::ref_ptr<xxx::Pipeline> mPipeline;
+            int mWidth, mHeight;
+        public:
+            ResizedCallback(xxx::Pipeline* pipeline) : mPipeline(pipeline)
+            {
+                osg::Viewport* viewport = pipeline->getView()->getCamera()->getViewport();
+                mWidth = viewport->width();
+                mHeight = viewport->height();
+            }
+
+            virtual void resizedImplementation(osg::GraphicsContext* gc, int x, int y, int width, int height)
+            {
+                if ((width == mWidth && height == mHeight) || (width == 1 && height == 1))
+                    return;
+                mWidth = width, mHeight = height;
+                mPipeline->resize(width, height, true);
+            }
+        };
+
         void initPipeline(const EngineSetupConfig& setupConfig)
         {
             osg::ref_ptr<osg::GraphicsContext> graphicsContext = createGraphicsContext(setupConfig.width, setupConfig.height, setupConfig.glContextVersion);
@@ -136,6 +157,7 @@ namespace xxx
             camera->setProjectionMatrixAsPerspective(90.0, double(setupConfig.width) / double(setupConfig.height), 0.1, 400.0);
 
             mPipeline = new Pipeline(mView, graphicsContext);
+            graphicsContext->setResizedCallback(new ResizedCallback(mPipeline));
 
             using BufferType = Pipeline::Pass::BufferType;
             Pipeline::Pass* gbufferPass = mPipeline->addInputPass("GBuffer", 0x00000001, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

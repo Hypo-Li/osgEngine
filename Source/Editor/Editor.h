@@ -43,7 +43,7 @@ namespace xxx::editor
             WindowManager& wm = WindowManager::get();
             DockSpace* dockSpace = wm.createWindow<DockSpace>();
             SceneView* sceneView = wm.createWindow<SceneView>(
-                "Scene View",
+                mEngine->getView()->getCamera(),
                 sceneColorTexture,
                 [this](int w, int h) {mEngine->getPipeline()->resize(w, h, false); },
                 [this]() { if (mViewer->getViewWithFocus() != mEngine->getView()) mViewer->setCameraWithFocus(mEngine->getView()->getCamera()); }
@@ -52,23 +52,26 @@ namespace xxx::editor
             AssetBrowser* assetBrowser = wm.createWindow<AssetBrowser>();
 
             osgViewer::View* engineView = mEngine->getView();
-            engineView->addEventHandler(new ImGuiHandler(imguiCamera));
+            ImGuiHandler* imguiHandler = new ImGuiHandler(imguiCamera, engineView->getCamera());
+            engineView->addEventHandler(imguiHandler);
             engineView->addEventHandler(new PickEventHandler(engineView->getCamera(), sceneView->getViewport()));
 
             mViewer->addView(engineView);
 
-            mSimpleView = new osgViewer::View;
+            
+            /*mSimpleView = new osgViewer::View;
             mSimpleView->setSceneData(mEngine->getView()->getSceneData());
             osg::Camera* camera = mSimpleView->getCamera();
             camera->setViewport(0, 0, 128, 128);
             camera->setProjectionMatrixAsPerspective(90.0, 1.0, 0.1, 400.0);
-            camera->setAllowEventFocus(true);
 
             mSimplePipeline = new Pipeline(mSimpleView, mEngine->getPipeline()->getGraphicsContext());
             Pipeline::Pass* gbufferPass = mSimplePipeline->addInputPass("GBuffer", 0x00000001, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             using BufferType = Pipeline::Pass::BufferType;
             gbufferPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F);
             gbufferPass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT24);
+
+            mSimpleView->addEventHandler(imguiHandler);
 
             mViewer->addView(mSimpleView);
 
@@ -78,9 +81,8 @@ namespace xxx::editor
                 [this](int w, int h) {mSimplePipeline->resize(w, h, false); },
                 [this]() { if (mViewer->getViewWithFocus() != mSimpleView) mViewer->setCameraWithFocus(mSimpleView->getCamera()); }
             );
-
-            mSimpleView->setCameraManipulator(new osgGA::TrackballManipulator);
-
+            
+            mSimpleView->setCameraManipulator(new osgGA::TrackballManipulator);*/
         }
 
         void run()
