@@ -64,7 +64,8 @@ namespace xxx::editor
                 {
                     static ImGuizmo::OPERATION mCurrentGizmoOperation(ImGuizmo::ROTATE);
                     static ImGuizmo::MODE mCurrentGizmoMode(ImGuizmo::WORLD);
-                    ImGuizmo::SetOrthographic(false);
+                    ImGuizmo::SetGizmoSizeClipSpace(0.2f);
+                    ImGuizmo::AllowAxisFlip(false);
                     ImGuizmo::SetDrawlist();
 
                     if (ImGui::IsKeyPressed(ImGuiKey_G))
@@ -88,6 +89,7 @@ namespace xxx::editor
                     {
                         activedEntity->setMatrix(modelMatrix);
                     }
+                    mUseGizmo = ImGuizmo::IsUsing();
                 }
                 
             }
@@ -97,7 +99,7 @@ namespace xxx::editor
 
         virtual bool isWantCaptureEvents() const override
         {
-            return mIsFocused && mIsHovered;
+            return mIsFocused && mIsHovered && !mUseGizmo;
         }
 
         osg::Viewport* getViewport()
@@ -113,5 +115,6 @@ namespace xxx::editor
         std::function<void(void)> mGetFocusCallback;
         bool mIsFocused = false;
         bool mIsHovered = false;
+        bool mUseGizmo = false;
     };
 }
