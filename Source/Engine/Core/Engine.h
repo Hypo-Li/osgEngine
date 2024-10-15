@@ -33,36 +33,29 @@ namespace xxx
         osg::Matrixf inverseProjectionMatrix;
     };
 
-    struct RenderingData
-    {
-        ViewData viewData;
-        osg::ref_ptr<osg::UniformBufferBinding> viewDataUBB;
-    };
-
     class GBufferPassPreDrawCallback : public osg::Camera::DrawCallback
     {
     public:
-        GBufferPassPreDrawCallback(RenderingData& renderingData) :
-            mRenderingData(renderingData)
+        GBufferPassPreDrawCallback(osg::UniformBufferBinding* viewDataUBB) :
+            mViewDataUBB(viewDataUBB)
         {}
 
         virtual void operator () (osg::RenderInfo& renderInfo) const
         {
-            ViewData& viewData = mRenderingData.viewData;
-            osg::UniformBufferBinding* viewDataUBB = mRenderingData.viewDataUBB;
+            osg::FloatArray* buffer = static_cast<osg::FloatArray*>(mViewDataUBB->getBufferData());
+            ViewData& viewData = *(ViewData*)(buffer->getDataPointer());
 
             viewData.viewMatrix = renderInfo.getCurrentCamera()->getViewMatrix();
             viewData.inverseViewMatrix = renderInfo.getCurrentCamera()->getInverseViewMatrix();
             viewData.projectionMatrix = renderInfo.getCurrentCamera()->getProjectionMatrix();
-            viewData.inverseProjectionMatrix = osg::Matrixf::inverse(mRenderingData.viewData.projectionMatrix);
+            viewData.inverseProjectionMatrix = osg::Matrixf::inverse(viewData.projectionMatrix);
 
-            osg::FloatArray* buffer = static_cast<osg::FloatArray*>(viewDataUBB->getBufferData());
             buffer->assign((float*)&viewData, (float*)(&viewData + 1));
             buffer->dirty();
         }
 
     private:
-        RenderingData& mRenderingData;
+        osg::ref_ptr<osg::UniformBufferBinding> mViewDataUBB;
     };
 
     class Engine
@@ -95,7 +88,7 @@ namespace xxx
     private:
         osg::ref_ptr<osgViewer::View> mView;
         osg::ref_ptr<Pipeline> mPipeline;
-        RenderingData mRenderingData;
+        osg::ref_ptr<osg::UniformBufferBinding> mViewDataUBB;
 
         static osg::GraphicsContext* createGraphicsContext(int width, int height, const std::string& glContextVersion)
         {
@@ -119,12 +112,10 @@ namespace xxx
 
         void initRenderingData()
         {
-            ViewData& viewData = mRenderingData.viewData;
-
-            osg::ref_ptr<osg::FloatArray> viewDataBuffer = new osg::FloatArray((float*)&viewData, (float*)(&viewData + 1));
+            osg::ref_ptr<osg::FloatArray> viewDataBuffer = new osg::FloatArray(sizeof(ViewData) / sizeof(float));
             osg::ref_ptr<osg::UniformBufferObject> viewDataUBO = new osg::UniformBufferObject;
             viewDataBuffer->setBufferObject(viewDataUBO);
-            mRenderingData.viewDataUBB = new osg::UniformBufferBinding(0, viewDataBuffer, 0, sizeof(ViewData));
+            mViewDataUBB = new osg::UniformBufferBinding(0, viewDataBuffer, 0, sizeof(ViewData));
         }
 
         class ResizedCallback : public osg::GraphicsContext::ResizedCallback
@@ -167,7 +158,7 @@ namespace xxx
             gbufferPass->attach(BufferType::COLOR_BUFFER3, GL_RGBA8);       // GBufferC (RGB: BaseColor, A: AO)
             gbufferPass->attach(BufferType::COLOR_BUFFER4, GL_RGBA8);       // GBufferD (RGBA: Custom Data)
             gbufferPass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT, false, osg::Texture::NEAREST, osg::Texture::NEAREST);
-            gbufferPass->getCamera()->addPreDrawCallback(new GBufferPassPreDrawCallback(mRenderingData));
+            gbufferPass->getCamera()->addPreDrawCallback(new GBufferPassPreDrawCallback(mViewDataUBB));
 
             osg::Shader* screenQuadShader = osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Common/ScreenQuad.vert.glsl");
 
@@ -183,7 +174,7 @@ namespace xxx
             lightingPass->applyTexture(gbufferPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uDepthTexture", 4);
             lightingPass->setMode(GL_BLEND, osg::StateAttribute::ON);
             lightingPass->setAttribute(new osg::BlendFunc(GL_ONE, GL_SRC_ALPHA));
-            lightingPass->setAttribute(mRenderingData.viewDataUBB);
+            lightingPass->setAttribute(mViewDataUBB);
 
             osg::Program* emptyProgram = new osg::Program;
             emptyProgram->addShader(screenQuadShader);

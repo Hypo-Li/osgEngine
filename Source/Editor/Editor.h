@@ -6,6 +6,7 @@
 #include "WindowManager.h"
 #include "ImGuiHandler.h"
 #include "PickEventHandler.h"
+#include "ControllerManipulator.h"
 #include <Engine/Core/Engine.h>
 
 #include <osgViewer/CompositeViewer>
@@ -52,9 +53,10 @@ namespace xxx::editor
             AssetBrowser* assetBrowser = wm.createWindow<AssetBrowser>();
 
             osgViewer::View* engineView = mEngine->getView();
-            ImGuiHandler* imguiHandler = new ImGuiHandler(imguiCamera, engineView->getCamera());
+            ImGuiHandler* imguiHandler = new ImGuiHandler(imguiCamera);
             engineView->addEventHandler(imguiHandler);
             engineView->addEventHandler(new PickEventHandler(engineView->getCamera(), sceneView->getViewport()));
+            engineView->setCameraManipulator(new ControllerManipulator(0.05));
 
             mViewer->addView(engineView);
 

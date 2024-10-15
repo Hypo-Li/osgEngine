@@ -20,6 +20,12 @@ namespace xxx
 
     class Prefab;
 
+    enum class TransformMode
+    {
+        Local,
+        World,
+    };
+
 	class Entity : public Object
 	{
         friend class Prefab;
@@ -134,25 +140,43 @@ namespace xxx
 
         void clearComponents();
 
-        void setPosition(osg::Vec3d position)
+        void setTranslation(osg::Vec3d translation)
         {
-            mPosition = position;
-            updateTransform();
+            mTranslation = translation;
+            osg::Matrix matrix = mOsgEntityNode->getMatrix();
+            matrix.setTrans(mTranslation);
+            mOsgEntityNode->setMatrix(matrix);
         }
 
-        osg::Vec3d getPosition() const
+        void translate(osg::Vec3 delta, TransformMode transformMode)
         {
-            return mPosition;
+            if (transformMode == TransformMode::Local)
+            {
+                setTranslation(mTranslation += delta);
+            }
+        }
+
+        osg::Vec3d getTranslation() const
+        {
+            return mTranslation;
         }
 
         void setRotation(osg::Vec3d rotation)
         {
-            mRotation = osg::Vec3d(
-                std::fmod(rotation.x() + 360.0, 360.0),
-                std::fmod(rotation.y() + 360.0, 360.0),
-                std::fmod(rotation.z() + 360.0, 360.0)
+            mRotation = rotation;
+            osg::Quat quat(
+                osg::DegreesToRadians(mRotation.x()), osg::Vec3d(1, 0, 0),
+                osg::DegreesToRadians(mRotation.y()), osg::Vec3d(0, 1, 0),
+                osg::DegreesToRadians(mRotation.z()), osg::Vec3d(0, 0, 1)
             );
-            updateTransform();
+            osg::Matrix matrix = mOsgEntityNode->getMatrix();
+            matrix.setRotate(quat);
+            mOsgEntityNode->setMatrix(matrix);
+        }
+
+        void rotate(osg::Vec3d delta, TransformMode transformMode)
+        {
+            
         }
 
         osg::Vec3d getRotation()
@@ -163,7 +187,20 @@ namespace xxx
         void setScale(osg::Vec3d scale)
         {
             mScale = scale;
-            updateTransform();
+            osg::Matrix matrix = mOsgEntityNode->getMatrix();
+            osg::Vec4d* vecs = reinterpret_cast<osg::Vec4d*>(matrix.ptr());
+            vecs[0].normalize();
+            vecs[1].normalize();
+            vecs[2].normalize();
+            vecs[0] *= mScale.x();
+            vecs[1] *= mScale.y();
+            vecs[2] *= mScale.z();
+            mOsgEntityNode->setMatrix(matrix);
+        }
+
+        void scale(osg::Vec3d delta)
+        {
+
         }
 
         osg::Vec3d getScale() const
@@ -173,6 +210,21 @@ namespace xxx
 
         void setMatrix(const osg::Matrixd& matrix)
         {
+            osg::Matrixd mat = matrix;
+            osg::Vec4d* vecs = reinterpret_cast<osg::Vec4d*>(mat.ptr());
+
+            mScale.x() = vecs[0].normalize();
+            mScale.y() = vecs[1].normalize();
+            mScale.z() = vecs[2].normalize();
+
+            mRotation.x() = osg::RadiansToDegrees(std::atan2(mat(1, 2), mat(2, 2)));
+            mRotation.y() = osg::RadiansToDegrees(std::atan2(-mat(0, 2), std::sqrt(mat(1, 2) * mat(1, 2) + mat(2, 2) * mat(2, 2))));
+            mRotation.z() = osg::RadiansToDegrees(std::atan2(mat(0, 1), mat(0, 0)));
+
+            mTranslation.x() = vecs[3].x();
+            mTranslation.y() = vecs[3].y();
+            mTranslation.z() = vecs[3].z();
+
             mOsgEntityNode->setMatrix(matrix);
         }
 
@@ -181,47 +233,27 @@ namespace xxx
             return mOsgEntityNode->getMatrix();
         }
 
-        /*osg::Matrixd getWorldToLocalMatrix()
+        osg::Matrixd getWorldToLocalMatrix()
         {
-            osg::NodePath nodePath = this->getParentalNodePaths()[0];
-            for (osg::NodePath::const_iterator itr = nodePath.begin(); itr != nodePath.end(); itr++)
-            {
-                Entity* entity = castNodeTo<Entity>(*itr);
-                if (entity)
-                    entity->updateMatrix();
-            }
-            return osg::computeWorldToLocal(nodePath);
+            return osg::computeWorldToLocal(mOsgEntityNode->getParentalNodePaths()[0]);
         }
 
         osg::Matrixd getLocalToWorldMatrix()
         {
-            osg::NodePath nodePath = this->getParentalNodePaths()[0];
-            return osg::computeLocalToWorld(nodePath);
-        }*/
+            return osg::computeLocalToWorld(mOsgEntityNode->getParentalNodePaths()[0]);
+        }
 
         void updateTransform()
         {
-            double halfRoll = osg::DegreesToRadians(mRotation.x()) * 0.5;
-            double halfPitch = osg::DegreesToRadians(mRotation.y()) * 0.5;
-            double halfYaw = osg::DegreesToRadians(mRotation.z()) * 0.5;
-            double cr = std::cos(halfRoll);
-            double sr = std::sin(halfRoll);
-            double cp = std::cos(halfPitch);
-            double sp = std::sin(halfPitch);
-            double cy = std::cos(halfYaw);
-            double sy = std::sin(halfYaw);
-
-            osg::Quat q(
-                cy * cp * sr - sy * sp * cr, // x
-                sy * cp * sr + cy * sp * cr, // y
-                sy * cp * cr - cy * sp * sr, // z
-                cy * cp * cr + sy * sp * sr  // w
+            osg::Quat quat(
+                osg::DegreesToRadians(mRotation.x()), osg::Vec3d(1, 0, 0),
+                osg::DegreesToRadians(mRotation.y()), osg::Vec3d(0, 1, 0),
+                osg::DegreesToRadians(mRotation.z()), osg::Vec3d(0, 0, 1)
             );
-
             mOsgEntityNode->setMatrix(
                 osg::Matrixd::scale(mScale) *
-                osg::Matrixd::rotate(q) *
-                osg::Matrixd::translate(mPosition)
+                osg::Matrixd::rotate(quat) *
+                osg::Matrixd::translate(mTranslation)
             );
         }
 
@@ -232,7 +264,7 @@ namespace xxx
 		std::vector<osg::ref_ptr<Entity>> mChildren;
         std::vector<osg::ref_ptr<Component>> mComponents;
 
-        osg::Vec3d mPosition = osg::Vec3d(0, 0, 0);
+        osg::Vec3d mTranslation = osg::Vec3d(0, 0, 0);
         osg::Vec3d mRotation = osg::Vec3d(0, 0, 0);
         osg::Vec3d mScale = osg::Vec3d(1, 1, 1);
 

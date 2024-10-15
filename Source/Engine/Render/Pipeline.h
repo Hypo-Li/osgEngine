@@ -91,6 +91,11 @@ namespace xxx
                 mCamera->attach(buffer, texture);
             }
 
+            void detach(BufferType buffer)
+            {
+                mCamera->detach(buffer);
+            }
+
             osg::Texture* getBufferTexture(BufferType buffer)
             {
                 return mCamera->getBufferAttachmentMap().at(buffer)._texture.get();
@@ -163,6 +168,18 @@ namespace xxx
         Pass* addWorkPass(const std::string& name, osg::Program* program, GLbitfield clearMask, bool fixedSize = false, osg::Vec2 sizeScale = osg::Vec2(1.0, 1.0));
 
         Pass* addDisplayPass(const std::string& name, osg::Program* program);
+
+        void setPassEnable(const std::string& name, bool enable)
+        {
+            for (Pass* pass : mPasses)
+            {
+                if (pass->getCamera()->getName() == name)
+                {
+                    pass->getCamera()->setNodeMask(enable ? 0xFFFFFFFF : 0);
+                    return;
+                }
+            }
+        }
 
         void resize(int width, int height, bool resizeDisplayPass = true)
         {

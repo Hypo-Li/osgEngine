@@ -96,6 +96,14 @@ namespace xxx
             }
         }
 
+        Parameters::const_iterator removeParameter(const std::string& name)
+        {
+            auto findResult = mParameters.find(name);
+            if (findResult != mParameters.end())
+                return mParameters.erase(findResult);
+            return mParameters.end();
+        }
+
         const Parameters& getParameters() const
         {
             return mParameters;

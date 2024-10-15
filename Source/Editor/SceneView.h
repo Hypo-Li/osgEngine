@@ -73,8 +73,10 @@ namespace xxx::editor
                         mCurrentGizmoOperation = ImGuizmo::ROTATE;
                     if (ImGui::IsKeyPressed(ImGuiKey_S))
                         mCurrentGizmoOperation = ImGuizmo::SCALE;
-                    if (ImGui::IsKeyPressed(ImGuiKey_Q))
-                        mCurrentGizmoMode = mCurrentGizmoMode == ImGuizmo::WORLD ? ImGuizmo::LOCAL : ImGuizmo::WORLD;
+                    if (ImGui::IsKeyPressed(ImGuiKey_L))
+                        mCurrentGizmoMode = ImGuizmo::LOCAL;
+                    if (ImGui::IsKeyPressed(ImGuiKey_W))
+                        mCurrentGizmoMode = ImGuizmo::WORLD;
 
                     ImGuiIO& io = ImGui::GetIO();
 
@@ -82,7 +84,7 @@ namespace xxx::editor
                     osg::Matrixf viewMatrix = mCamera->getViewMatrix();
                     osg::Matrixf projectionMatrix = mCamera->getProjectionMatrix();
                     osg::Matrixf modelMatrix = activedEntity->getMatrix();
-                    if (ImGuizmo::Manipulate(&viewMatrix(0, 0), &projectionMatrix(0, 0), mCurrentGizmoOperation, mCurrentGizmoMode, &modelMatrix(0, 0), NULL, NULL))
+                    if (ImGuizmo::Manipulate(viewMatrix.ptr(), projectionMatrix.ptr(), mCurrentGizmoOperation, mCurrentGizmoOperation == ImGuizmo::SCALE ? ImGuizmo::LOCAL : mCurrentGizmoMode, modelMatrix.ptr()))
                     {
                         activedEntity->setMatrix(modelMatrix);
                     }

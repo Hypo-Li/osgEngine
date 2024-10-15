@@ -19,24 +19,36 @@ namespace xxx::editor
                     ImGui::Text(activedEntity->getName().c_str());
                     if (ImGui::CollapsingHeader("Transform"))
                     {
-                        static osg::Vec3d entityPosition;
-                        static osg::Vec3d entityRotation;
-                        static osg::Vec3d entityScale;
-                        entityPosition = activedEntity->getPosition();
-                        entityRotation = activedEntity->getRotation();
-                        entityScale = activedEntity->getScale();
-                        if (ImGui::DragScalarN("Position", ImGuiDataType_Double, &entityPosition.x(), 3, 0.01))
+                        static osg::Vec3d translation;
+                        static osg::Vec3d rotation;
+                        static osg::Vec3d scale;
+                        translation = activedEntity->getTranslation();
+                        rotation = activedEntity->getRotation();
+                        scale = activedEntity->getScale();
+                        if (ImGui::DragScalarN("Position", ImGuiDataType_Double, &translation.x(), 3, 0.01))
                         {
-                            activedEntity->setPosition(entityPosition);
+                            activedEntity->setTranslation(translation);
                         }
-                        if (ImGui::DragScalarN("Rotation", ImGuiDataType_Double, &entityRotation.x(), 3))
+                        if (ImGui::DragScalarN("Rotation", ImGuiDataType_Double, &rotation.x(), 3))
                         {
-                            activedEntity->setRotation(entityRotation);
+                            activedEntity->setRotation(rotation);
                         }
-                        if (ImGui::DragScalarN("Scale", ImGuiDataType_Double, &entityScale.x(), 3, 0.01))
+                        if (ImGui::DragScalarN("Scale", ImGuiDataType_Double, &scale.x(), 3, 0.01))
                         {
-                            activedEntity->setScale(entityScale);
+                            activedEntity->setScale(scale);
                         }
+
+                       /* osg::Matrixf matrix = activedEntity->getMatrix();
+                        osg::Vec3f translation, rotation, scale;
+                        ImGuizmo::DecomposeMatrixToComponents(matrix.ptr(), translation.ptr(), rotation.ptr(), scale.ptr());
+                        bool modified = ImGui::DragFloat3("Translation", translation.ptr());
+                        modified |= ImGui::DragFloat3("Rotation", rotation.ptr());
+                        modified |= ImGui::DragFloat3("Scale", scale.ptr());
+                        if (modified)
+                        {
+                            ImGuizmo::RecomposeMatrixFromComponents(translation.ptr(), rotation.ptr(), scale.ptr(), matrix.ptr());
+                            activedEntity->setMatrix(matrix);
+                        }*/
                     }
                     uint32_t componentsCount = activedEntity->getComponentsCount();
                     for (uint32_t i = 0; i < componentsCount; ++i)

@@ -2,4 +2,4 @@ add_library (
     Component
     "MeshRenderer.h"
     "MeshRenderer.cpp"
- "InstancedMeshRenderer.h")
+ "InstancedMeshRenderer.h" "Atmosphere.h" "Light.h")

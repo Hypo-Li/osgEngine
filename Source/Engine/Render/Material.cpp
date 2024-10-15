@@ -89,19 +89,27 @@ namespace xxx
         }
         mOsgStateSet->setAttribute(program, osg::StateAttribute::ON);
 
+        std::set<std::string> shaderParamNames;
         // set parameters and add uniforms
         for (const auto& shaderParam : shaderParameters)
         {
+            shaderParamNames.insert(shaderParam.first);
+
             bool materialParamEnable = false;
             auto materialParamIt = mParameters.find(shaderParam.first);
             if (materialParamIt == mParameters.end() ||
                 (materialParamIt != mParameters.end() && materialParamIt->second.first.index() != shaderParam.second.index()))
             {
+                // 原材质参数中没有这个参数 或 有该参数但类型不同
                 mParameters[shaderParam.first] = std::make_pair(shaderParam.second, false);
             }
             else
             {
+                // 继承原材质参数的是否应用属性
                 materialParamEnable = materialParamIt->second.second;
+                // 如果未应用, 更新默认值
+                if (!materialParamEnable)
+                    materialParamIt->second.first = shaderParam.second;
             }
 
             std::string uniformName = "u" + shaderParam.first;
@@ -138,6 +146,15 @@ namespace xxx
                 break;
             }
             mOsgStateSet->addUniform(uniform, osg::StateAttribute::ON);
+        }
+
+        // remove useless parameter
+        for (auto materialParamIt = mParameters.begin(); materialParamIt != mParameters.end();)
+        {
+            if (!shaderParamNames.count(materialParamIt->first))
+                materialParamIt = mParameters.erase(materialParamIt);
+            else
+                ++materialParamIt;
         }
     }
 
