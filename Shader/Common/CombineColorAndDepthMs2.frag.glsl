@@ -70,7 +70,6 @@ void main()
     vec4 depthMs = vec4(depthMs0, depthMs1, depthMs2, depthMs3);
     vec4 distMs = convertDepthToDistance(depthMs, vec4(uForwardOpaqueNearFar.x), vec4(uForwardOpaqueNearFar.y));
 
-    // 当depthMs为1时,
     vec4 alphas = mix(step(distMs, vec4(dist)), vec4(0), equal(depthMs, vec4(1.0)));
     vec4 outColor = 0.25 * vec4(
 		alphas.x * colorMs0.rgb +

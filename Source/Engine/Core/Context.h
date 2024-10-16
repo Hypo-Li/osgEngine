@@ -1,6 +1,7 @@
 #pragma once
 #include <Engine/Core/Entity.h>
 #include <osg/ref_ptr>
+#include <osg/GraphicsContext>
 #include <filesystem>
 namespace xxx
 {
@@ -32,6 +33,16 @@ namespace xxx
         {
             static Context context;
             return context;
+        }
+
+        void setGraphicsContext(osg::GraphicsContext* gc)
+        {
+            mGraphicsContext = gc;
+        }
+
+        osg::GraphicsContext* getGraphicsContext()
+        {
+            return mGraphicsContext;
         }
 
         const std::filesystem::path& getEnginePath() const
@@ -106,7 +117,8 @@ namespace xxx
         }*/
 
     private:
-        
+        osg::ref_ptr<osg::GraphicsContext> mGraphicsContext;
+
         // Assets search paths
         std::filesystem::path mEnginePath;
         std::filesystem::path mProjectPath;

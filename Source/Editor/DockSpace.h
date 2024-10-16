@@ -6,6 +6,11 @@ namespace xxx::editor
     class DockSpace : public Window
     {
     public:
+        DockSpace() : Window("DockSpace")
+        {
+
+        }
+
         virtual void draw() override
         {
             static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
@@ -22,12 +27,12 @@ namespace xxx::editor
             window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
             window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
-            ImGui::Begin("DockSpace", nullptr, window_flags);
+            ImGui::Begin(mTitle.c_str(), nullptr, window_flags);
             ImGui::PopStyleVar(3);
             ImGuiIO& io = ImGui::GetIO();
             if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
             {
-                ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
+                ImGuiID dockspace_id = ImGui::GetID(mTitle.c_str());
                 ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
             }
             if (ImGui::BeginMenuBar())

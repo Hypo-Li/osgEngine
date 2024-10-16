@@ -38,6 +38,8 @@ namespace xxx::editor
                 window->draw();
         }
 
+
+
     protected:
         std::vector<Window*> mWindows;
     };

@@ -15,5 +15,7 @@ namespace xxx
         REFLECT_CLASS(DirectionalLight)
     public:
 
+    protected:
+        bool mIsSunLight = true;
     };
 }

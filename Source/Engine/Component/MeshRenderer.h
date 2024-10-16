@@ -45,13 +45,23 @@ namespace xxx
             syncWithMesh();
         }
 
-        void syncWithMesh()
+        Mesh* getMesh()
+        {
+            return mMesh;
+        }
+
+        size_t getSubmeshCount()
+        {
+            return mOsgGeometries.size();
+        }
+
+        virtual void syncWithMesh()
         {
             if (!mMesh)
                 return;
 
             mOsgGeometries = mMesh->generateGeometries();
-            mMaterials.resize(mOsgGeometries.size());
+            mOverlayMaterials.resize(mOsgGeometries.size());
 
             for (uint32_t i = 0; i < mOsgGeometries.size(); ++i)
             {
@@ -65,31 +75,21 @@ namespace xxx
             if (index >= mOsgGeometries.size())
                 return;
 
-            mMaterials[index] = material;
+            mOverlayMaterials[index] = material;
             mOsgGeometries[index]->setStateSet(material->getOsgStateSet());
             mOsgGeometries[index]->setNodeMask(material->getOsgNodeMask());
-        }
-
-        Mesh* getMesh()
-        {
-            return mMesh;
-        }
-
-        size_t getSubmeshesCount()
-        {
-            return mOsgGeometries.size();
         }
 
         Material* getMaterial(uint32_t index)
         {
             if (index >= mOsgGeometries.size())
                 return nullptr;
-            return mMaterials[index] ? mMaterials[index] : mMesh->getDefaultMaterial(index);
+            return mOverlayMaterials[index] ? mOverlayMaterials[index] : mMesh->getDefaultMaterial(index);
         }
 
-    private:
+    protected:
         osg::ref_ptr<Mesh> mMesh;
-        std::vector<osg::ref_ptr<Material>> mMaterials;
+        std::vector<osg::ref_ptr<Material>> mOverlayMaterials;
 
         osg::ref_ptr<osg::Geode> mOsgGeode;
         std::vector<osg::ref_ptr<osg::Geometry>> mOsgGeometries;
@@ -101,7 +101,7 @@ namespace xxx
         {
             Class* clazz = new ClassInstance<MeshRenderer, Component>("MeshRenderer");
             clazz->addProperty("Mesh", &MeshRenderer::mMesh);
-            clazz->addProperty("Materials", &MeshRenderer::mMaterials);
+            clazz->addProperty("OverlayMaterials", &MeshRenderer::mOverlayMaterials);
             return clazz;
         }
     }

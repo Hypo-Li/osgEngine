@@ -33,7 +33,8 @@ namespace xxx::refl
         static Type* getType()
         {
             using _T = remove_cvrefp_t<T>;
-            return getOrCreateType<_T>();
+            static Type* type = createType<_T>();
+            return type;
         }
 
         template <typename T>
@@ -89,13 +90,6 @@ namespace xxx::refl
 
         template <typename T, std::enable_if_t<is_instance_of_v<T, osg::ref_ptr> || is_special_v<T>, int> = 0>
         static Type * createType();
-
-        template <typename T>
-        static Type* getOrCreateType()
-        {
-            static Type* type = createType<T>();
-            return type;
-        }
 
         using ClassMap = std::unordered_map<std::string_view, Class*>;
         static ClassMap& getClassMap()

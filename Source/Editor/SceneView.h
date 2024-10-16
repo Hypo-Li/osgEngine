@@ -15,6 +15,7 @@ namespace xxx::editor
     {
     public:
         SceneView(osg::Camera* camera, osg::Texture2D* sceneColorTexture, const std::function<void(int, int)>& resizeCallback, const std::function<void(void)>& getFocusCallback) :
+            Window("Scene View"),
             mViewport(new osg::Viewport),
             mCamera(camera),
             mSceneColorTexture(sceneColorTexture),
@@ -27,7 +28,7 @@ namespace xxx::editor
         virtual void draw() override
         {
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0, 0.0));
-            if (ImGui::Begin("Scene View"))
+            if (ImGui::Begin(mTitle.c_str()))
             {
                 ImGuiIO& io = ImGui::GetIO();
                 mIsFocused = ImGui::IsWindowFocused();

@@ -18,10 +18,14 @@ namespace xxx::editor
             return texture->getTextureObject(gc->getState()->getContextID())->id();
         }
     public:
+        AssetBrowser() : Window("Asset Browser")
+        {
+
+        }
 
         virtual void draw() override
         {
-            if (ImGui::Begin("Asset Browser"))
+            if (ImGui::Begin(mTitle.c_str()))
             {
                 static std::filesystem::path currentPath = Context::get().getEngineAssetPath();
                 /*static osg::ref_ptr<osg::Texture2D> fileTexture = new osg::Texture2D(osgDB::readImageFile(TEMP_DIR "file.png"));

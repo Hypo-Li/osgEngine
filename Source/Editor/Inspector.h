@@ -9,9 +9,14 @@ namespace xxx::editor
     class Inspector : public Window
     {
     public:
+        Inspector() : Window("Inspector")
+        {
+
+        }
+
         virtual void draw() override
         {
-            if (ImGui::Begin("Inspector"))
+            if (ImGui::Begin(mTitle.c_str()))
             {
                 Entity* activedEntity = Context::get().getActivedEntity();
                 if (activedEntity)

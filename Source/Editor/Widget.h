@@ -297,7 +297,7 @@ namespace xxx::editor
     {
         if (ImGui::CollapsingHeader("MeshRenderer"))
         {
-            uint32_t submeshesCount = meshRenderer->getSubmeshesCount();
+            uint32_t submeshesCount = meshRenderer->getSubmeshCount();
             for (uint32_t i = 0; i < submeshesCount; ++i)
             {
                 Material* material = meshRenderer->getMaterial(i);

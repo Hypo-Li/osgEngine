@@ -29,6 +29,16 @@ namespace xxx
             return mEntity;
         }
 
+        virtual void hide()
+        {
+            mOsgComponentGroup->setNodeMask(0);
+        }
+
+        virtual void show()
+        {
+            mOsgComponentGroup->setNodeMask(0xFFFFFFFF);
+        }
+
     protected:
         Entity* mEntity;
 

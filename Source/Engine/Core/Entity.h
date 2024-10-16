@@ -26,6 +26,56 @@ namespace xxx
         World,
     };
 
+    struct Transform
+    {
+        osg::Vec3d translation = osg::Vec3d(0, 0, 0);
+        osg::Quat rotation = osg::Quat(0, 0, 0, 1);
+        osg::Vec3d scale = osg::Vec3d(1, 1, 1);
+
+        void setRotationAsEulerAngles(osg::Vec3d eulerAngles)
+        {
+            rotation = osg::Quat(
+                osg::DegreesToRadians(eulerAngles.x()), osg::X_AXIS,
+                osg::DegreesToRadians(eulerAngles.y()), osg::Y_AXIS,
+                osg::DegreesToRadians(eulerAngles.z()), osg::Z_AXIS
+            );
+        }
+
+        osg::Matrixd getMatrix() const
+        {
+            osg::Matrixd m;
+            osg::Vec4d* vecs = reinterpret_cast<osg::Vec4d*>(m.ptr());
+
+            double qxx(rotation.x() * rotation.x());
+            double qyy(rotation.y() * rotation.y());
+            double qzz(rotation.z() * rotation.z());
+            double qxz(rotation.x() * rotation.z());
+            double qxy(rotation.x() * rotation.y());
+            double qyz(rotation.y() * rotation.z());
+            double qwx(rotation.w() * rotation.x());
+            double qwy(rotation.w() * rotation.y());
+            double qwz(rotation.w() * rotation.z());
+
+            vecs[0][0] = (1.0 - 2.0 * (qyy + qzz)) * scale.x();
+            vecs[0][1] = (2.0 * (qxy + qwz)) * scale.x();
+            vecs[0][2] = (2.0 * (qxz - qwy)) * scale.x();
+
+            vecs[1][0] = (2.0 * (qxy - qwz)) * scale.y();
+            vecs[1][1] = (1.0 - 2.0 * (qxx + qzz)) * scale.y();
+            vecs[1][2] = (2.0 * (qyz + qwx)) * scale.y();
+
+            vecs[2][0] = (2.0 * (qxz + qwy)) * scale.z();
+            vecs[2][1] = (2.0 * (qyz - qwx)) * scale.z();
+            vecs[2][2] = (1.0 - 2.0 * (qxx + qyy)) * scale.z();
+
+            vecs[3][0] = translation.x();
+            vecs[3][1] = translation.y();
+            vecs[3][2] = translation.z();
+
+            return m;
+        }
+    };
+
 	class Entity : public Object
 	{
         friend class Prefab;
@@ -139,6 +189,20 @@ namespace xxx
         }
 
         void clearComponents();
+
+        void hide()
+        {
+            mOsgEntityNode->setNodeMask(0);
+            for (Component* component : mComponents)
+                component->hide();
+        }
+
+        void show()
+        {
+            mOsgEntityNode->setNodeMask(0xFFFFFFFF);
+            for (Component* component : mComponents)
+                component->show();
+        }
 
         void setTranslation(osg::Vec3d translation)
         {
@@ -267,6 +331,8 @@ namespace xxx
         osg::Vec3d mTranslation = osg::Vec3d(0, 0, 0);
         osg::Vec3d mRotation = osg::Vec3d(0, 0, 0);
         osg::Vec3d mScale = osg::Vec3d(1, 1, 1);
+
+        osg::Matrixf mPreFrameTransformMatrix;
 
         osg::ref_ptr<EntityNode> mOsgEntityNode;
         osg::ref_ptr<osg::Group> mOsgChildrenGroup;

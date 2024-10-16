@@ -1,29 +1,18 @@
 #pragma once
-#include <osg/View>
-// Impl
+#include <osgViewer/View>
 #include <osg/Texture2D>
 #include <osg/Texture2DMultisample>
 #include <osg/Geometry>
 #include <osg/Geode>
+
 #include <cassert>
 
 namespace xxx
 {
-    class MyTexture2DMultisample : public osg::Texture2DMultisample
-    {
-    public:
-        MyTexture2DMultisample();
-
-        MyTexture2DMultisample(GLsizei numSamples, GLboolean fixedsamplelocations);
-
-        virtual void apply(osg::State& state) const override;
-    };
-
     class Pipeline : public osg::Referenced
     {
-        class ResizedCallback;
     public:
-        Pipeline(osg::View* view, osg::GraphicsContext* graphicsContext) : mView(view), mGraphicsContext(graphicsContext)
+        Pipeline(osgViewer::View* view, osg::GraphicsContext* graphicsContext) : mView(view), mGraphicsContext(graphicsContext)
         {
             mView->getCamera()->setGraphicsContext(nullptr);
         }
@@ -32,7 +21,6 @@ namespace xxx
         class Pass : public osg::Referenced
         {
             friend class Pipeline;
-            friend class Pipeline::ResizedCallback;
         public:
             Pass(osg::Camera* camera, bool fixedSize, osg::Vec2 sizeScale) : mCamera(camera), mFixedSize(fixedSize), mSizeScale(sizeScale)
             {
@@ -50,46 +38,7 @@ namespace xxx
 
             void attach(BufferType buffer, GLenum internalFormat, bool multisampling = false,
                 osg::Texture::FilterMode minFilter = osg::Texture::LINEAR, osg::Texture::FilterMode magFilter = osg::Texture::LINEAR,
-                osg::Texture::WrapMode wrapS = osg::Texture::CLAMP_TO_EDGE, osg::Texture::WrapMode wrapT = osg::Texture::CLAMP_TO_EDGE)
-            {
-                static constexpr std::pair<GLenum, GLenum> formatTable[] = {
-                    { GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT },
-                    { GL_DEPTH_COMPONENT16, GL_DEPTH_COMPONENT },
-                    { GL_DEPTH_COMPONENT24, GL_DEPTH_COMPONENT },
-                    { GL_DEPTH_COMPONENT32, GL_DEPTH_COMPONENT },
-                    { GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT },
-                    { GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL },
-                    { GL_DEPTH32F_STENCIL8, GL_DEPTH_STENCIL },
-                    { GL_R11F_G11F_B10F, GL_RGB },
-                    { GL_RGB10_A2, GL_RGBA },
-                };
-                osg::Viewport* viewport = mCamera->getViewport();
-                osg::Texture* texture;
-                if (multisampling)
-                {
-                    osg::Texture2DMultisample* tex2dms = new MyTexture2DMultisample(4, true);
-                    texture = tex2dms;
-                    tex2dms->setTextureSize(viewport->width(), viewport->height());
-                }
-                else
-                {
-                    osg::Texture2D* tex2d = new osg::Texture2D;
-                    texture = tex2d;
-                    tex2d->setTextureSize(viewport->width(), viewport->height());
-                }
-                texture->setInternalFormat(internalFormat);
-                constexpr uint32_t count = sizeof(formatTable) / sizeof(std::pair<GLenum, GLenum>);
-                for (uint32_t i = 0; i < count; i++)
-                {
-                    if (formatTable[i].first == internalFormat)
-                        texture->setSourceFormat(formatTable[i].second);
-                }
-                texture->setFilter(osg::Texture::MIN_FILTER, minFilter);
-                texture->setFilter(osg::Texture::MAG_FILTER, magFilter);
-                texture->setWrap(osg::Texture::WRAP_S, wrapS);
-                texture->setWrap(osg::Texture::WRAP_T, wrapT);
-                mCamera->attach(buffer, texture);
-            }
+                osg::Texture::WrapMode wrapS = osg::Texture::CLAMP_TO_EDGE, osg::Texture::WrapMode wrapT = osg::Texture::CLAMP_TO_EDGE);
 
             void detach(BufferType buffer)
             {
@@ -139,21 +88,9 @@ namespace xxx
             osg::ref_ptr<osg::Uniform> mResolutionUniform;
         };
 
-        osg::View* getView() const
+        osgViewer::View* getView() const
         {
             return mView;
-        }
-
-        uint32_t getPassCount() const
-        {
-            return mPasses.size();
-        }
-
-        Pass* getPass(uint32_t index)
-        {
-            if (index >= mPasses.size())
-                return nullptr;
-            return mPasses[index];
         }
 
         osg::GraphicsContext* getGraphicsContext() const
@@ -161,13 +98,53 @@ namespace xxx
             return mGraphicsContext;
         }
 
+        uint32_t getPassCount() const
+        {
+            return mPasses.size();
+        }
+
+        Pass* getPass(uint32_t index) const
+        {
+            if (index >= mPasses.size())
+                return nullptr;
+            return mPasses[index];
+        }
+
+        Pass* getPass(const std::string& name) const
+        {
+            for (Pass* pass : mPasses)
+                if (pass->getCamera()->getName() == name)
+                    return pass;
+            return nullptr;
+        }
+
+        uint32_t getPassIndex(Pass* pass) const
+        {
+            for (uint32_t i = 0; i < mPasses.size(); ++i)
+                if (mPasses[i] == pass)
+                    return i;
+            return uint32_t(-1);
+        }
+
+        uint32_t getPassIndex(const std::string& name) const
+        {
+            for (uint32_t i = 0; i < mPasses.size(); ++i)
+                if (mPasses[i]->getCamera()->getName() == name)
+                    return i;
+            return uint32_t(-1);
+        }
+
         // fixedSize: 是否为固定大小
-        // sizeScale: 当fixedSize为true时为相较于默认FBO viewport大小的缩放比例, 否则为固定的viewport大小
+        // sizeScale: 当fixedSize为true时为默认FBO viewport大小的缩放比例, 否则为固定的viewport大小
         Pass* addInputPass(const std::string& name, osg::Node::NodeMask cullMask, GLbitfield clearMask, bool fixedSize = false, osg::Vec2 sizeScale = osg::Vec2(1.0, 1.0));
 
         Pass* addWorkPass(const std::string& name, osg::Program* program, GLbitfield clearMask, bool fixedSize = false, osg::Vec2 sizeScale = osg::Vec2(1.0, 1.0));
 
         Pass* addDisplayPass(const std::string& name, osg::Program* program);
+
+        Pass* insertInputPass(uint32_t pos, const std::string& name, osg::Node::NodeMask cullMask, GLbitfield clearMask, bool fixedSize = false, osg::Vec2 sizeScale = osg::Vec2(1.0, 1.0));
+
+        Pass* insertWorkPass(uint32_t pos, const std::string& name, osg::Program* program, GLbitfield clearMask, bool fixedSize = false, osg::Vec2 sizeScale = osg::Vec2(1.0, 1.0));
 
         void setPassEnable(const std::string& name, bool enable)
         {
@@ -259,7 +236,7 @@ namespace xxx
         }
 
     private:
-        osg::ref_ptr<osg::View> mView;
+        osg::ref_ptr<osgViewer::View> mView;
         osg::ref_ptr<osg::GraphicsContext> mGraphicsContext;
         std::vector<osg::ref_ptr<Pass>> mPasses;
 
