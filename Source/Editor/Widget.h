@@ -19,7 +19,7 @@ namespace xxx::editor
         if (ImGui::BeginCombo(label, previewAsset->getPath().c_str()))
         {
             AssetManager::get().foreachAsset([previewAsset, clazz, &result](Asset* asset) {
-                if (asset->getClass()->isDerivedFrom(clazz))
+                if (asset->getClass() == clazz || asset->getClass()->isDerivedFrom(clazz))
                 {
                     const bool is_selected = (previewAsset == asset);
                     if (ImGui::Selectable(asset->getPath().c_str(), is_selected))

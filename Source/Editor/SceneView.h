@@ -27,6 +27,8 @@ namespace xxx::editor
 
         virtual void draw() override
         {
+            if (!mVisibility)
+                return;
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0, 0.0));
             if (ImGui::Begin(mTitle.c_str()))
             {

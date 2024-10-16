@@ -10,12 +10,17 @@ namespace xxx::editor
     public:
         Window(const std::string& title) :
             mTitle(title),
-            mIsShow(true)
+            mVisibility(true)
         {
 
         }
 
         virtual void draw() = 0;
+
+        virtual bool isSingleton() const
+        {
+            return true;
+        }
 
         virtual bool isWantCaptureEvents() const
         {
@@ -32,13 +37,18 @@ namespace xxx::editor
             mTitle = title;
         }
 
-        bool isShow() const
+        void setVisibility(bool visibility)
         {
-            return mIsShow;
+            mVisibility = visibility;
+        }
+
+        bool getVisibility() const
+        {
+            return mVisibility;
         }
 
     protected:
         std::string mTitle;
-        bool mIsShow;
+        bool mVisibility;
     };
 }

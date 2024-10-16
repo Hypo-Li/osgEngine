@@ -1,5 +1,6 @@
 #pragma once
 #include "Window.h"
+#include "WindowManager.h"
 
 namespace xxx::editor
 {
@@ -55,9 +56,15 @@ namespace xxx::editor
                 if (ImGui::BeginMenu("Window"))
                 {
                     static bool sceneViewSelected = false;
-                    if (ImGui::MenuItem("Scene View", nullptr, &sceneViewSelected)) {}
-                    if (ImGui::MenuItem("Inspector")) {}
-                    if (ImGui::MenuItem("Asset Browser")) {}
+                    WindowManager::get().foreachWindow([this](Window* window) {
+                        if (window == this || !window->isSingleton())
+                            return;
+                        bool visibility = window->getVisibility();
+                        if (ImGui::MenuItem(window->getTitle().c_str(), nullptr, &visibility))
+                        {
+                            window->setVisibility(visibility);
+                        }
+                    });
                     ImGui::EndMenu();
                 }
 

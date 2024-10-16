@@ -10,6 +10,7 @@
 #include <Engine/Core/Engine.h>
 
 #include <osgViewer/CompositeViewer>
+#include <osgViewer/ViewerEventHandlers>
 
 namespace xxx::editor
 {
@@ -56,6 +57,7 @@ namespace xxx::editor
             ImGuiHandler* imguiHandler = new ImGuiHandler(imguiCamera);
             engineView->addEventHandler(imguiHandler);
             engineView->addEventHandler(new PickEventHandler(engineView->getCamera(), sceneView->getViewport()));
+            engineView->addEventHandler(new osgViewer::StatsHandler);
             engineView->setCameraManipulator(new ControllerManipulator(0.05));
 
             mViewer->addView(engineView);

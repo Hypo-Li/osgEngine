@@ -16,6 +16,8 @@ namespace xxx::editor
 
         virtual void draw() override
         {
+            if (!mVisibility)
+                return;
             if (ImGui::Begin(mTitle.c_str()))
             {
                 Entity* activedEntity = Context::get().getActivedEntity();

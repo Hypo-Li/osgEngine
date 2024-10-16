@@ -4,6 +4,7 @@
 #include <vector>
 #include <type_traits>
 #include <iostream>
+#include <functional>
 
 namespace xxx::editor
 {
@@ -22,6 +23,12 @@ namespace xxx::editor
             T* window = new T(args...);
             mWindows.push_back(window);
             return window;
+        }
+
+        void foreachWindow(const std::function<void(Window*)>& func)
+        {
+            for (Window* window : mWindows)
+                func(window);
         }
 
         bool hasWindowWantCaptureEvents() const

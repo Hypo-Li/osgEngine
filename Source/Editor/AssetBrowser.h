@@ -25,6 +25,8 @@ namespace xxx::editor
 
         virtual void draw() override
         {
+            if (!mVisibility)
+                return;
             if (ImGui::Begin(mTitle.c_str()))
             {
                 static std::filesystem::path currentPath = Context::get().getEngineAssetPath();
