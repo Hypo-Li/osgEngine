@@ -5,6 +5,15 @@
 #include <variant>
 #include <unordered_map>
 
+template <typename T, typename Variant>
+struct is_in_variant;
+
+template <typename T, typename... Types>
+struct is_in_variant<T, std::variant<Types...>> : std::disjunction<std::is_same<T, Types>...> {};
+
+template <typename T, typename Variant>
+constexpr bool is_in_variant_v = is_in_variant<T, Variant>::value;
+
 namespace xxx::refl
 {
     enum class MetaKey
@@ -21,27 +30,21 @@ namespace xxx::refl
     class MetadataBase
     {
         friend class Reflection;
-
-        template <typename T>
-        static constexpr bool is_meta_value_v =
-            std::is_same_v<T, bool> ||
-            std::is_same_v<T, int64_t> ||
-            std::is_same_v<T, uint64_t> ||
-            std::is_same_v<T, float> ||
-            std::is_same_v<T, double> ||
-            std::is_same_v<T, std::string_view>;
     public:
-        template <typename T, typename = std::enable_if_t<is_meta_value_v<T>>>
+        using MetaValue = std::variant<bool, int64_t, uint64_t, float, double, std::string_view>;
+
+        template <typename T, typename = std::enable_if_t<is_in_variant_v<T, MetaValue>>>
         std::optional<T> getMetadata(MetaKey key)
         {
             auto findResult = mMetadatas.find(key);
             if (findResult != mMetadatas.end())
             {
-                T* result = std::get_if<T>(findResult->second);
+                T* result = std::get_if<T>(&findResult->second);
                 if (result)
                     return std::optional<T>(*result);
             }
             return std::optional<T>{};
+            
         }
 
         size_t getMetadataCount() const
@@ -81,7 +84,6 @@ namespace xxx::refl
             }
         }
 
-        using MetaValue = std::variant<bool, int64_t, uint64_t, float, double, std::string_view>;
         std::unordered_map<MetaKey, MetaValue> mMetadatas;
     };
 }

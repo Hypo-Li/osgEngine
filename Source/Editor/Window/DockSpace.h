@@ -12,7 +12,7 @@ namespace xxx::editor
 
         }
 
-        virtual void draw() override
+        virtual bool draw() override
         {
             static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
 
@@ -71,6 +71,7 @@ namespace xxx::editor
                 ImGui::EndMenuBar();
             }
             ImGui::End();
+            return true;
         }
     };
 }

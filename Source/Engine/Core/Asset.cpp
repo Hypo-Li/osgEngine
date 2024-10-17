@@ -5,7 +5,9 @@ namespace xxx
 {
     using namespace refl;
 
-    Asset::Asset(const std::string& path) : mPath(path)
+    Asset::Asset(const std::string& path) :
+        mPath(path),
+        mName(mPath.substr(mPath.find_last_of('/') + 1))
     {
         std::filesystem::path fullPath = convertAssetPathToFullPath(mPath);
 

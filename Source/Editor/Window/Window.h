@@ -1,11 +1,12 @@
 #pragma once
 #include "ThirdParty/imgui/imgui.h"
 
+#include <osg/Referenced>
 #include <string>
 
 namespace xxx::editor
 {
-    class Window
+    class Window : public osg::Referenced
     {
     public:
         Window(const std::string& title) :
@@ -15,7 +16,7 @@ namespace xxx::editor
 
         }
 
-        virtual void draw() = 0;
+        virtual bool draw() = 0;
 
         virtual bool isSingleton() const
         {

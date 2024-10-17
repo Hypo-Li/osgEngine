@@ -42,8 +42,7 @@ void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
 )";
 
 #define GBUFFER_MASK            1 << 0
-#define SHADOW_CAST_MASK        1 << 1
-#define TRANSPARENT_MASK        1 << 2
+#define TRANSPARENT_MASK        1 << 1
 
 namespace xxx
 {

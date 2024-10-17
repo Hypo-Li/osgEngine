@@ -16,12 +16,6 @@ namespace xxx
         Blend,
     };
 
-    enum class RenderingPath
-    {
-        Deferred,
-        Forward,
-    };
-
     class Material : public Object
     {
         REFLECT_CLASS(Material)

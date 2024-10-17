@@ -1,5 +1,5 @@
 #pragma once
-#include "WindowManager.h"
+#include "Window/WindowManager.h"
 #include <ThirdParty/imgui/imgui.h>
 #include <ThirdParty/imgui/imgui_impl_opengl3.h>
 #include <ThirdParty/imgui/imgui_impl_osg.h>

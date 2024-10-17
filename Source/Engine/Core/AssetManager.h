@@ -48,10 +48,22 @@ namespace xxx
 
         Asset* getAsset(Guid guid);
 
+        template <typename T = void>
         void foreachAsset(const std::function<void(Asset*)>& func)
         {
+            refl::Class* clazz = refl::Reflection::getClass<T>();
             for (Asset* asset : mAssets)
-                func(asset);
+            {
+                if constexpr (!std::is_same_v<T, void>)
+                {
+                    if (clazz == asset->getClass())
+                        func(asset);
+                }
+                else
+                {
+                    func(asset);
+                }
+            }
         }
 
     private:

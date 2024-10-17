@@ -25,10 +25,11 @@ namespace xxx::editor
 
         }
 
-        virtual void draw() override
+        virtual bool draw() override
         {
             if (!mVisibility)
-                return;
+                return true;
+
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0, 0.0));
             if (ImGui::Begin(mTitle.c_str()))
             {
@@ -98,6 +99,8 @@ namespace xxx::editor
             }
             ImGui::End();
             ImGui::PopStyleVar();
+
+            return true;
         }
 
         virtual bool isWantCaptureEvents() const override

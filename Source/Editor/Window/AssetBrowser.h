@@ -23,10 +23,11 @@ namespace xxx::editor
 
         }
 
-        virtual void draw() override
+        virtual bool draw() override
         {
             if (!mVisibility)
-                return;
+                return true;
+
             if (ImGui::Begin(mTitle.c_str()))
             {
                 static std::filesystem::path currentPath = Context::get().getEngineAssetPath();
@@ -114,6 +115,7 @@ namespace xxx::editor
 
             }
             ImGui::End();
+            return true;
         }
     };
 }

@@ -54,34 +54,12 @@ namespace xxx
         objectBuffer.writeData(data, count);
     }
 
-    template <typename T>
-    static void getEnumNames(Enum* enumerate, void* data, std::vector<std::string>& enumNames, size_t count)
-    {
-        for (uint32_t i = 0; i < count; ++i)
-            enumNames[i] = enumerate->getNameByValue(static_cast<int64_t>(((T*)(data))[i]));
-    }
-
     void AssetSaver::serializeEnum(Enum* enumerate, void* data, size_t count)
     {
-        std::vector<std::string> enumNames(count);
-        Type* underlying = enumerate->getUnderlyingType();
-        if (underlying == Reflection::Int8Type)
-            getEnumNames<int8_t>(enumerate, data, enumNames, count);
-        else if (underlying == Reflection::Int16Type)
-            getEnumNames<int16_t>(enumerate, data, enumNames, count);
-        else if (underlying == Reflection::Int32Type)
-            getEnumNames<int32_t>(enumerate, data, enumNames, count);
-        else if (underlying == Reflection::Int64Type)
-            getEnumNames<int64_t>(enumerate, data, enumNames, count);
-        else if (underlying == Reflection::Uint8Type)
-            getEnumNames<uint8_t>(enumerate, data, enumNames, count);
-        else if (underlying == Reflection::Uint16Type)
-            getEnumNames<uint16_t>(enumerate, data, enumNames, count);
-        else if (underlying == Reflection::Uint32Type)
-            getEnumNames<uint32_t>(enumerate, data, enumNames, count);
-        else if (underlying == Reflection::Uint64Type)
-            getEnumNames<uint64_t>(enumerate, data, enumNames, count);
-        serializeStdString(enumNames.data(), count);
+        std::vector<std::string> valueNames(count);
+        for (size_t i = 0; i < count; ++i)
+            valueNames[i] = enumerate->getNameByValue(enumerate->getValueByValuePtr(data));
+        serializeStdString(valueNames.data(), count);
     }
 
     void AssetSaver::serializeClass(Object** data, size_t count)

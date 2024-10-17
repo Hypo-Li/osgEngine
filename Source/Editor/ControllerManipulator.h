@@ -18,6 +18,9 @@ namespace xxx::editor
 
         virtual bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& us) override
         {
+            if (ea.getHandled())
+                return true;
+
             switch (ea.getEventType())
             {
             case osgGA::GUIEventAdapter::FRAME:

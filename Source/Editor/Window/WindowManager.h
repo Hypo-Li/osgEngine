@@ -1,6 +1,8 @@
 #pragma once
 #include "Window.h"
 
+#include <osg/ref_ptr>
+
 #include <vector>
 #include <type_traits>
 #include <iostream>
@@ -39,15 +41,19 @@ namespace xxx::editor
             return result;
         }
 
-        void draw() const
+        void draw()
         {
-            for (Window* window : mWindows)
-                window->draw();
+            for (auto windowIt = mWindows.begin(); windowIt != mWindows.end();)
+            {
+                Window* window = windowIt->get();
+                if (!window->draw() && !window->isSingleton())
+                    windowIt = mWindows.erase(windowIt);
+                else
+                    ++windowIt;
+            }
         }
 
-
-
     protected:
-        std::vector<Window*> mWindows;
+        std::vector<osg::ref_ptr<Window>> mWindows;
     };
 }

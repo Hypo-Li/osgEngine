@@ -121,12 +121,6 @@ namespace xxx
 
 		void addChild(Entity* child);
 
-		void removeChild(Entity* child);
-
-        void removeChild(uint32_t index);
-
-        void removeChildren(uint32_t beginIndex, uint32_t count);
-
         Entity* getChild(uint32_t index);
 
         const std::vector<osg::ref_ptr<Entity>>& getChildren() const
@@ -139,6 +133,12 @@ namespace xxx
             return mChildren.size();
         }
 
+		void removeChild(Entity* child);
+
+        void removeChild(uint32_t index);
+
+        void removeChildren(uint32_t beginIndex, uint32_t count);
+
         void clearChildren();
 
 		void addComponent(Component* component);
@@ -150,10 +150,6 @@ namespace xxx
             this->addComponent(component);
             return component;
         }
-
-		void removeComponent(Component* component);
-
-        void removeComponent(uint32_t index);
         
 		template<typename T = Component, typename = std::enable_if_t<std::is_base_of_v<Component, T>>>
 		T* getComponent(uint32_t index)
@@ -188,21 +184,11 @@ namespace xxx
             return mComponents.size();
         }
 
+		void removeComponent(Component* component);
+
+        void removeComponent(uint32_t index);
+
         void clearComponents();
-
-        void hide()
-        {
-            mOsgEntityNode->setNodeMask(0);
-            for (Component* component : mComponents)
-                component->hide();
-        }
-
-        void show()
-        {
-            mOsgEntityNode->setNodeMask(0xFFFFFFFF);
-            for (Component* component : mComponents)
-                component->show();
-        }
 
         void setTranslation(osg::Vec3d translation)
         {
@@ -307,6 +293,11 @@ namespace xxx
             return osg::computeLocalToWorld(mOsgEntityNode->getParentalNodePaths()[0]);
         }
 
+        const osg::Matrixd& getPreFrameTransformMatrix() const
+        {
+            return mPreFrameTransformMatrix;
+        }
+
         void updateTransform()
         {
             osg::Quat quat(
@@ -321,6 +312,20 @@ namespace xxx
             );
         }
 
+        void hide()
+        {
+            mOsgEntityNode->setNodeMask(0);
+            for (Component* component : mComponents)
+                component->hide();
+        }
+
+        void show()
+        {
+            mOsgEntityNode->setNodeMask(0xFFFFFFFF);
+            for (Component* component : mComponents)
+                component->show();
+        }
+
 	protected:
         std::string mName;
         uint32_t mFlags = 0;
@@ -332,7 +337,7 @@ namespace xxx
         osg::Vec3d mRotation = osg::Vec3d(0, 0, 0);
         osg::Vec3d mScale = osg::Vec3d(1, 1, 1);
 
-        osg::Matrixf mPreFrameTransformMatrix;
+        osg::Matrixd mPreFrameTransformMatrix;
 
         osg::ref_ptr<EntityNode> mOsgEntityNode;
         osg::ref_ptr<osg::Group> mOsgChildrenGroup;

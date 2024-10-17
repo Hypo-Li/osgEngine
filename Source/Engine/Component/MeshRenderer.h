@@ -73,7 +73,7 @@ namespace xxx
             }
         }
 
-        void setMaterial(uint32_t index, Material* material)
+        void setOverlayMaterial(uint32_t index, Material* material)
         {
             if (index >= mOsgGeometries.size())
                 return;

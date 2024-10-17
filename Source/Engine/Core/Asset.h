@@ -54,6 +54,11 @@ namespace xxx
             return mPath;
         }
 
+        inline const std::string& getName() const
+        {
+            return mName;
+        }
+
         inline Guid getGuid() const
         {
             return mGuid;
@@ -92,6 +97,7 @@ namespace xxx
 
     protected:
         std::string mPath;
+        std::string mName;
         refl::Class* mClass;
         Guid mGuid;
         bool mIsLoaded = false;

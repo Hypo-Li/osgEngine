@@ -2,6 +2,23 @@
 
 namespace xxx
 {
+    class UpdatePreFrameTransformMatrixCallback : public osg::NodeCallback
+    {
+    public:
+        UpdatePreFrameTransformMatrixCallback(osg::Matrixd* preFrameTransformMatrix) :
+            mPreFrameTransformMatrix(preFrameTransformMatrix) {}
+
+        virtual void operator()(osg::Node* node, osg::NodeVisitor* nv)
+        {
+            *mPreFrameTransformMatrix = mTempMatrix;
+            mTempMatrix = dynamic_cast<osg::MatrixTransform*>(node)->getMatrix();
+        }
+
+    protected:
+        osg::Matrixd* mPreFrameTransformMatrix;
+        osg::Matrixd mTempMatrix;
+    };
+
     Entity::Entity(const std::string& name) :
         mName(name),
         mParent(nullptr),
@@ -11,6 +28,7 @@ namespace xxx
 	{
         mOsgEntityNode->addChild(mOsgChildrenGroup);
         mOsgEntityNode->addChild(mOsgComponentsGroup);
+        mOsgEntityNode->addEventCallback(new UpdatePreFrameTransformMatrixCallback(&mPreFrameTransformMatrix));
 	}
 
     Entity::Entity(const Entity& other) :
@@ -22,6 +40,7 @@ namespace xxx
     {
         mOsgEntityNode->addChild(mOsgChildrenGroup);
         mOsgEntityNode->addChild(mOsgComponentsGroup);
+        mOsgEntityNode->addEventCallback(new UpdatePreFrameTransformMatrixCallback(&mPreFrameTransformMatrix));
 
         // copy components
         for (Component* component : other.mComponents)
@@ -52,6 +71,13 @@ namespace xxx
         mChildren.emplace_back(child);
         mOsgChildrenGroup->addChild(child->mOsgEntityNode);
 	}
+
+    Entity* Entity::getChild(uint32_t index)
+    {
+        if (index >= mChildren.size())
+            return nullptr;
+        return mChildren[index].get();
+    }
 
 	void Entity::removeChild(Entity* child)
 	{
@@ -97,13 +123,16 @@ namespace xxx
         mChildren.erase(mChildren.begin() + beginIndex, mChildren.begin() + beginIndex + i);
     }
 
-	Entity* Entity::getChild(uint32_t index)
-	{
-        if (index >= mChildren.size())
-            return nullptr;
-        return mChildren[index].get();
-
-	}
+    void Entity::clearChildren()
+    {
+        for (auto it : mChildren)
+        {
+            it->setOwner(nullptr);
+            it->mParent = nullptr;
+            mOsgChildrenGroup->removeChild(it->mOsgEntityNode);
+        }
+        mChildren.clear();
+    }
 
 	void Entity::addComponent(Component* component)
 	{
@@ -157,17 +186,6 @@ namespace xxx
         }
         mComponents.clear();
     }
-
-    void Entity::clearChildren()
-    {
-        for (auto it : mChildren)
-        {
-            it->setOwner(nullptr);
-            it->mParent = nullptr;
-            mOsgChildrenGroup->removeChild(it->mOsgEntityNode);
-        }
-        mChildren.clear();
-    }
 }
 
 namespace xxx::refl
@@ -175,10 +193,10 @@ namespace xxx::refl
     template <> Type* Reflection::createType<Entity>()
     {
         Class* clazz = new ClassInstance<Entity>("Entity");
-        Property* propName = clazz->addProperty("Name", &Entity::mName);
-        Property* propParent = clazz->addProperty("Parent", &Entity::mParent);
-        Property* propChildren = clazz->addProperty("Children", &Entity::mChildren);
-        Property* propComponents = clazz->addProperty("Components", &Entity::mComponents);
+        clazz->addProperty("Name", &Entity::mName);
+        clazz->addProperty("Parent", &Entity::mParent);
+        clazz->addProperty("Children", &Entity::mChildren);
+        clazz->addProperty("Components", &Entity::mComponents);
         return clazz;
     }
 }

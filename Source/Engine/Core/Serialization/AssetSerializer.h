@@ -9,8 +9,7 @@ namespace xxx
 
     enum AssetSerialFlag : uint32_t
     {
-        Big_Endian_Byte_Order               = 1,
-        Enum_Serialize_By_Name              = 1 << 2,
+
     };
 
     class ObjectBuffer

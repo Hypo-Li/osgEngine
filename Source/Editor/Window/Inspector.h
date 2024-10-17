@@ -14,10 +14,11 @@ namespace xxx::editor
 
         }
 
-        virtual void draw() override
+        virtual bool draw() override
         {
             if (!mVisibility)
-                return;
+                return true;
+
             if (ImGui::Begin(mTitle.c_str()))
             {
                 Entity* activedEntity = Context::get().getActivedEntity();
@@ -78,6 +79,8 @@ namespace xxx::editor
                 ImGui::ComboWithFilter("ComboFilter", &currentItem, items, 6);
             }
             ImGui::End();
+
+            return true;
         }
     };
 }

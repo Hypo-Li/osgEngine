@@ -66,6 +66,8 @@ namespace xxx::editor
         return result;
     }
 
+    static bool PropertyWidget(refl::Property* property, void* data);
+
     static bool FundamentalWidget(const std::string& label, refl::Fundamental* fundamental, void* data)
     {
         if (fundamental == refl::Reflection::BoolType)
@@ -124,6 +126,32 @@ namespace xxx::editor
         return result;
     }
 
+    static bool StructWidget(const std::string& label, refl::Struct* structure, void* data)
+    {
+        if (structure == refl::Reflection::getStruct<osg::Vec2f>())
+            return ImGui::DragFloat2(label.c_str(), (float*)data);
+        else if (structure == refl::Reflection::getStruct<osg::Vec3f>())
+            return ImGui::DragFloat3(label.c_str(), (float*)data);
+        else if (structure == refl::Reflection::getStruct<osg::Vec4f>())
+            return ImGui::DragFloat4(label.c_str(), (float*)data);
+
+        bool result = false;
+        if (ImGui::TreeNode(label.c_str()))
+        {
+            for (refl::Property* property : structure->getProperties())
+            {
+                result |= PropertyWidget(property, property->getValuePtr(data));
+            }
+            ImGui::TreePop();
+        }
+        return result;
+    }
+
+    static bool ClassWidget(const std::string& label, refl::Class* clazz, void* data)
+    {
+        // how to show it? as asset?
+    }
+
     static bool PropertyWidget(refl::Property* property, void* data)
     {
         auto hiden = property->getMetadata<bool>(refl::MetaKey::Hidden);
@@ -131,12 +159,18 @@ namespace xxx::editor
             return false;
 
         refl::Type* declaredType = property->getDeclaredType();
+        std::string label(property->getName());
+        void* propertyData = property->getValuePtr(data);
         switch (declaredType->getKind())
         {
         case refl::Type::Kind::Fundamental:
-            return FundamentalWidget(std::string(property->getName()), dynamic_cast<refl::Fundamental*>(declaredType), property->getValuePtr(data));
+            return FundamentalWidget(label, dynamic_cast<refl::Fundamental*>(declaredType), propertyData);
         case refl::Type::Kind::Enum:
-            return EnumWidget(std::string(property->getName()), dynamic_cast<refl::Enum*>(declaredType), property->getValuePtr(data));
+            return EnumWidget(label, dynamic_cast<refl::Enum*>(declaredType), propertyData);
+        case refl::Type::Kind::Struct:
+            return StructWidget(label, dynamic_cast<refl::Struct*>(declaredType), propertyData);
+        case refl::Type::Kind::Class:
+            return ClassWidget(label, dynamic_cast<refl::Class*>(declaredType), propertyData);
         default:
             break;
         }

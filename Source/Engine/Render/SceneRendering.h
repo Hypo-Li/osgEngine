@@ -77,7 +77,7 @@ namespace xxx
         lightingPass->setAttribute(new osg::BlendFunc(GL_ONE, GL_SRC_ALPHA));
         lightingPass->setAttribute(viewDataUBB);
 
-        Pipeline::Pass* transparentPass = pipeline->addInputPass("Transparent", 0x00000004, GL_COLOR_BUFFER_BIT);
+        Pipeline::Pass* transparentPass = pipeline->addInputPass("Transparent", 0x00000002, GL_COLOR_BUFFER_BIT);
         transparentPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F, true);
         transparentPass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT24, true);
         transparentPass->setAttribute(new osg::Depth(osg::Depth::LESS, 0.0, 1.0, false));
