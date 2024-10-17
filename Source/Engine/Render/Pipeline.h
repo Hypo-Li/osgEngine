@@ -20,7 +20,6 @@ namespace xxx
 
         class Pass : public osg::Referenced
         {
-            friend class Pipeline;
         public:
             Pass(osg::Camera* camera, bool fixedSize, osg::Vec2 sizeScale) : mCamera(camera), mFixedSize(fixedSize), mSizeScale(sizeScale)
             {
@@ -71,6 +70,11 @@ namespace xxx
                 mCamera->getOrCreateStateSet()->setMode(mode, value);
             }
 
+            const std::string& getName() const
+            {
+                return mCamera->getName();
+            }
+
             osg::Camera* getCamera() const
             {
                 return mCamera;
@@ -80,6 +84,59 @@ namespace xxx
             {
                 return mSizeScale;
             }
+
+            void setEnable(bool enable)
+            {
+                mCamera->setNodeMask(enable ? 0xFFFFFFFF : 0);
+            }
+
+            bool getEnable() const
+            {
+                return mCamera->getNodeMask() != 0;
+            }
+
+            void resize(int width, int height)
+            {
+                if (mFixedSize)
+                    return;
+
+                // get real size
+                int realWidth = width * mSizeScale.x();
+                int realHeight = height * mSizeScale.y();
+
+                // resize viewport
+                mCamera->setViewport(0, 0, realWidth, realHeight);
+
+                // resize attachment texture
+                auto& bufferAttachmentMap = mCamera->getBufferAttachmentMap();
+                for (auto itr : bufferAttachmentMap)
+                {
+                    osg::Texture2D* texture2d = dynamic_cast<osg::Texture2D*>(itr.second._texture.get());
+                    osg::Texture2DMultisample* texture2dMs = dynamic_cast<osg::Texture2DMultisample*>(itr.second._texture.get());
+                    assert((texture2d || texture2dMs) && "Unsupport texture type!");
+                    if (texture2d)
+                    {
+                        texture2d->setTextureSize(realWidth, realHeight);
+                        texture2d->dirtyTextureObject();
+                    }
+                    else if (texture2dMs)
+                    {
+                        texture2dMs->setTextureSize(realWidth, realHeight);
+                        texture2dMs->dirtyTextureObject();
+                    }
+                }
+                mCamera->dirtyAttachmentMap();
+                mResolutionUniform->set(osg::Vec4(realWidth, realHeight, 1.0f / realWidth, 1.0f / realHeight));
+            }
+
+            bool isDisplayPass() const
+            {
+                return mCamera->getRenderTargetImplementation() != osg::Camera::FRAME_BUFFER_OBJECT;
+            }
+
+            osg::Texture* generateTexture(GLenum internalFormat, bool multisampling,
+                osg::Texture::FilterMode minFilter = osg::Texture::LINEAR, osg::Texture::FilterMode magFilter = osg::Texture::LINEAR,
+                osg::Texture::WrapMode wrapS = osg::Texture::CLAMP_TO_EDGE, osg::Texture::WrapMode wrapT = osg::Texture::CLAMP_TO_EDGE);
 
         private:
             osg::ref_ptr<osg::Camera> mCamera;
@@ -91,11 +148,6 @@ namespace xxx
         osgViewer::View* getView() const
         {
             return mView;
-        }
-
-        osg::GraphicsContext* getGraphicsContext() const
-        {
-            return mGraphicsContext;
         }
 
         uint32_t getPassCount() const
@@ -113,7 +165,7 @@ namespace xxx
         Pass* getPass(const std::string& name) const
         {
             for (Pass* pass : mPasses)
-                if (pass->getCamera()->getName() == name)
+                if (pass->getName() == name)
                     return pass;
             return nullptr;
         }
@@ -129,7 +181,7 @@ namespace xxx
         uint32_t getPassIndex(const std::string& name) const
         {
             for (uint32_t i = 0; i < mPasses.size(); ++i)
-                if (mPasses[i]->getCamera()->getName() == name)
+                if (mPasses[i]->getName() == name)
                     return i;
             return uint32_t(-1);
         }
@@ -146,99 +198,195 @@ namespace xxx
 
         Pass* insertWorkPass(uint32_t pos, const std::string& name, osg::Program* program, GLbitfield clearMask, bool fixedSize = false, osg::Vec2 sizeScale = osg::Vec2(1.0, 1.0));
 
-        void setPassEnable(const std::string& name, bool enable)
+        bool removePass(Pass* pass)
         {
-            for (Pass* pass : mPasses)
-            {
-                if (pass->getCamera()->getName() == name)
-                {
-                    pass->getCamera()->setNodeMask(enable ? 0xFFFFFFFF : 0);
-                    return;
-                }
-            }
+            uint32_t slaveIndex = mView->findSlaveIndexForCamera(pass->getCamera());
+            if (slaveIndex == mView->getNumSlaves())
+                return false;
+
+            mView->removeSlave(slaveIndex);
+            mPasses.erase(mPasses.begin() + slaveIndex);
+            return true;
         }
 
-        void resize(int width, int height, bool resizeDisplayPass = true)
+        // TODO: process resize
+        uint32_t addBlitFramebufferCommand(Pass* srcPass, Pass* dstPass, GLbitfield mask, GLenum filter, osg::Vec4d srcRect = osg::Vec4d(0, 0, 1, 1), osg::Vec4d dstRect = osg::Vec4d(0, 0, 1, 1))
+        {
+            class BlitFramebufferCommandCallback : public osg::Camera::DrawCallback
+            {
+            public:
+                BlitFramebufferCommandCallback(Pass* srcPass, osg::Vec4d srcRect, Pass* dstPass, osg::Vec4d dstRect, GLbitfield mask, GLenum filter) :
+                    mReadFBO(new osg::FrameBufferObject),
+                    mDrawFBO(new osg::FrameBufferObject),
+                    mSrcPass(srcPass),
+                    mDstPass(dstPass),
+                    mSrcRect(srcRect),
+                    mDstRect(dstRect),
+                    mMask(mask),
+                    mFilter(filter)
+                {
+                    using BufferType = osg::Camera::BufferComponent;
+                    for (const auto& bufferAttachemnt : mSrcPass->getCamera()->getBufferAttachmentMap())
+                    {
+                        osg::Texture* texture = bufferAttachemnt.second._texture.get();
+                        switch (texture->getTextureTarget())
+                        {
+                        case GL_TEXTURE_2D:
+                            mReadFBO->setAttachment(bufferAttachemnt.first, osg::FrameBufferAttachment(dynamic_cast<osg::Texture2D*>(texture)));
+                            break;
+                        case GL_TEXTURE_2D_MULTISAMPLE:
+                            mReadFBO->setAttachment(bufferAttachemnt.first, osg::FrameBufferAttachment(dynamic_cast<osg::Texture2DMultisample*>(texture)));
+                            break;
+                        default:
+                            break;
+                        }
+                    }
+
+                    for (const auto& bufferAttachemnt : mDstPass->getCamera()->getBufferAttachmentMap())
+                    {
+                        osg::Texture* texture = bufferAttachemnt.second._texture.get();
+                        switch (texture->getTextureTarget())
+                        {
+                        case GL_TEXTURE_2D:
+                            mDrawFBO->setAttachment(bufferAttachemnt.first, osg::FrameBufferAttachment(dynamic_cast<osg::Texture2D*>(texture)));
+                            break;
+                        case GL_TEXTURE_2D_MULTISAMPLE:
+                            mDrawFBO->setAttachment(bufferAttachemnt.first, osg::FrameBufferAttachment(dynamic_cast<osg::Texture2DMultisample*>(texture)));
+                            break;
+                        default:
+                            break;
+                        }
+                    }
+
+                    osg::Viewport* srcViewport = mSrcPass->getCamera()->getViewport();
+                    mSrcWidth = srcViewport->width();
+                    mSrcHeight = srcViewport->height();
+
+                    osg::Viewport* dstViewport = mDstPass->getCamera()->getViewport();
+                    mDstWidth = dstViewport->width();
+                    mDstHeight = dstViewport->height();
+                }
+
+                virtual void operator () (osg::RenderInfo& renderInfo) const
+                {
+                    osg::Viewport* srcViewport = mSrcPass->getCamera()->getViewport();
+                    if (mSrcWidth != srcViewport->width() || mSrcHeight != srcViewport->height())
+                    {
+                        const_cast<GLuint&>(mSrcWidth) = srcViewport->width();
+                        const_cast<GLuint&>(mSrcHeight) = srcViewport->height();
+
+                        for (const auto& bufferAttachemnt : mSrcPass->getCamera()->getBufferAttachmentMap())
+                        {
+                            osg::Texture* texture = bufferAttachemnt.second._texture.get();
+                            switch (texture->getTextureTarget())
+                            {
+                            case GL_TEXTURE_2D:
+                                mReadFBO->setAttachment(bufferAttachemnt.first, osg::FrameBufferAttachment(dynamic_cast<osg::Texture2D*>(texture)));
+                                break;
+                            case GL_TEXTURE_2D_MULTISAMPLE:
+                                mReadFBO->setAttachment(bufferAttachemnt.first, osg::FrameBufferAttachment(dynamic_cast<osg::Texture2DMultisample*>(texture)));
+                                break;
+                            default:
+                                break;
+                            }
+                        }
+                    }
+                    GLuint srcX0 = mSrcWidth * mSrcRect.x();
+                    GLuint srcY0 = mSrcHeight * mSrcRect.y();
+                    GLuint srcX1 = mSrcWidth * mSrcRect.z();
+                    GLuint srcY1 = mSrcHeight * mSrcRect.w();
+
+                    osg::Viewport* dstViewport = mDstPass->getCamera()->getViewport();
+                    if (mDstWidth != dstViewport->width() || mDstHeight != dstViewport->height())
+                    {
+                        const_cast<GLuint&>(mDstWidth) = dstViewport->width();
+                        const_cast<GLuint&>(mDstHeight) = dstViewport->height();
+
+                        for (const auto& bufferAttachemnt : mDstPass->getCamera()->getBufferAttachmentMap())
+                        {
+                            osg::Texture* texture = bufferAttachemnt.second._texture.get();
+                            switch (texture->getTextureTarget())
+                            {
+                            case GL_TEXTURE_2D:
+                                mDrawFBO->setAttachment(bufferAttachemnt.first, osg::FrameBufferAttachment(dynamic_cast<osg::Texture2D*>(texture)));
+                                break;
+                            case GL_TEXTURE_2D_MULTISAMPLE:
+                                mDrawFBO->setAttachment(bufferAttachemnt.first, osg::FrameBufferAttachment(dynamic_cast<osg::Texture2DMultisample*>(texture)));
+                                break;
+                            default:
+                                break;
+                            }
+                        }
+                    }
+                    GLuint dstX0 = mDstWidth * mDstRect.x();
+                    GLuint dstY0 = mDstHeight * mDstRect.y();
+                    GLuint dstX1 = mDstWidth * mDstRect.z();
+                    GLuint dstY1 = mDstHeight * mDstRect.w();
+
+                    mReadFBO->apply(*renderInfo.getState(), osg::FrameBufferObject::READ_FRAMEBUFFER);
+                    mDrawFBO->apply(*renderInfo.getState(), osg::FrameBufferObject::DRAW_FRAMEBUFFER);
+                    osg::GLExtensions* ext = renderInfo.getState()->get<osg::GLExtensions>();
+                    ext->glBlitFramebuffer(
+                        srcX0, srcY0, srcX1, srcY1,
+                        dstX0, dstY0, dstX1, dstY1,
+                        mMask, mFilter
+                    );
+                }
+            protected:
+                osg::ref_ptr<osg::FrameBufferObject> mReadFBO;
+                osg::ref_ptr<osg::FrameBufferObject> mDrawFBO;
+                Pass* mSrcPass;
+                Pass* mDstPass;
+                osg::Vec4d mDstRect;
+                osg::Vec4d mSrcRect;
+                GLbitfield mMask;
+                GLenum mFilter;
+                GLuint mSrcWidth, mSrcHeight;
+                GLuint mDstWidth, mDstHeight;
+            };
+
+            osg::Camera::DrawCallback* command = new BlitFramebufferCommandCallback(srcPass, srcRect, dstPass, dstRect, mask, filter);
+            srcPass->getCamera()->addFinalDrawCallback(command);
+            static uint32_t blitFramebufferCommandId = 0;
+            mBlitFramebufferCommandMap[blitFramebufferCommandId++] = std::make_pair(srcPass, command);
+            return blitFramebufferCommandId - 1;
+        }
+
+        bool removeBlitFramebufferCommand(uint32_t id)
+        {
+            auto findResult = mBlitFramebufferCommandMap.find(id);
+            if (findResult != mBlitFramebufferCommandMap.end())
+            {
+                findResult->second.first->getCamera()->removeFinalDrawCallback(findResult->second.second);
+                mBlitFramebufferCommandMap.erase(findResult);
+                return true;
+            }
+            return false;
+        }
+
+        void resize(int width, int height, bool resizeInputAndWorkPass, bool resizeDisplayPass)
         {
             // set new aspect
             double fovy, aspect, zNear, zFar;
             mView->getCamera()->getProjectionMatrixAsPerspective(fovy, aspect, zNear, zFar);
             mView->getCamera()->setProjectionMatrixAsPerspective(fovy, double(width) / double(height), zNear, zFar);
-            // resize passes expect final pass
-            // final pass will resize by osg automatically
+
+            // resize per pass
             for (Pass* pass : mPasses)
             {
-                bool isDisplayPass = pass->mCamera->getRenderTargetImplementation() != osg::Camera::FRAME_BUFFER_OBJECT;
-                if (!pass->mFixedSize && ( !isDisplayPass || (isDisplayPass && resizeDisplayPass) ) )
+                bool isDisplayPass = pass->isDisplayPass();
+                if ((!isDisplayPass && resizeInputAndWorkPass) || (isDisplayPass && resizeDisplayPass))
                 {
-                    // get real size
-                    int realWidth = width * pass->mSizeScale.x();
-                    int realHeight = height * pass->mSizeScale.y();
-
-                    // resize viewport
-                    pass->mCamera->setViewport(0, 0, realWidth, realHeight);
-
-                    // resize attachment texture
-                    auto& bufferAttachmentMap = pass->mCamera->getBufferAttachmentMap();
-                    for (auto itr : bufferAttachmentMap)
-                    {
-                        osg::Texture2D* texture2d = dynamic_cast<osg::Texture2D*>(itr.second._texture.get());
-                        osg::Texture2DMultisample* texture2dMs = dynamic_cast<osg::Texture2DMultisample*>(itr.second._texture.get());
-                        assert((texture2d || texture2dMs) && "Unsupport texture type!");
-                        if (texture2d)
-                        {
-                            texture2d->setTextureSize(realWidth, realHeight);
-                            texture2d->dirtyTextureObject();
-                        }
-                        else if (texture2dMs)
-                        {
-                            texture2dMs->setTextureSize(realWidth, realHeight);
-                            texture2dMs->dirtyTextureObject();
-                        }
-                    }
-                    pass->mCamera->dirtyAttachmentMap();
-                    pass->mResolutionUniform->set(osg::Vec4(realWidth, realHeight, 1.0f / realWidth, 1.0f / realHeight));
+                    pass->resize(width, height);
                 }
             }
-        }
-
-        osg::Texture2D* createScreenTexture(GLenum internalFormat, osg::Vec2 sizeScale = osg::Vec2(1.0, 1.0), 
-                osg::Texture::FilterMode minFilter = osg::Texture::LINEAR, osg::Texture::FilterMode magFilter = osg::Texture::LINEAR,
-                osg::Texture::WrapMode wrapS = osg::Texture::CLAMP_TO_EDGE, osg::Texture::WrapMode wrapT = osg::Texture::CLAMP_TO_EDGE)
-        {
-            static constexpr std::pair<GLenum, GLenum> formatTable[] = {
-                    { GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT },
-                    { GL_DEPTH_COMPONENT16, GL_DEPTH_COMPONENT },
-                    { GL_DEPTH_COMPONENT24, GL_DEPTH_COMPONENT },
-                    { GL_DEPTH_COMPONENT32, GL_DEPTH_COMPONENT },
-                    { GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT },
-                    { GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL },
-                    { GL_DEPTH32F_STENCIL8, GL_DEPTH_STENCIL },
-                    { GL_R11F_G11F_B10F, GL_RGB },
-                    { GL_RGB10_A2, GL_RGBA },
-            };
-            osg::Viewport* viewport = mView->getCamera()->getViewport();
-            osg::Texture2D* texture = new osg::Texture2D;
-            texture->setTextureSize(viewport->width(), viewport->height());
-            texture->setInternalFormat(internalFormat);
-            constexpr uint32_t count = sizeof(formatTable) / sizeof(std::pair<GLenum, GLenum>);
-            for (uint32_t i = 0; i < count; i++)
-            {
-                if (formatTable[i].first == internalFormat)
-                    texture->setSourceFormat(formatTable[i].second);
-            }
-            //texture->setSourceType(sourceType);
-            texture->setFilter(osg::Texture::MIN_FILTER, minFilter);
-            texture->setFilter(osg::Texture::MAG_FILTER, magFilter);
-            texture->setWrap(osg::Texture::WRAP_S, wrapS);
-            texture->setWrap(osg::Texture::WRAP_T, wrapT);
-            return texture;
         }
 
     private:
         osg::ref_ptr<osgViewer::View> mView;
         osg::ref_ptr<osg::GraphicsContext> mGraphicsContext;
         std::vector<osg::ref_ptr<Pass>> mPasses;
+        std::unordered_map<uint32_t, std::pair<Pass*, osg::Camera::DrawCallback*>> mBlitFramebufferCommandMap;
 
         static osg::Geometry* Pipeline::getScreenGeometry()
         {

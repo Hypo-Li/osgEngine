@@ -47,7 +47,7 @@ namespace xxx::editor
             SceneView* sceneView = wm.createWindow<SceneView>(
                 mEngine->getView()->getCamera(),
                 sceneColorTexture,
-                [this](int w, int h) {mEngine->getPipeline()->resize(w, h, false); },
+                [this](int w, int h) {mEngine->getPipeline()->resize(w, h, true, false); },
                 [this]() { if (mViewer->getViewWithFocus() != mEngine->getView()) mViewer->setCameraWithFocus(mEngine->getView()->getCamera()); }
             );
             Inspector* inspector = wm.createWindow<Inspector>();
@@ -82,7 +82,7 @@ namespace xxx::editor
             SceneView* sceneView2 = wm.createWindow<SceneView>(
                 "Scene View 2",
                 dynamic_cast<osg::Texture2D*>(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER0)),
-                [this](int w, int h) {mSimplePipeline->resize(w, h, false); },
+                [this](int w, int h) {mSimplePipeline->resize(w, h, true, false); },
                 [this]() { if (mViewer->getViewWithFocus() != mSimpleView) mViewer->setCameraWithFocus(mSimpleView->getCamera()); }
             );
             

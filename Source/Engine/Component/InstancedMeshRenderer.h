@@ -28,7 +28,9 @@ namespace xxx
             MeshRenderer::syncWithMesh();
             for (osg::Geometry* geometry : mOsgGeometries)
             {
-                geometry->getPrimitiveSet(0)->setNumInstances(mInstanceDatas.size());
+                osg::PrimitiveSet* primitiveSet = dynamic_cast<osg::PrimitiveSet*>(geometry->getPrimitiveSet(0)->clone(osg::CopyOp::SHALLOW_COPY));
+                primitiveSet->setNumInstances(mInstanceDatas.size());
+                geometry->setPrimitiveSet(0, primitiveSet);
             }
         }
 

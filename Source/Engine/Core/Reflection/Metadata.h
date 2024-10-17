@@ -44,6 +44,11 @@ namespace xxx::refl
             return std::optional<T>{};
         }
 
+        size_t getMetadataCount() const
+        {
+            return mMetadatas.size();
+        }
+
     protected:
         template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T> || std::is_same_v<T, const char*>>>
         void addMetadata(MetaKey key, T value)

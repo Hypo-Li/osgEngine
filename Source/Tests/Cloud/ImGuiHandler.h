@@ -60,7 +60,7 @@ namespace xxx
             style.WindowRounding = 6.0;
             //style.Colors[ImGuiCol_WindowBg].w = 1.0;
             //style.ScaleAllSizes(1.0);
-            ImGui_ImplOsg_Init(viewer, camera);
+            ImGui_ImplOsg_Init(camera);
         }
 
         virtual bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa) override

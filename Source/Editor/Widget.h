@@ -66,6 +66,82 @@ namespace xxx::editor
         return result;
     }
 
+    static bool FundamentalWidget(const std::string& label, refl::Fundamental* fundamental, void* data)
+    {
+        if (fundamental == refl::Reflection::BoolType)
+            return ImGui::Checkbox(label.c_str(), (bool*)data);
+        else if (fundamental == refl::Reflection::CharType)
+            return ImGui::DragScalar(label.c_str(), ImGuiDataType_S8, data);
+        else if (fundamental == refl::Reflection::WCharType)
+            return ImGui::DragScalar(label.c_str(), ImGuiDataType_S16, data);
+        else if (fundamental == refl::Reflection::Int8Type)
+            return ImGui::DragScalar(label.c_str(), ImGuiDataType_S8, data);
+        else if (fundamental == refl::Reflection::Int16Type)
+            return ImGui::DragScalar(label.c_str(), ImGuiDataType_S16, data);
+        else if (fundamental == refl::Reflection::Int32Type)
+            return ImGui::DragScalar(label.c_str(), ImGuiDataType_S32, data);
+        else if (fundamental == refl::Reflection::Int64Type)
+            return ImGui::DragScalar(label.c_str(), ImGuiDataType_S64, data);
+        else if (fundamental == refl::Reflection::Uint8Type)
+            return ImGui::DragScalar(label.c_str(), ImGuiDataType_U8, data);
+        else if (fundamental == refl::Reflection::Uint16Type)
+            return ImGui::DragScalar(label.c_str(), ImGuiDataType_U16, data);
+        else if (fundamental == refl::Reflection::Uint32Type)
+            return ImGui::DragScalar(label.c_str(), ImGuiDataType_U32, data);
+        else if (fundamental == refl::Reflection::Uint64Type)
+            return ImGui::DragScalar(label.c_str(), ImGuiDataType_U64, data);
+        else if (fundamental == refl::Reflection::FloatType)
+            return ImGui::DragScalar(label.c_str(), ImGuiDataType_Float, data);
+        else if (fundamental == refl::Reflection::DoubleType)
+            return ImGui::DragScalar(label.c_str(), ImGuiDataType_Double, data);
+    }
+
+    static bool EnumWidget(const std::string& label, refl::Enum* enumerate, void* data)
+    {
+        bool result = false;
+        int64_t value = enumerate->getValueByValuePtr(data);
+        std::string valueName(enumerate->getNameByValue(value));
+        if (ImGui::BeginCombo(label.c_str(), valueName.c_str()))
+        {
+            size_t valueCount = enumerate->getValueCount();
+            for (size_t i = 0; i < valueCount; ++i)
+            {
+                int64_t currentValue = enumerate->getValueByIndex(i);
+                const bool is_selected = (currentValue == value);
+                std::string currentValueName(enumerate->getNameByIndex(i));
+                if (ImGui::Selectable(currentValueName.c_str(), is_selected))
+                {
+                    enumerate->setValue(data, currentValue);
+                    result = true;
+                }
+
+                if (is_selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+        return result;
+    }
+
+    static bool PropertyWidget(refl::Property* property, void* data)
+    {
+        auto hiden = property->getMetadata<bool>(refl::MetaKey::Hidden);
+        if (hiden.has_value() && hiden.value())
+            return false;
+
+        refl::Type* declaredType = property->getDeclaredType();
+        switch (declaredType->getKind())
+        {
+        case refl::Type::Kind::Fundamental:
+            return FundamentalWidget(std::string(property->getName()), dynamic_cast<refl::Fundamental*>(declaredType), property->getValuePtr(data));
+        case refl::Type::Kind::Enum:
+            return EnumWidget(std::string(property->getName()), dynamic_cast<refl::Enum*>(declaredType), property->getValuePtr(data));
+        default:
+            break;
+        }
+    }
+
     static bool drawShaderGUI(Shader* shader)
     {
         Asset* shaderAsset = shader->getAsset();

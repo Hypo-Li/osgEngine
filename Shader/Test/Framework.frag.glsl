@@ -1,15 +1,29 @@
 #version 430 core
+// TODO: add ALPHA_MASK_THRESHOLD
 #pragma import_defines(SHADING_MODEL, ALPHA_MODE)
 
-#ifdef SHADING_MODEL
 #define SHADING_MODEL_UNLIT 0
 #define SHADING_MODEL_STANDARD 1
-#endif
 
-#ifdef ALPHA_MODE
 #define ALPHA_MODE_OPAQUE 0
 #define ALPHA_MODE_MASK 1
 #define ALPHA_MODE_BLEND 2
+
+#ifndef SHADING_MODEL
+    #define SHADING_MODEL SHADING_MODEL_UNLIT
+#endif
+
+#ifndef ALPHA_MODE
+    #define ALPHA_MODE ALPHA_MODE_OPAQUE
+#endif
+
+#define RENDERING_PATH_DEFERRED 0
+#define RENDERING_PATH_FORWARD 1
+
+#if (ALPHA_MODE != ALPHA_MODE_BLEND)
+    #define RENDERING_PATH RENDERING_PATH_DEFERRED
+#else
+    #define RENDERING_PATH RENDERING_PATH_FORWARD
 #endif
 
 in V2F
@@ -22,7 +36,7 @@ in V2F
     vec4 texcoord1;
 } v2f;
 
-#if ((SHADING_MODEL != SHADING_MODEL_UNLIT) && (ALPHA_MODE != ALPHA_MODE_BLEND))
+#if (RENDERING_PATH == RENDERING_PATH_DEFERRED)
 out vec4 fragData[5];
 #else
 out vec4 fragData;
@@ -51,7 +65,53 @@ struct MaterialOutputs
     float occlusion;
 };
 
+struct PixelCommonData
+{
+    vec3 viewDirWS;
+    vec3 reflDirWS;
+    float NdV;
+    vec3 F0;
+
+};
+
+struct DirectionalLight
+{
+    vec3 direction;
+    vec3 intensity;
+};
+
+void calcPixelCommonData(in MaterialOutputs mo, out PixelCommonData pcd)
+{
+    //vec3 viewDirVS = normalize(-v2f.fragPosVS);
+    //pcd.viewDirWS = mat3(uInverseViewMatrix) * viewDirVS;
+    pcd.F0 = mix(vec3(0.04), mo.baseColor, mo.metallic);
+}
+
 void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo);
+
+void evaluateDirectionalLight(in MaterialOutputs mo, in PixelCommonData pcd, inout vec3 color)
+{
+
+}
+
+void evaluateIBL(in MaterialOutputs mo, in PixelCommonData pcd, inout vec3 color)
+{
+
+}
+
+vec3 evaluateLighting(in const MaterialOutputs mo)
+{
+#if ((RENDERING_PATH == RENDERING_PATH_FORWARD) && (SHADING_MODEL == SHADING_MODEL_UNLIT))
+    return mo.emissive;
+#else
+    PixelCommonData pcd;
+    calcPixelCommonData(mo, pcd);
+    vec3 color = vec3(0.0);
+    evaluateDirectionalLight(mo, pcd, color);
+    evaluateIBL(mo, pcd, color);
+    return color;
+#endif
+}
 
 void main()
 {
@@ -71,13 +131,13 @@ void main()
         discard;
 #endif
 
-#if ((SHADING_MODEL != SHADING_MODEL_UNLIT) && (ALPHA_MODE != ALPHA_MODE_BLEND))
+#if (RENDERING_PATH == RENDERING_PATH_DEFERRED)
     fragData[0] = vec4(mo.emissive, 1.0);
     fragData[1] = vec4(mo.normal * 0.5 + 0.5, 1.0);
     fragData[2] = vec4(mo.metallic, mo.roughness, mo.specular, SHADING_MODEL / 255.0);
     fragData[3] = vec4(mo.baseColor, mo.occlusion);
     fragData[4] = vec4(0);
 #else
-    fragData = vec4(mo.emissive, mo.opaque);
+    fragData = vec4(evaluateLighting(mo), 1.0);
 #endif
 }

@@ -41,11 +41,9 @@ void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
 }
 )";
 
-#define GBUFFER_MASK            1
-#define SHADOW_CAST_MASK        1 << 2
-#define TRANSPARENT_MASK        1 << 3
-#define UNLIT_OPAQUE_MASK       1 << 4
-#define UNLIT_TRANSPARENT_MASK  1 << 5
+#define GBUFFER_MASK            1 << 0
+#define SHADOW_CAST_MASK        1 << 1
+#define TRANSPARENT_MASK        1 << 2
 
 namespace xxx
 {
@@ -203,20 +201,10 @@ namespace xxx
 
     uint32_t Material::getOsgNodeMask()
     {
-        if (mShadingModel == ShadingModel::Unlit)
-        {
-            if (mAlphaMode == AlphaMode::Blend)
-                return UNLIT_TRANSPARENT_MASK;
-            else
-                return UNLIT_OPAQUE_MASK;
-        }
+        if (mAlphaMode == AlphaMode::Blend)
+            return TRANSPARENT_MASK;
         else
-        {
-            if (mAlphaMode == AlphaMode::Blend)
-                return TRANSPARENT_MASK;
-            else
-                return GBUFFER_MASK;
-        }
+            return GBUFFER_MASK;
     }
 
     std::string Material::getParameterTypeString(const Shader::ParameterValue& parameter)

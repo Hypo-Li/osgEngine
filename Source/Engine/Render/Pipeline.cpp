@@ -60,10 +60,11 @@ namespace xxx
         }
     };
 
-    void Pipeline::Pass::attach(BufferType buffer, GLenum internalFormat, bool multisampling,
-        osg::Texture::FilterMode minFilter, osg::Texture::FilterMode magFilter,
-        osg::Texture::WrapMode wrapS, osg::Texture::WrapMode wrapT)
+    osg::Texture* Pipeline::Pass::generateTexture(GLenum internalFormat, bool multisampling,
+                osg::Texture::FilterMode minFilter, osg::Texture::FilterMode magFilter,
+                osg::Texture::WrapMode wrapS, osg::Texture::WrapMode wrapT)
     {
+        // this special format need set source type
         static constexpr std::pair<GLenum, GLenum> formatTable[] = {
             { GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT },
             { GL_DEPTH_COMPONENT16, GL_DEPTH_COMPONENT },
@@ -90,8 +91,9 @@ namespace xxx
             tex2d->setTextureSize(viewport->width(), viewport->height());
         }
         texture->setInternalFormat(internalFormat);
-        constexpr uint32_t count = sizeof(formatTable) / sizeof(std::pair<GLenum, GLenum>);
-        for (uint32_t i = 0; i < count; i++)
+      
+        constexpr uint32_t formatCount = sizeof(formatTable) / sizeof(std::pair<GLenum, GLenum>);
+        for (uint32_t i = 0; i < formatCount; i++)
         {
             if (formatTable[i].first == internalFormat)
                 texture->setSourceFormat(formatTable[i].second);
@@ -100,7 +102,14 @@ namespace xxx
         texture->setFilter(osg::Texture::MAG_FILTER, magFilter);
         texture->setWrap(osg::Texture::WRAP_S, wrapS);
         texture->setWrap(osg::Texture::WRAP_T, wrapT);
-        mCamera->attach(buffer, texture);
+        return texture;
+    }
+
+    void Pipeline::Pass::attach(BufferType buffer, GLenum internalFormat, bool multisampling,
+        osg::Texture::FilterMode minFilter, osg::Texture::FilterMode magFilter,
+        osg::Texture::WrapMode wrapS, osg::Texture::WrapMode wrapT)
+    {
+        mCamera->attach(buffer, generateTexture(internalFormat, multisampling, minFilter, magFilter, wrapS, wrapT));
     }
 
     Pipeline::Pass* Pipeline::addInputPass(const std::string& name, osg::Node::NodeMask cullMask, GLbitfield clearMask, bool fixedSize, osg::Vec2 sizeScale)

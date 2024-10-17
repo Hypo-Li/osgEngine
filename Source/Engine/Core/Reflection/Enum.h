@@ -15,6 +15,10 @@ namespace xxx::refl
         static constexpr size_t INDEX_NONE = std::numeric_limits<size_t>::max();
         static constexpr std::string_view NAME_NONE = std::string_view("");
 
+        virtual int64_t getValueByValuePtr(void* valuePtr) const = 0;
+
+        virtual void setValue(void* instance, int64_t value) const = 0;
+
         Type* getUnderlyingType() const
         {
             return mUnderlyingType;
@@ -123,6 +127,18 @@ namespace xxx::refl
         virtual bool compare(const void* instance1, const void* instance2) const override
         {
             return *static_cast<const T*>(instance1) == *static_cast<const T*>(instance2);
+        }
+
+        virtual int64_t getValueByValuePtr(void* valuePtr) const override
+        {
+            using UnderlyingType = std::underlying_type_t<T>;
+            return static_cast<int64_t>(*(UnderlyingType*)(valuePtr));
+        }
+
+        virtual void setValue(void* instance, int64_t value) const override
+        {
+            using UnderlyingType = std::underlying_type_t<T>;
+            *static_cast<UnderlyingType*>(instance) = static_cast<UnderlyingType>(value);
         }
 
     protected:

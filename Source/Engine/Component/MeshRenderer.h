@@ -63,10 +63,13 @@ namespace xxx
             mOsgGeometries = mMesh->generateGeometries();
             mOverlayMaterials.resize(mOsgGeometries.size());
 
+            mOsgGeode->removeDrawables(0, mOsgGeode->getNumDrawables());
             for (uint32_t i = 0; i < mOsgGeometries.size(); ++i)
             {
                 mOsgGeode->addDrawable(mOsgGeometries[i]);
-                mOsgGeometries[i]->setStateSet(getMaterial(i)->getOsgStateSet());
+                Material* material = getMaterial(i);
+                mOsgGeometries[i]->setStateSet(material->getOsgStateSet());
+                mOsgGeometries[i]->setNodeMask(material->getOsgNodeMask());
             }
         }
 
