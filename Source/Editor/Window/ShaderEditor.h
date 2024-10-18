@@ -6,7 +6,11 @@ namespace xxx::editor
     class ShaderEditor : public Window
     {
     public:
-        ShaderEditor(Asset* shaderAsset) : Window(shaderAsset->getName().c_str()), mShaderAsset(shaderAsset) {}
+        ShaderEditor(Asset* shaderAsset) : Window(shaderAsset->getName().c_str()), mShaderAsset(shaderAsset)
+        {
+            if (!mShaderAsset->isLoaded())
+                mShaderAsset->load();
+        }
 
         virtual bool draw()
         {
@@ -109,13 +113,8 @@ namespace xxx::editor
                 ImGui::InputTextMultiline("Source", &shader->getSource());
 
                 if (ImGui::Button("Apply"))
-                {
-                    AssetManager::get().foreachAsset<Material>([shader](Asset* asset) {
-                        Material* material = asset->getRootObject<Material>();
-                        if (material->getShader() == shader)
-                            material->syncWithShader();
-                    });
-                }
+                    shader->apply();
+
                 if (ImGui::Button("Save"))
                     mShaderAsset->save();
             }

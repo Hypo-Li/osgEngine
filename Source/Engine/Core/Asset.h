@@ -49,6 +49,10 @@ namespace xxx
             return mIsLoaded;
         }
 
+        void setRootObject(Object* rootObject);
+
+        void setPath(const std::string& path);
+
         inline const std::string& getPath() const
         {
             return mPath;
@@ -68,10 +72,6 @@ namespace xxx
         {
             return mClass;
         }
-
-        void setRootObject(Object* rootObject);
-
-        void setPath(const std::string& path);
 
         void load();
 

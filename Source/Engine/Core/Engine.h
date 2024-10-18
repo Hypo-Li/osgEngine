@@ -56,7 +56,7 @@ namespace xxx
             initContext(setupConfig);
             initPipeline(setupConfig);
 
-            Asset* asset = AssetManager::get().getAsset("Engine/TestEntity.xast");
+            Asset* asset = AssetManager::get().getAsset("Engine/TestEntity");
             asset->load();
 
             mView->setSceneData(dynamic_cast<Entity*>(asset->getRootObject())->getOsgNode());
@@ -97,7 +97,7 @@ namespace xxx
         {
             Context& context = Context::get();
             context.setGraphicsContext(createGraphicsContext(setupConfig.width, setupConfig.height, setupConfig.glContextVersion));
-
+            context.setEngine(this);
         }
 
         void initPipeline(const EngineSetupConfig& setupConfig)

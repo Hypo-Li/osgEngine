@@ -34,7 +34,7 @@ int main()
     ///*
     Mesh* mesh = new Mesh(TEMP_DIR "test.obj");
 
-    Asset* textureAsset = am.getAsset("Engine/Texture/AwesomeFace.xast");
+    Asset* textureAsset = am.getAsset("Engine/Texture/AwesomeFace");
     textureAsset->load();
     Texture* texture = textureAsset->getRootObject<Texture>();
 
@@ -46,7 +46,7 @@ int main()
     shader->addParameter("BaseColorTexture", texture);
     shader->setSource(
 R"(
-void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
+void calcMaterial(in MaterialInputs mi, inout MaterialOutputs mo)
 {
     vec4 texColor = texture(uBaseColorTexture, mi.texcoord0.xy);
     mo.emissive = (mo.normal * 0.5 + 0.5) * uEmissiveFactor;
@@ -54,9 +54,6 @@ void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
     mo.baseColor = texColor.rgb * uBaseColor;
     mo.metallic = uMetallic;
     mo.roughness = uRoughness;
-    mat3 tbn = mat3(mi.tangentWS, mi.bitangentWS, mi.normalWS);
-    mo.normal = tbn * vec3(0, 0, 1);
-    mo.occlusion = 1.0;
 }
 )"
     );
@@ -77,7 +74,7 @@ void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
     MeshRenderer* meshRenderer = entity->addComponent<MeshRenderer>();
     meshRenderer->setMesh(mesh);
 
-    Asset* entityAsset = am.createAsset(entity, "Engine/TestEntity.xast");
+    Asset* entityAsset = am.createAsset(entity, "Engine/TestEntity");
     entityAsset->save();
     //*/
 
@@ -101,7 +98,7 @@ void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
     camera->setViewport(0, 0, width, height);
     camera->setProjectionMatrixAsPerspective(90.0, double(width) / double(height), 0.1, 400.0);
 
-    Asset* asset = am.getAsset("Engine/TestEntity.xast");
+    Asset* asset = am.getAsset("Engine/TestEntity");
     asset->load();
     
     rootGroup->addChild(dynamic_cast<Entity*>(asset->getRootObject())->getOsgNode());

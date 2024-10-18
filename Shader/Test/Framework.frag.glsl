@@ -26,11 +26,13 @@
     #define RENDERING_PATH RENDERING_PATH_FORWARD
 #endif
 
+uniform mat4 osg_ViewMatrixInverse;
+
 in V2F
 {
     vec3 fragPosVS;
-    vec3 normalWS;
-    vec4 tangentWS;
+    vec3 normalVS;
+    vec4 tangentVS;
     vec4 color;
     vec4 texcoord0;
     vec4 texcoord1;
@@ -45,9 +47,8 @@ out vec4 fragData;
 struct MaterialInputs
 {
     vec3 fragPosVS;
-    vec3 normalWS;
-    vec3 tangentWS;
-    vec3 bitangentWS;
+    vec3 normalVS;
+    vec3 tangentVS;
     vec4 color;
     vec4 texcoord0;
     vec4 texcoord1;
@@ -87,7 +88,7 @@ void calcPixelCommonData(in MaterialOutputs mo, out PixelCommonData pcd)
     pcd.F0 = mix(vec3(0.04), mo.baseColor, mo.metallic);
 }
 
-void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo);
+void calcMaterial(in MaterialInputs mi, inout MaterialOutputs mo);
 
 void evaluateDirectionalLight(in MaterialOutputs mo, in PixelCommonData pcd, inout vec3 color)
 {
@@ -113,23 +114,48 @@ vec3 evaluateLighting(in const MaterialOutputs mo)
 #endif
 }
 
-void main()
+void initMaterialInputs(inout MaterialInputs mi)
 {
-    MaterialInputs mi;
     mi.fragPosVS = v2f.fragPosVS;
-    mi.normalWS = normalize(v2f.normalWS);
-    mi.tangentWS = normalize(v2f.tangentWS.xyz);
-    mi.bitangentWS = normalize(cross(mi.normalWS, mi.tangentWS)) * v2f.tangentWS.w;
+    mi.normalVS = normalize(v2f.normalVS);
+    mi.tangentVS = normalize(v2f.tangentVS.xyz);
     mi.color = v2f.color;
     mi.texcoord0 = v2f.texcoord0;
     mi.texcoord1 = v2f.texcoord1;
+}
+
+void initMaterialOutputs(inout MaterialOutputs mo)
+{
+    mo.emissive = vec3(0);
+    mo.opaque = 1;
+    mo.baseColor = vec3(0.8);
+    mo.metallic = 0;
+    mo.roughness = 0.5;
+    mo.specular = 0.5;
+    mo.normal = vec3(0, 0, 1);
+    mo.occlusion = 1;
+}
+
+void calcNormal(in MaterialInputs mi, inout MaterialOutputs mo)
+{
+    vec3 bitangentVS = normalize(cross(mi.normalVS, mi.tangentVS)) * v2f.tangentVS.w;
+    mo.normal = mat3(osg_ViewMatrixInverse) * mat3(mi.tangentVS, bitangentVS, mi.normalVS) * mo.normal;
+}
+
+void main()
+{
+    MaterialInputs mi;
+    initMaterialInputs(mi);
     MaterialOutputs mo;
+    initMaterialOutputs(mo);
     calcMaterial(mi, mo);
 
 #if (ALPHA_MODE == ALPHA_MODE_MASK)
     if (mo.opaque < 0.5)
         discard;
 #endif
+
+    calcNormal(mi, mo);
 
 #if (RENDERING_PATH == RENDERING_PATH_DEFERRED)
     fragData[0] = vec4(mo.emissive, 1.0);
@@ -138,6 +164,6 @@ void main()
     fragData[3] = vec4(mo.baseColor, mo.occlusion);
     fragData[4] = vec4(0);
 #else
-    fragData = vec4(evaluateLighting(mo), 1.0);
+    fragData = vec4(/*evaluateLighting(mo)*/mo.baseColor, mo.opaque);
 #endif
 }

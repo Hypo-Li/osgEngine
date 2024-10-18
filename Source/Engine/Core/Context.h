@@ -70,6 +70,16 @@ namespace xxx
             mActivedEntity = entity;
         }
 
+        void setEngine(Engine* engine)
+        {
+            mEngine = engine;
+        }
+
+        Engine* getEngine() const
+        {
+            return mEngine;
+        }
+
         /*void appendEntity(Entity* entity, Entity* parent = nullptr)
         {
             if (parent)
@@ -118,6 +128,7 @@ namespace xxx
 
     private:
         osg::ref_ptr<osg::GraphicsContext> mGraphicsContext;
+        Engine* mEngine;
 
         // Assets search paths
         std::filesystem::path mEnginePath;

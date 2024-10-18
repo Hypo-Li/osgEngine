@@ -53,15 +53,20 @@ namespace xxx
         if (mRootObject == rootObject)
             return;
 
+        AssetManager& am = AssetManager::get();
+        am.mGuidAssetMap.erase(mGuid);
         mRootObject = rootObject;
         if (rootObject)
         {
             Guid newGuid = rootObject->getGuid();
-            AssetManager& am = AssetManager::get();
-            am.mGuidAssetMap.erase(mGuid);
-            am.mGuidAssetMap.emplace(newGuid, this);
             mGuid = newGuid;
+            am.mGuidAssetMap.emplace(newGuid, this);
             mClass = mRootObject->getClass();
+            mIsLoaded = true;
+        }
+        else if (mGuid.isValid())
+        {
+            am.mGuidAssetMap.emplace(mGuid, this);
         }
     }
 
@@ -127,10 +132,15 @@ namespace xxx
 
     std::string Asset::convertFullPathToAssetPath(const std::filesystem::path& fullPath)
     {
+        if (fullPath.extension() != ".xast")
+            return std::string();
+
         const std::filesystem::path& engineAssetPath = Context::get().getEngineAssetPath();
         if (fullPath.compare(engineAssetPath) > 0)
         {
-            std::string assetPath = "Engine/" + fullPath.lexically_relative(engineAssetPath).string();
+            std::filesystem::path relativePath = fullPath.lexically_relative(engineAssetPath);
+            relativePath.replace_extension("");
+            std::string assetPath = "Engine/" + relativePath.string();
             std::replace(assetPath.begin(), assetPath.end(), '\\', '/');
             return assetPath;
         }
@@ -138,7 +148,9 @@ namespace xxx
         const std::filesystem::path& projectAssetPath = Context::get().getProjectAssetPath();
         if (fullPath.compare(projectAssetPath) > 0)
         {
-            std::string assetPath = "/" + fullPath.lexically_relative(projectAssetPath).string();
+            std::filesystem::path relativePath = fullPath.lexically_relative(projectAssetPath);
+            relativePath.replace_extension("");
+            std::string assetPath = "Project/" + relativePath.string();
             std::replace(assetPath.begin(), assetPath.end(), '\\', '/');
             return assetPath;
         }
@@ -153,13 +165,15 @@ namespace xxx
         {
             fullPath = Context::get().getEngineAssetPath();
             fullPath /= assetPath.substr(7);
+            fullPath.replace_extension(".xast");
             return fullPath;
         }
 
-        if (assetPath.substr(0, 1) == "/")
+        if (assetPath.substr(0, 1) == "Project/")
         {
             fullPath = Context::get().getProjectAssetPath();
-            fullPath /= assetPath.substr(1);
+            fullPath /= assetPath.substr(8);
+            fullPath.replace_extension(".xast");
             return fullPath;
         }
 

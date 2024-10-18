@@ -63,7 +63,7 @@ namespace xxx
 
         osg::Shader* screenQuadShader = osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Common/ScreenQuad.vert.glsl");
 
-        osg::Program* lightingProgram = new osg::Program;
+        /*osg::Program* lightingProgram = new osg::Program;
         lightingProgram->addShader(screenQuadShader);
         lightingProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/Lighting.frag.glsl"));
         Pipeline::Pass* lightingPass = pipeline->addWorkPass("Lighting", lightingProgram, 0);
@@ -75,13 +75,15 @@ namespace xxx
         lightingPass->applyTexture(gbufferPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uDepthTexture", 4);
         lightingPass->setMode(GL_BLEND, osg::StateAttribute::ON);
         lightingPass->setAttribute(new osg::BlendFunc(GL_ONE, GL_SRC_ALPHA));
-        lightingPass->setAttribute(viewDataUBB);
+        lightingPass->setAttribute(viewDataUBB);*/
 
         Pipeline::Pass* transparentPass = pipeline->addInputPass("Transparent", 0x00000002, GL_COLOR_BUFFER_BIT);
         transparentPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F, true);
         transparentPass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT24, true);
         transparentPass->setAttribute(new osg::Depth(osg::Depth::LESS, 0.0, 1.0, false));
-        transparentPass->getCamera()->setClearColor(osg::Vec4(0, 0, 0, 0));
+        transparentPass->setMode(GL_BLEND);
+        transparentPass->setAttribute(new osg::BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE_MINUS_SRC_ALPHA));
+        transparentPass->getCamera()->setClearColor(osg::Vec4(0, 0, 0, 1));
 
         pipeline->addBlitFramebufferCommand(gbufferPass, transparentPass, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 
@@ -92,7 +94,7 @@ namespace xxx
         combineOpaqueAndTransparentProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CombineOpaqueAndTransparent.frag.glsl"));
         Pipeline::Pass* combineOpaqueAndTransparentPass = pipeline->addWorkPass("CombineOpaqueAndTransparent", combineOpaqueAndTransparentProgram, GL_COLOR_BUFFER_BIT);
         combineOpaqueAndTransparentPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F);
-        combineOpaqueAndTransparentPass->applyTexture(lightingPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uOpaqueColorTexture", 0);
+        combineOpaqueAndTransparentPass->applyTexture(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uOpaqueColorTexture", 0);
         combineOpaqueAndTransparentPass->applyTexture(transparentPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uTransparentColorTexture", 1);
         combineOpaqueAndTransparentPass->setAttribute(new osg::Depth(osg::Depth::ALWAYS));
 

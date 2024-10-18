@@ -1,5 +1,6 @@
 #pragma once
 #include "Texture.h"
+#include <Engine/Core/AssetManager.h>
 
 #include <osg/Shader>
 #include <variant>
@@ -108,6 +109,8 @@ namespace xxx
         {
             return mParameters;
         }
+
+        void apply() const;
 
     protected:
         Parameters mParameters;

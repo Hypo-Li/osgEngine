@@ -27,12 +27,6 @@ namespace xxx::editor
             return window;
         }
 
-        void foreachWindow(const std::function<void(Window*)>& func)
-        {
-            for (Window* window : mWindows)
-                func(window);
-        }
-
         bool hasWindowWantCaptureEvents() const
         {
             bool result = false;
@@ -51,6 +45,12 @@ namespace xxx::editor
                 else
                     ++windowIt;
             }
+        }
+
+        void foreachWindow(const std::function<void(Window*)>& func)
+        {
+            for (Window* window : mWindows)
+                func(window);
         }
 
     protected:

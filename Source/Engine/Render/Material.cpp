@@ -5,9 +5,8 @@ R"(#version 430 core
 struct MaterialInputs
 {
     vec3 fragPosVS;
-    vec3 normalWS;
-    vec3 tangentWS;
-    vec3 bitangentWS;
+    vec3 normalVS;
+    vec3 tangentVS;
     vec4 color;
     vec4 texcoord0;
     vec4 texcoord1;
@@ -28,17 +27,7 @@ struct MaterialOutputs
 )";
 
 static const std::string DefaultMaterialShaderSource = R"(
-void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo)
-{
-    mo.emissive = vec3(0.0);
-    mo.opaque = 1.0;
-    mo.baseColor = vec3(0.8);
-    mo.metallic = 0.0;
-    mo.roughness = 0.5;
-    mo.specular = 0.5;
-    mo.normal = mi.normalWS;
-    mo.occlusion = 1.0;
-}
+void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo) {}
 )";
 
 #define GBUFFER_MASK            1 << 0

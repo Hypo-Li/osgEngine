@@ -209,6 +209,14 @@ namespace xxx
             return true;
         }
 
+        bool removePass(uint32_t pos)
+        {
+            if (!mView->removeSlave(pos))
+                return false;
+            mPasses.erase(mPasses.begin() + pos);
+            return true;
+        }
+
         // TODO: process resize
         uint32_t addBlitFramebufferCommand(Pass* srcPass, Pass* dstPass, GLbitfield mask, GLenum filter, osg::Vec4d srcRect = osg::Vec4d(0, 0, 1, 1), osg::Vec4d dstRect = osg::Vec4d(0, 0, 1, 1))
         {

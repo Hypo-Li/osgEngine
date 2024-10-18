@@ -9,8 +9,8 @@ layout(location = 6) in vec4 osg_Tangent;
 out V2F
 {
     vec3 fragPosVS;
-    vec3 normalWS;
-    vec4 tangentWS;
+    vec3 normalVS;
+    vec4 tangentVS;
     vec4 color;
     vec4 texcoord0;
     vec4 texcoord1;
@@ -26,8 +26,8 @@ void main()
     vec4 viewSpace = osg_ModelViewMatrix * osg_Vertex;
     gl_Position = osg_ProjectionMatrix * viewSpace;
     v2f.fragPosVS = viewSpace.xyz;
-    v2f.normalWS = mat3(osg_ViewMatrixInverse) * osg_NormalMatrix * osg_Normal;
-    v2f.tangentWS = vec4(mat3(osg_ViewMatrixInverse) * osg_NormalMatrix * osg_Tangent.xyz, osg_Tangent.w);
+    v2f.normalVS = osg_NormalMatrix * osg_Normal;
+    v2f.tangentVS = vec4(osg_NormalMatrix * osg_Tangent.xyz, osg_Tangent.w);
     v2f.color = osg_Color;
     v2f.texcoord0 = osg_MultiTexCoord0;
     v2f.texcoord1 = osg_MultiTexCoord1;
