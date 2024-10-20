@@ -57,7 +57,7 @@ namespace xxx
             auto materialParamIt = mParameters.find(name);
             if constexpr (std::is_base_of_v<xxx::Texture, std::remove_pointer_t<T>>)
             {
-                if (materialParamIt != mParameters.end() && materialParamIt->second.first.index() == size_t(Shader::ParameterIndex::Texture))
+                if (materialParamIt != mParameters.end() && materialParamIt->second.first.index() == size_t(Shader::ParameterType::Texture))
                 {
                     const Shader::TextureAndUnit& textureAndUnit = std::get<Shader::TextureAndUnit>(materialParamIt->second.first);
                     mParameters[name].first = std::make_pair(osg::ref_ptr<Texture>(value), textureAndUnit.second);

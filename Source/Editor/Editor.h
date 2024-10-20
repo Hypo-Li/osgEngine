@@ -38,9 +38,8 @@ namespace xxx::editor
             mViewer->setThreadingModel(osgViewer::Viewer::SingleThreaded);
 
             Pipeline* enginePipeline = mEngine->getPipeline();
-            uint32_t passCount = enginePipeline->getPassCount();
-            osg::Camera* imguiCamera = enginePipeline->getPass(passCount - 1)->getCamera();
-            osg::Texture2D* sceneColorTexture = dynamic_cast<osg::Texture2D*>(enginePipeline->getPass(passCount - 2)->getBufferTexture(Pipeline::Pass::BufferType::COLOR_BUFFER0));
+            osg::Camera* imguiCamera = enginePipeline->getPass("Display")->getCamera();
+            osg::Texture2D* sceneColorTexture = dynamic_cast<osg::Texture2D*>(enginePipeline->getPass("CombineOpaqueAndTransparent")->getBufferTexture(Pipeline::Pass::BufferType::COLOR_BUFFER0));
 
             WindowManager& wm = WindowManager::get();
             DockSpace* dockSpace = wm.createWindow<DockSpace>();

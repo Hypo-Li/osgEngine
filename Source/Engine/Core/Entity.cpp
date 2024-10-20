@@ -136,53 +136,40 @@ namespace xxx
 
 	void Entity::addComponent(Component* component)
 	{
-        if (component->mEntity == this)
-            return;
-        if (component->mEntity != nullptr)
-            component->mEntity->removeComponent(component);
-        component->setOwner(this);
-		component->mEntity = this;
+        component->onAddToEntity(this);
 		mComponents.emplace_back(component);
-        mOsgComponentsGroup->addChild(component->mOsgComponentGroup);
+        mOsgComponentsGroup->addChild(component->getOsgNode());
 	}
 
-	void Entity::removeComponent(Component* component)
+    Entity::Components::const_iterator Entity::removeComponent(Component* component)
 	{
-		if (component->mEntity != this)
-			return;
-        component->setOwner(nullptr);
-		component->mEntity = nullptr;
-		mOsgComponentsGroup->removeChild(component->mOsgComponentGroup);
+        component->onRemoveFromEntity(this);
+		mOsgComponentsGroup->removeChild(component->getOsgNode());
 
         for (auto it = mComponents.begin(); it != mComponents.end(); ++it)
-        {
             if (*it == component)
-            {
-                mComponents.erase(it);
-                break;
-            }
-        }
+                return mComponents.erase(it);
+
+        return mComponents.end();
 	}
 
-    void Entity::removeComponent(uint32_t index)
+    Entity::Components::const_iterator Entity::removeComponent(uint32_t index)
     {
         if (index >= mComponents.size())
-            return;
+            return mComponents.end();
         Component* component = mComponents[index];
-        component->setOwner(nullptr);
-        component->mEntity = nullptr;
-        mOsgComponentsGroup->removeChild(component->mOsgComponentGroup);
+        component->onRemoveFromEntity(this);
+        mOsgComponentsGroup->removeChild(component->getOsgNode());
 
-        mComponents.erase(mComponents.begin() + index);
+        return mComponents.erase(mComponents.begin() + index);
     }
 
     void Entity::clearComponents()
     {
         for (auto it : mComponents)
         {
-            it->setOwner(nullptr);
-            it->mEntity = nullptr;
-            mOsgComponentsGroup->removeChild(it->mOsgComponentGroup);
+            it->onRemoveFromEntity(this);
+            mOsgComponentsGroup->removeChild(it->getOsgNode());
         }
         mComponents.clear();
     }

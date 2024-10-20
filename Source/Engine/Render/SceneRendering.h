@@ -63,9 +63,9 @@ namespace xxx
 
         osg::Shader* screenQuadShader = osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Common/ScreenQuad.vert.glsl");
 
-        /*osg::Program* lightingProgram = new osg::Program;
+        osg::Program* lightingProgram = new osg::Program;
         lightingProgram->addShader(screenQuadShader);
-        lightingProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/Lighting.frag.glsl"));
+        lightingProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Lighting/Opaque.frag.glsl"));
         Pipeline::Pass* lightingPass = pipeline->addWorkPass("Lighting", lightingProgram, 0);
         lightingPass->attach(BufferType::COLOR_BUFFER0, gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER0));
         lightingPass->applyTexture(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER1), "uGBufferATexture", 0);
@@ -73,9 +73,11 @@ namespace xxx
         lightingPass->applyTexture(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER3), "uGBufferCTexture", 2);
         lightingPass->applyTexture(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER4), "uGBufferDTexture", 3);
         lightingPass->applyTexture(gbufferPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uDepthTexture", 4);
+        lightingPass->applyUniform(new osg::Uniform("uDirectionalLightCount", uint32_t(0)));
         lightingPass->setMode(GL_BLEND, osg::StateAttribute::ON);
-        lightingPass->setAttribute(new osg::BlendFunc(GL_ONE, GL_SRC_ALPHA));
-        lightingPass->setAttribute(viewDataUBB);*/
+        lightingPass->setAttribute(new osg::BlendFunc(GL_ONE, GL_ONE));
+        lightingPass->setAttribute(new osg::Depth(osg::Depth::ALWAYS));
+        lightingPass->setAttribute(viewDataUBB);
 
         Pipeline::Pass* transparentPass = pipeline->addInputPass("Transparent", 0x00000002, GL_COLOR_BUFFER_BIT);
         transparentPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F, true);

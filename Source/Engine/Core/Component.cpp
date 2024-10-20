@@ -17,6 +17,25 @@ namespace xxx
 
     }
 
+    void Component::onAddToEntity(Entity* entity)
+    {
+        if (mEntity == entity)
+            return;
+        if (mEntity != nullptr)
+            mEntity->removeComponent(this);
+
+        setOwner(entity);
+        mEntity = entity;
+    }
+
+    void Component::onRemoveFromEntity(Entity* entity)
+    {
+        if (mEntity != entity)
+            return;
+        setOwner(nullptr);
+        mEntity = nullptr;
+    }
+
     namespace refl
     {
         template <> Type* Reflection::createType<Component>()

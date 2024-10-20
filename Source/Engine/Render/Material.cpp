@@ -27,7 +27,7 @@ struct MaterialOutputs
 )";
 
 static const std::string DefaultMaterialShaderSource = R"(
-void calcMaterial(in MaterialInputs mi, out MaterialOutputs mo) {}
+void calcMaterial(in MaterialInputs mi, inout MaterialOutputs mo) {}
 )";
 
 #define GBUFFER_MASK            1 << 0
@@ -103,25 +103,25 @@ namespace xxx
             const Shader::ParameterValue& parameterValue = materialParamEnable ? materialParamIt->second.first : shaderParam.second;
             switch (parameterValue.index())
             {
-            case size_t(Shader::ParameterIndex::Bool):
+            case size_t(Shader::ParameterType::Bool):
                 uniform = new osg::Uniform(uniformName.c_str(), std::get<bool>(parameterValue));
                 break;
-            case size_t(Shader::ParameterIndex::Int):
+            case size_t(Shader::ParameterType::Int):
                 uniform = new osg::Uniform(uniformName.c_str(), std::get<int>(parameterValue));
                 break;
-            case size_t(Shader::ParameterIndex::Float):
+            case size_t(Shader::ParameterType::Float):
                 uniform = new osg::Uniform(uniformName.c_str(), std::get<float>(parameterValue));
                 break;
-            case size_t(Shader::ParameterIndex::Vec2f):
+            case size_t(Shader::ParameterType::Vec2f):
                 uniform = new osg::Uniform(uniformName.c_str(), std::get<osg::Vec2f>(parameterValue));
                 break;
-            case size_t(Shader::ParameterIndex::Vec3f):
+            case size_t(Shader::ParameterType::Vec3f):
                 uniform = new osg::Uniform(uniformName.c_str(), std::get<osg::Vec3f>(parameterValue));
                 break;
-            case size_t(Shader::ParameterIndex::Vec4f):
+            case size_t(Shader::ParameterType::Vec4f):
                 uniform = new osg::Uniform(uniformName.c_str(), std::get<osg::Vec4f>(parameterValue));
                 break;
-            case size_t(Shader::ParameterIndex::Texture):
+            case size_t(Shader::ParameterType::Texture):
             {
                 const Shader::TextureAndUnit& textureAndUnit = std::get<Shader::TextureAndUnit>(parameterValue);
                 uniform = new osg::Uniform(uniformName.c_str(), textureAndUnit.second);
@@ -199,19 +199,19 @@ namespace xxx
     {
         switch (parameter.index())
         {
-        case size_t(Shader::ParameterIndex::Bool):
+        case size_t(Shader::ParameterType::Bool):
             return "bool";
-        case size_t(Shader::ParameterIndex::Int):
+        case size_t(Shader::ParameterType::Int):
             return "int";
-        case size_t(Shader::ParameterIndex::Float):
+        case size_t(Shader::ParameterType::Float):
             return "float";
-        case size_t(Shader::ParameterIndex::Vec2f):
+        case size_t(Shader::ParameterType::Vec2f):
             return "vec2";
-        case size_t(Shader::ParameterIndex::Vec3f):
+        case size_t(Shader::ParameterType::Vec3f):
             return "vec3";
-        case size_t(Shader::ParameterIndex::Vec4f):
+        case size_t(Shader::ParameterType::Vec4f):
             return "vec4";
-        case size_t(Shader::ParameterIndex::Texture):
+        case size_t(Shader::ParameterType::Texture):
         {
             switch (std::get<Shader::TextureAndUnit>(parameter).first->getOsgTexture()->getTextureTarget())
             {
@@ -244,25 +244,25 @@ namespace xxx
 
         switch (materialParamIt->second.first.index())
         {
-        case size_t(Shader::ParameterIndex::Bool):
+        case size_t(Shader::ParameterType::Bool):
             uniform->set(std::get<bool>(parameterValue));
             return;
-        case size_t(Shader::ParameterIndex::Int):
+        case size_t(Shader::ParameterType::Int):
             uniform->set(std::get<int>(parameterValue));
             return;
-        case size_t(Shader::ParameterIndex::Float):
+        case size_t(Shader::ParameterType::Float):
             uniform->set(std::get<float>(parameterValue));
             return;
-        case size_t(Shader::ParameterIndex::Vec2f):
+        case size_t(Shader::ParameterType::Vec2f):
             uniform->set(std::get<osg::Vec2f>(parameterValue));
             return;
-        case size_t(Shader::ParameterIndex::Vec3f):
+        case size_t(Shader::ParameterType::Vec3f):
             uniform->set(std::get<osg::Vec3f>(parameterValue));
             return;
-        case size_t(Shader::ParameterIndex::Vec4f):
+        case size_t(Shader::ParameterType::Vec4f):
             uniform->set(std::get<osg::Vec4f>(parameterValue));
             return;
-        case size_t(Shader::ParameterIndex::Texture):
+        case size_t(Shader::ParameterType::Texture):
         {
             const Shader::TextureAndUnit& textureAndUnit = std::get<Shader::TextureAndUnit>(parameterValue);
             mOsgStateSet->setTextureAttribute(textureAndUnit.second, textureAndUnit.first->getOsgTexture(), osg::StateAttribute::ON);

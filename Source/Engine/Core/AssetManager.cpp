@@ -18,8 +18,8 @@ namespace xxx
         else
         {
             asset = findResult->second;
-            asset->setRootObject(rootObject);
         }
+        asset->setRootObject(rootObject);
         return asset;
     }
 

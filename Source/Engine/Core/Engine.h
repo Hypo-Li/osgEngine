@@ -56,7 +56,7 @@ namespace xxx
             initContext(setupConfig);
             initPipeline(setupConfig);
 
-            Asset* asset = AssetManager::get().getAsset("Engine/TestEntity");
+            Asset* asset = AssetManager::get().getAsset("Engine/Entity/TestEntity");
             asset->load();
 
             mView->setSceneData(dynamic_cast<Entity*>(asset->getRootObject())->getOsgNode());
@@ -106,7 +106,6 @@ namespace xxx
             camera->setViewport(0, 0, setupConfig.width, setupConfig.height);
             camera->setProjectionMatrixAsPerspective(90.0, double(setupConfig.width) / double(setupConfig.height), 0.1, 400.0);
 
-            // TODO: break circular reference
             mPipeline = createSceneRenderingPipeline(mView, true);
             Context::get().getGraphicsContext()->setResizedCallback(new ResizedCallback(mPipeline, true));
 

@@ -4,6 +4,7 @@
 #include <osg/ref_ptr>
 
 #include <vector>
+#include <unordered_set>
 #include <type_traits>
 #include <iostream>
 #include <functional>
@@ -22,9 +23,14 @@ namespace xxx::editor
         template <typename T, typename... Args>
         std::enable_if_t<std::is_base_of_v<Window, T>, T*> createWindow(Args... args)
         {
-            T* window = new T(args...);
-            mWindows.push_back(window);
-            return window;
+            osg::ref_ptr<T> window = new T(args...);
+            if (mWindowTitleSet.find(window->getTitle()) == mWindowTitleSet.end())
+            {
+                mWindows.push_back(window);
+                mWindowTitleSet.insert(window->getTitle());
+                return window;
+            }
+            return nullptr;
         }
 
         bool hasWindowWantCaptureEvents() const
@@ -54,6 +60,7 @@ namespace xxx::editor
         }
 
     protected:
-        std::vector<osg::ref_ptr<Window>> mWindows;
+        std::list<osg::ref_ptr<Window>> mWindows;
+        std::unordered_set<std::string_view> mWindowTitleSet;
     };
 }

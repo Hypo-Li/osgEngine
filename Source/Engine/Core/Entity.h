@@ -92,7 +92,7 @@ namespace xxx
                 for (Entity* child : mChildren)
                     mOsgChildrenGroup->addChild(child->mOsgEntityNode);
                 for (Component* component : mComponents)
-                    mOsgComponentsGroup->addChild(component->mOsgComponentGroup);
+                    mOsgComponentsGroup->addChild(component->getOsgNode());
                 updateTransform();
             }
         }
@@ -141,6 +141,8 @@ namespace xxx
 
         void clearChildren();
 
+        using Components = std::vector<osg::ref_ptr<Component>>;
+
 		void addComponent(Component* component);
 
         template <typename T, typename = std::enable_if_t<std::is_base_of_v<Component, T>>>
@@ -184,9 +186,9 @@ namespace xxx
             return mComponents.size();
         }
 
-		void removeComponent(Component* component);
+        Components::const_iterator removeComponent(Component* component);
 
-        void removeComponent(uint32_t index);
+        Components::const_iterator removeComponent(uint32_t index);
 
         void clearComponents();
 

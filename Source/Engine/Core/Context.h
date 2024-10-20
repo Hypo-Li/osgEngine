@@ -26,7 +26,9 @@ namespace xxx
         Context()
         {
             mEnginePath = std::filesystem::current_path();
-            mEngineAssetPath = ASSET_DIR;
+            std::string engineAssetPathStr = ASSET_DIR;
+            engineAssetPathStr.pop_back();
+            mEngineAssetPath = engineAssetPathStr;
         }
 
         static Context& get()

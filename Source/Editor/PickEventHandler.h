@@ -21,9 +21,20 @@ namespace xxx::editor
         {
             if (ea.getHandled())
                 return false;
-            if (ea.getEventType() == osgGA::GUIEventAdapter::RELEASE &&
+            static bool wantPick = false;
+            if (ea.getEventType() & osgGA::GUIEventAdapter::PUSH &&
                 ea.getButton() == osgGA::GUIEventAdapter::LEFT_MOUSE_BUTTON)
             {
+                wantPick = true;
+            }
+            if (ea.getEventType() & osgGA::GUIEventAdapter::DRAG)
+            {
+                wantPick = false;
+            }
+            if (ea.getEventType() & osgGA::GUIEventAdapter::RELEASE &&
+                ea.getButton() == osgGA::GUIEventAdapter::LEFT_MOUSE_BUTTON && wantPick)
+            {
+                wantPick = false;
                 osgViewer::View* view = dynamic_cast<osgViewer::View*>(aa.asView());
                 const float x = ea.getX(), y = ea.getY();
                 osg::Matrixd vpvMatrix; //Viewport * Projection * View
@@ -53,11 +64,12 @@ namespace xxx::editor
                             if (entityNode)
                             {
                                 Context::get().setActivedEntity(entityNode->getEntity());
-                                break;
+                                return true;
                             }
                         }
                     }
                 }
+                Context::get().setActivedEntity(nullptr);
             }
             return false;
         }

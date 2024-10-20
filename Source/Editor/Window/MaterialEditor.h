@@ -1,38 +1,82 @@
 #include "Window.h"
 #include "Widget.h"
 
+#include <osgViewer/View>
+
 namespace xxx::editor
 {
     class MaterialEditor : public Window
     {
     public:
-        MaterialEditor(Asset* materialAsset) : Window(materialAsset->getName().c_str()), mMaterialAsset(materialAsset) {}
-
-        virtual bool draw()
+        MaterialEditor(Asset* materialAsset) : Window(materialAsset->getName() + "##" + materialAsset->getPath()), mMaterialAsset(materialAsset)
         {
-            if (!mVisibility)
-                return true;
+            if (!mMaterialAsset->isLoaded())
+                mMaterialAsset->load();
 
-            if (ImGui::Begin(mTitle.c_str()))
+            mMaterial = mMaterialAsset->getRootObject<Material>();
+
+            /*mSimpleView = new osgViewer::View;
+            mSimpleView->setSceneData(mEngine->getView()->getSceneData());
+            osg::Camera* camera = mSimpleView->getCamera();
+            camera->setViewport(0, 0, 128, 128);
+            camera->setProjectionMatrixAsPerspective(90.0, 1.0, 0.1, 400.0);
+
+            mSimplePipeline = new Pipeline(mSimpleView, mEngine->getPipeline()->getGraphicsContext());
+            Pipeline::Pass* gbufferPass = mSimplePipeline->addInputPass("GBuffer", 0x00000001, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            using BufferType = Pipeline::Pass::BufferType;
+            gbufferPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F);
+            gbufferPass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT24);
+
+            mSimpleView->addEventHandler(imguiHandler);
+
+            mViewer->addView(mSimpleView);
+
+            SceneView* sceneView2 = wm.createWindow<SceneView>(
+                "Scene View 2",
+                dynamic_cast<osg::Texture2D*>(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER0)),
+                [this](int w, int h) {mSimplePipeline->resize(w, h, true, false); },
+                [this]() { if (mViewer->getViewWithFocus() != mSimpleView) mViewer->setCameraWithFocus(mSimpleView->getCamera()); }
+            );
+
+            mSimpleView->setCameraManipulator(new osgGA::TrackballManipulator);*/
+
+            /*mView = new osgViewer::View;
+            mView->setSceneData();
+            osg::Camera* camera = mView->getCamera();
+            camera->setViewport(0, 0, 128, 128);
+            camera->setProjectionMatrixAsPerspective(90.0, 1.0, 0.1, 400.0);
+
+            mPipeline = createSceneRenderingPipeline(mView, true);
+            mView->addEventHandler();*/
+
+        }
+
+        virtual bool draw() override
+        {
+            if (ImGui::Begin(mTitle.c_str(), &mVisibility))
             {
-                Material* material = mMaterialAsset->getRootObject<Material>();
+                ShadingModel shadingModel = mMaterial->getShadingModel();
+                if (EnumCombo("ShadingModel", &shadingModel))
+                    mMaterial->setShadingModel(shadingModel);
 
-                ShadingModel shadingModel = material->getShadingModel();
-                ShadingModel newShadingModel = EnumCombo("ShadingModel", shadingModel);
-                if (shadingModel != newShadingModel)
-                    material->setShadingModel(newShadingModel);
+                AlphaMode alphaMode = mMaterial->getAlphaMode();
+                if (EnumCombo("AlphaMode", &alphaMode))
+                    mMaterial->setAlphaMode(alphaMode);
 
-                AlphaMode alphaMode = material->getAlphaMode();
-                AlphaMode newAlphaMode = EnumCombo("AlphaMode", alphaMode);
-                if (alphaMode != newAlphaMode)
-                    material->setAlphaMode(newAlphaMode);
-
-                bool doubleSided = material->getDoubleSided();
+                bool doubleSided = mMaterial->getDoubleSided();
                 if (ImGui::Checkbox("Double Sided", &doubleSided))
-                    material->setDoubleSided(doubleSided);
+                    mMaterial->setDoubleSided(doubleSided);
+
+                Asset* shaderAsset = mMaterial->getShader()->getAsset();
+                if (AssetCombo<Shader>("Shader", &shaderAsset))
+                {
+                    if (shaderAsset->isLoaded())
+                        shaderAsset->load();
+                    mMaterial->setShader(shaderAsset->getRootObject<Shader>());
+                }
 
                 int paramId = 0;
-                const Material::Parameters& materialParameters = material->getParameters();
+                const Material::Parameters& materialParameters = mMaterial->getParameters();
                 for (auto materialParamIt = materialParameters.begin(); materialParamIt != materialParameters.end(); ++materialParamIt)
                 {
                     const std::string& parameterName = materialParamIt->first;
@@ -43,7 +87,7 @@ namespace xxx::editor
                     ImGui::PushID(idString.c_str());
                     if (ImGui::Checkbox("", &materialParamEnable))
                     {
-                        material->enableParameter(parameterName, materialParamEnable);
+                        mMaterial->enableParameter(parameterName, materialParamEnable);
                     }
                     ImGui::PopID();
                     ImGui::SameLine();
@@ -53,60 +97,59 @@ namespace xxx::editor
 
                     switch (parameterValue.index())
                     {
-                    case size_t(Shader::ParameterIndex::Bool):
+                    case size_t(Shader::ParameterType::Bool):
                     {
                         bool boolValue = std::get<bool>(parameterValue);
                         if (ImGui::Checkbox(parameterName.c_str(), &boolValue))
-                            material->setParameter(parameterName, boolValue);
+                            mMaterial->setParameter(parameterName, boolValue);
                         break;
                     }
-                    case size_t(Shader::ParameterIndex::Int):
+                    case size_t(Shader::ParameterType::Int):
                     {
                         int intValue = std::get<int>(parameterValue);
                         if (ImGui::DragInt(parameterName.c_str(), &intValue))
-                            material->setParameter(parameterName, intValue);
+                            mMaterial->setParameter(parameterName, intValue);
                         break;
                     }
-                    case size_t(Shader::ParameterIndex::Float):
+                    case size_t(Shader::ParameterType::Float):
                     {
                         float floatValue = std::get<float>(parameterValue);
                         if (ImGui::DragFloat(parameterName.c_str(), &floatValue))
-                            material->setParameter(parameterName, floatValue);
+                            mMaterial->setParameter(parameterName, floatValue);
                         break;
                     }
-                    case size_t(Shader::ParameterIndex::Vec2f):
+                    case size_t(Shader::ParameterType::Vec2f):
                     {
                         osg::Vec2f vec2fValue = std::get<osg::Vec2f>(parameterValue);
                         if (ImGui::DragFloat2(parameterName.c_str(), &vec2fValue.x()))
-                            material->setParameter(parameterName, vec2fValue);
+                            mMaterial->setParameter(parameterName, vec2fValue);
                         break;
                     }
-                    case size_t(Shader::ParameterIndex::Vec3f):
+                    case size_t(Shader::ParameterType::Vec3f):
                     {
                         osg::Vec3f vec3fValue = std::get<osg::Vec3f>(parameterValue);
                         if (ImGui::DragFloat3(parameterName.c_str(), &vec3fValue.x()))
-                            material->setParameter(parameterName, vec3fValue);
+                            mMaterial->setParameter(parameterName, vec3fValue);
                         break;
                     }
-                    case size_t(Shader::ParameterIndex::Vec4f):
+                    case size_t(Shader::ParameterType::Vec4f):
                     {
                         osg::Vec4 vec4fValue = std::get<osg::Vec4f>(parameterValue);
                         if (ImGui::DragFloat4(parameterName.c_str(), &vec4fValue.x()))
-                            material->setParameter(parameterName, vec4fValue);
+                            mMaterial->setParameter(parameterName, vec4fValue);
                         break;
                     }
-                    case size_t(Shader::ParameterIndex::Texture):
+                    case size_t(Shader::ParameterType::Texture):
                     {
                         Shader::TextureAndUnit textureAndUnit = std::get<Shader::TextureAndUnit>(parameterValue);
                         Asset* textureAsset = textureAndUnit.first->getAsset();
                         if (textureAsset)
                         {
-                            Asset* selectedAsset = AssetCombo<Texture>(parameterName.c_str(), textureAsset);
-                            if (selectedAsset)
+                            if (AssetCombo<Texture>(parameterName.c_str(), &textureAsset))
                             {
-                                if (!selectedAsset->isLoaded())
-                                    selectedAsset->load();
-                                material->setParameter(parameterName, selectedAsset->getRootObject<Texture>());
+                                if (!textureAsset->isLoaded())
+                                    textureAsset->load();
+                                mMaterial->setParameter(parameterName, textureAsset->getRootObject<Texture>());
                             }
                         }
                         break;
@@ -126,7 +169,7 @@ namespace xxx::editor
             }
             ImGui::End();
 
-            return true;
+            return mVisibility;
         }
 
         virtual bool isSingleton() const
@@ -136,6 +179,8 @@ namespace xxx::editor
 
     protected:
         osg::ref_ptr<Asset> mMaterialAsset;
-
+        osg::ref_ptr<Material> mMaterial;
+        //osg::ref_ptr<osgViewer::View> mView;
+        //osg::ref_ptr<Pipeline> mPipeline;
     };
 }

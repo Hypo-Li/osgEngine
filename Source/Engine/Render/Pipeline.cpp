@@ -240,11 +240,38 @@ namespace xxx
         }
     };
 
+    class GraphicsContextExt : osg::GraphicsContext
+    {
+    public:
+        void insertCamera(int pos, osg::Camera* camera)
+        {
+            auto it = _cameras.begin();
+            std::advance(it, pos);
+            _cameras.insert(it, camera);
+        }
+    };
+
+    class CameraExt : public osg::Camera
+    {
+    public:
+        void setGraphicsContextExt(osg::GraphicsContext* context, int cameraPos)
+        {
+            if (_graphicsContext == context) return;
+
+            //if (_graphicsContext.valid()) _graphicsContext->removeCamera(this);
+
+            _graphicsContext = context;
+
+            if (_graphicsContext.valid()) reinterpret_cast<GraphicsContextExt*>(_graphicsContext.get())->insertCamera(cameraPos, this);
+        }
+    };
+
     Pipeline::Pass* Pipeline::insertInputPass(uint32_t pos, const std::string& name, osg::Node::NodeMask cullMask, GLbitfield clearMask, bool fixedSize, osg::Vec2 sizeScale)
     {
         osg::Camera* camera = new osg::Camera;
         camera->setName(name);
-        camera->setGraphicsContext(mGraphicsContext);
+        //camera->setGraphicsContext(mGraphicsContext);
+        static_cast<CameraExt*>(camera)->setGraphicsContextExt(mGraphicsContext, pos);
         camera->setCullMask(cullMask);
         camera->setClearColor(osg::Vec4(0.0, 0.0, 0.0, 1.0));
         camera->setClearMask(clearMask);
@@ -275,7 +302,8 @@ namespace xxx
     {
         osg::Camera* camera = new osg::Camera;
         camera->setName(name);
-        camera->setGraphicsContext(mGraphicsContext);
+        //camera->setGraphicsContext(mGraphicsContext);
+        static_cast<CameraExt*>(camera)->setGraphicsContextExt(mGraphicsContext, pos);
         camera->setClearColor(osg::Vec4(0.0, 0.0, 0.0, 1.0));
         camera->setClearMask(clearMask);
         camera->setRenderOrder(osg::Camera::PRE_RENDER);

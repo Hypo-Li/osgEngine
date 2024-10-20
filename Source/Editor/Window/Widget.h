@@ -4,6 +4,7 @@
 #include <Engine/Render/Shader.h>
 #include <Engine/Render/Material.h>
 #include <Engine/Component/MeshRenderer.h>
+#include <Engine/Component/Light.h>
 #include <ThirdParty/imgui/imgui.h>
 #include <ThirdParty/imgui/imgui_stdlib.h>
 #include <ThirdParty/imgui/imgui_internal.h>
@@ -11,20 +12,21 @@
 namespace xxx::editor
 {
     template <typename T>
-    static Asset* AssetCombo(const char* label, Asset* previewAsset)
+    static bool AssetCombo(const char* label, Asset** previewAsset)
     {
-        Asset* result = nullptr;
+        bool result = false;
         refl::Class* clazz = refl::Reflection::getClass<T>();
 
-        if (ImGui::BeginCombo(label, previewAsset->getPath().c_str()))
+        if (ImGui::BeginCombo(label, *previewAsset ? (*previewAsset)->getPath().c_str() : ""))
         {
             AssetManager::get().foreachAsset([previewAsset, clazz, &result](Asset* asset) {
                 if (asset->getClass() == clazz || asset->getClass()->isDerivedFrom(clazz))
                 {
-                    const bool is_selected = (previewAsset == asset);
+                    const bool is_selected = (*previewAsset == asset);
                     if (ImGui::Selectable(asset->getPath().c_str(), is_selected))
                     {
-                        result = asset;
+                        *previewAsset = asset;
+                        result = true;
                     }
 
                     if (is_selected)
@@ -39,22 +41,23 @@ namespace xxx::editor
     }
 
     template <typename T>
-    static T EnumCombo(const char* label, T previewValue)
+    static bool EnumCombo(const char* label, T* previewValue)
     {
-        T result = previewValue;
+        bool result = false;
         refl::Enum* enumerate = refl::Reflection::getEnum<T>();
-        std::string currentValueName(enumerate->getNameByValue(int64_t(previewValue)));
+        std::string currentValueName(enumerate->getNameByValue(int64_t(*previewValue)));
         if (ImGui::BeginCombo(label, currentValueName.c_str()))
         {
             size_t valueCount = enumerate->getValueCount();
             for (size_t i = 0; i < valueCount; ++i)
             {
                 int64_t currentValue = enumerate->getValueByIndex(i);
-                const bool is_selected = (currentValue == int64_t(previewValue));
+                const bool is_selected = (currentValue == int64_t(*previewValue));
                 std::string valueName(enumerate->getNameByIndex(i));
                 if (ImGui::Selectable(valueName.c_str(), is_selected))
                 {
-                    result = T(currentValue);
+                    *previewValue = T(currentValue);
+                    result = true;
                 }
 
                 if (is_selected)
@@ -176,248 +179,68 @@ namespace xxx::editor
         }
     }
 
-    static bool drawShaderGUI(Shader* shader)
+    static void MeshRendererWidget(MeshRenderer* meshRenderer)
     {
-        Asset* shaderAsset = shader->getAsset();
-        if (shaderAsset)
-            ImGui::Text(shaderAsset->getPath().c_str());
+        uint32_t submeshesCount = meshRenderer->getSubmeshCount();
+        Mesh* mesh = meshRenderer->getMesh();
+        Asset* meshAsset = nullptr;
+        if (mesh)
+            meshAsset = mesh->getAsset();
+        bool meshChanged = AssetCombo<Mesh>("Mesh", &meshAsset);
 
-        if (shaderAsset && ImGui::Button("Save"))
-            shaderAsset->save();
-
-        const auto& shaderParameters = shader->getParameters();
-
-        int paramId = 0;
-        for (auto shaderParamIt = shaderParameters.begin(); shaderParamIt != shaderParameters.end();)
+        for (uint32_t i = 0; i < submeshesCount; ++i)
         {
-            const std::string& parameterName = shaderParamIt->first;
-            const Shader::ParameterValue& parameterValue = shaderParamIt->second;
-
-            std::string idString = "shader_param_" + std::to_string(paramId);
-            ImGui::PushID(idString.c_str());
-            bool removeThisParameter = false;
-            if (ImGui::Button("x"))
+            Material* material = meshRenderer->getMaterial(i);
+            Asset* materialAsset = material->getAsset();
+            std::string materialLabel = "Material" + std::to_string(i);
+            if (AssetCombo<Material>(materialLabel.c_str(), &materialAsset))
             {
-                removeThisParameter = true;
+                if (!materialAsset->isLoaded())
+                    materialAsset->load();
+                meshRenderer->setOverlayMaterial(i, materialAsset->getRootObject<Material>());
             }
-            ImGui::PopID();
-            ImGui::SameLine();
-
-            switch (parameterValue.index())
-            {
-            case size_t(Shader::ParameterIndex::Bool):
-            {
-                bool boolValue = std::get<bool>(parameterValue);
-                if (ImGui::Checkbox(parameterName.c_str(), &boolValue))
-                    shader->setParameter(parameterName, boolValue);
-                break;
-            }
-            case size_t(Shader::ParameterIndex::Int):
-            {
-                int intValue = std::get<int>(parameterValue);
-                if (ImGui::DragInt(parameterName.c_str(), &intValue))
-                    shader->setParameter(parameterName, intValue);
-                break;
-            }
-            case size_t(Shader::ParameterIndex::Float):
-            {
-                float floatValue = std::get<float>(parameterValue);
-                if (ImGui::DragFloat(parameterName.c_str(), &floatValue))
-                    shader->setParameter(parameterName, floatValue);
-                break;
-            }
-            case size_t(Shader::ParameterIndex::Vec2f):
-            {
-                osg::Vec2f vec2fValue = std::get<osg::Vec2f>(parameterValue);
-                if (ImGui::DragFloat2(parameterName.c_str(), &vec2fValue.x()))
-                    shader->setParameter(parameterName, vec2fValue);
-                break;
-            }
-            case size_t(Shader::ParameterIndex::Vec3f):
-            {
-                osg::Vec3f vec3fValue = std::get<osg::Vec3f>(parameterValue);
-                if (ImGui::DragFloat3(parameterName.c_str(), &vec3fValue.x()))
-                    shader->setParameter(parameterName, vec3fValue);
-                break;
-            }
-            case size_t(Shader::ParameterIndex::Vec4f):
-            {
-                osg::Vec4 vec4fValue = std::get<osg::Vec4f>(parameterValue);
-                if (ImGui::DragFloat4(parameterName.c_str(), &vec4fValue.x()))
-                    shader->setParameter(parameterName, vec4fValue);
-                break;
-            }
-            case size_t(Shader::ParameterIndex::Texture):
-            {
-                const Shader::TextureAndUnit& textureAndUnit = std::get<Shader::TextureAndUnit>(parameterValue);
-                Asset* textureAsset = textureAndUnit.first->getAsset();
-                if (textureAsset)
-                {
-                    Asset* selectedAsset = AssetCombo<Texture>(parameterName.c_str(), textureAsset);
-                    if (selectedAsset)
-                    {
-                        if (!selectedAsset->isLoaded())
-                            selectedAsset->load();
-                        shader->setParameter(parameterName, selectedAsset->getRootObject<Texture>());
-                    }
-                }
-                break;
-            }
-            default:
-                break;
-            }
-
-            ++paramId;
-            if (removeThisParameter)
-                shaderParamIt = shader->removeParameter(parameterName);
-            else
-                ++shaderParamIt;
         }
 
-        ImGui::InputTextMultiline("Source", &shader->getSource());
-
-        return ImGui::Button("Apply");
-    }
-
-    static void drawMaterialGUI(Material* material)
-    {
-        Asset* materialAsset = material->getAsset();
-        if (materialAsset)
-            ImGui::Text(materialAsset->getPath().c_str());
-
-        if (materialAsset && ImGui::Button("Save"))
-            materialAsset->save();
-
-        const Material::Parameters& materialParameters = material->getParameters();
-
-        ShadingModel shadingModel = material->getShadingModel();
-        ShadingModel newShadingModel = EnumCombo("ShadingModel", shadingModel);
-        if (shadingModel != newShadingModel)
-            material->setShadingModel(newShadingModel);
-
-        AlphaMode alphaMode = material->getAlphaMode();
-        AlphaMode newAlphaMode = EnumCombo("AlphaMode", alphaMode);
-        if (alphaMode != newAlphaMode)
-            material->setAlphaMode(newAlphaMode);
-
-        bool doubleSided = material->getDoubleSided();
-        if (ImGui::Checkbox("Double Sided", &doubleSided))
-            material->setDoubleSided(doubleSided);
-
-        int paramId = 0;
-        for (auto materialParamIt = materialParameters.begin(); materialParamIt != materialParameters.end(); ++materialParamIt)
+        if (meshChanged)
         {
-            const std::string& parameterName = materialParamIt->first;
-            bool materialParamEnable = materialParamIt->second.second;
-            const Shader::ParameterValue& parameterValue = materialParamIt->second.first;
-
-            std::string idString = "material_param_" + std::to_string(paramId);
-            ImGui::PushID(idString.c_str());
-            if (ImGui::Checkbox("", &materialParamEnable))
-            {
-                material->enableParameter(parameterName, materialParamEnable);
-            }
-            ImGui::PopID();
-            ImGui::SameLine();
-
-            if (!materialParamEnable)
-                ImGui::BeginDisabled();
-
-            switch (parameterValue.index())
-            {
-            case size_t(Shader::ParameterIndex::Bool):
-            {
-                bool boolValue = std::get<bool>(parameterValue);
-                if (ImGui::Checkbox(parameterName.c_str(), &boolValue))
-                    material->setParameter(parameterName, boolValue);
-                break;
-            }
-            case size_t(Shader::ParameterIndex::Int):
-            {
-                int intValue = std::get<int>(parameterValue);
-                if (ImGui::DragInt(parameterName.c_str(), &intValue))
-                    material->setParameter(parameterName, intValue);
-                break;
-            }
-            case size_t(Shader::ParameterIndex::Float):
-            {
-                float floatValue = std::get<float>(parameterValue);
-                if (ImGui::DragFloat(parameterName.c_str(), &floatValue))
-                    material->setParameter(parameterName, floatValue);
-                break;
-            }
-            case size_t(Shader::ParameterIndex::Vec2f):
-            {
-                osg::Vec2f vec2fValue = std::get<osg::Vec2f>(parameterValue);
-                if (ImGui::DragFloat2(parameterName.c_str(), &vec2fValue.x()))
-                    material->setParameter(parameterName, vec2fValue);
-                break;
-            }
-            case size_t(Shader::ParameterIndex::Vec3f):
-            {
-                osg::Vec3f vec3fValue = std::get<osg::Vec3f>(parameterValue);
-                if (ImGui::DragFloat3(parameterName.c_str(), &vec3fValue.x()))
-                    material->setParameter(parameterName, vec3fValue);
-                break;
-            }
-            case size_t(Shader::ParameterIndex::Vec4f):
-            {
-                osg::Vec4 vec4fValue = std::get<osg::Vec4f>(parameterValue);
-                if (ImGui::DragFloat4(parameterName.c_str(), &vec4fValue.x()))
-                    material->setParameter(parameterName, vec4fValue);
-                break;
-            }
-            case size_t(Shader::ParameterIndex::Texture):
-            {
-                const Shader::TextureAndUnit& textureAndUnit = std::get<Shader::TextureAndUnit>(parameterValue);
-                Asset* textureAsset = textureAndUnit.first->getAsset();
-                if (textureAsset)
-                {
-                    Asset* selectedAsset = AssetCombo<Texture>(parameterName.c_str(), textureAsset);
-                    if (selectedAsset)
-                    {
-                        if (!selectedAsset->isLoaded())
-                            selectedAsset->load();
-                        material->setParameter(parameterName, selectedAsset->getRootObject<Texture>());
-                    }
-                }
-                break;
-            }
-            default:
-                break;
-            }
-
-            if (!materialParamEnable)
-                ImGui::EndDisabled();
-
-            ++paramId;
-        }
-
-        if (ImGui::TreeNode("Shader"))
-        {
-            if (drawShaderGUI(material->getShader()))
-            {
-                material->syncWithShader();
-            }
-            ImGui::TreePop();
+            if (!meshAsset->isLoaded())
+                meshAsset->load();
+            meshRenderer->setMesh(meshAsset->getRootObject<Mesh>());
         }
     }
 
-    static void drawMeshRendererGUI(MeshRenderer* meshRenderer)
+    static void DirectionalLightWidget(DirectionalLight* directionalLight)
     {
-        if (ImGui::CollapsingHeader("MeshRenderer"))
+        float intensity = directionalLight->getIntensity();
+        if (ImGui::DragFloat("Light Intensity", &intensity))
+            directionalLight->setIntensity(intensity);
+        osg::Vec3f color = directionalLight->getColor();
+        if (ImGui::ColorEdit3("Light Color", color.ptr()))
+            directionalLight->setColor(color);
+        osg::Vec3f direction = directionalLight->getDirection();
+        if (ImGui::DragFloat3("Light Direction", direction.ptr()))
+            directionalLight->setDirection(direction);
+    }
+
+    static bool ComponentWidget(Component* component, int id)
+    {
+        ImGui::PushID(id);
+        bool visible = true;
+        std::string className(component->getClass()->getName());
+        if (ImGui::CollapsingHeader(className.c_str(), &visible))
+        switch (component->getType())
         {
-            uint32_t submeshesCount = meshRenderer->getSubmeshCount();
-            for (uint32_t i = 0; i < submeshesCount; ++i)
-            {
-                Material* material = meshRenderer->getMaterial(i);
-                if (ImGui::TreeNode(("Material" + std::to_string(i)).c_str()))
-                {
-                    drawMaterialGUI(material);
-                    ImGui::TreePop();
-                }
-            }
+        case Component::Type::MeshRenderer:
+            MeshRendererWidget(dynamic_cast<MeshRenderer*>(component));
+            break;
+        case Component::Type::DirectionLight:
+            DirectionalLightWidget(dynamic_cast<DirectionalLight*>(component));
+            break;
+        default:
+            break;
         }
+        ImGui::PopID();
+        return visible;
     }
 }
 

@@ -217,6 +217,20 @@ namespace xxx
             return true;
         }
 
+        bool removePass(const std::string& name)
+        {
+            for (uint32_t i = 0; i < mPasses.size(); ++i)
+            {
+                if (mPasses[i]->getName() == name)
+                {
+                    mPasses.erase(mPasses.begin() + i);
+                    mView->removeSlave(i);
+                    return true;
+                }
+            }
+            return false;
+        }
+
         // TODO: process resize
         uint32_t addBlitFramebufferCommand(Pass* srcPass, Pass* dstPass, GLbitfield mask, GLenum filter, osg::Vec4d srcRect = osg::Vec4d(0, 0, 1, 1), osg::Vec4d dstRect = osg::Vec4d(0, 0, 1, 1))
         {

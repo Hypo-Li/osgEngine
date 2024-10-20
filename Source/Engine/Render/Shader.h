@@ -45,7 +45,7 @@ namespace xxx
 
         using TextureAndUnit = std::pair<osg::ref_ptr<Texture>, int>;
         using ParameterValue = std::variant<bool, int, float, osg::Vec2f, osg::Vec3f, osg::Vec4f, TextureAndUnit>;
-        enum class ParameterIndex
+        enum class ParameterType
         {
             Bool,
             Int,
@@ -87,7 +87,7 @@ namespace xxx
             auto findResult = mParameters.find(name);
             if constexpr (std::is_base_of_v<xxx::Texture, std::remove_pointer_t<T>>)
             {
-                if (findResult != mParameters.end() && findResult->second.index() == size_t(ParameterIndex::Texture))
+                if (findResult != mParameters.end() && findResult->second.index() == size_t(ParameterType::Texture))
                     findResult->second = std::make_pair(osg::ref_ptr<Texture>(value), std::get<TextureAndUnit>(findResult->second).second);
             }
             else
@@ -121,7 +121,7 @@ namespace xxx
             std::unordered_set<int> unavailableTextureUnit;
             for (const auto& param : mParameters)
             {
-                if (param.second.index() == size_t(ParameterIndex::Texture))
+                if (param.second.index() == size_t(ParameterType::Texture))
                 {
                     int unit = std::get<TextureAndUnit>(param.second).second;
                     unavailableTextureUnit.insert(unit);
@@ -173,6 +173,20 @@ namespace xxx
             structure->addProperty<2>("z", &osg::Vec2f::_v);
             structure->addProperty<3>("w", &osg::Vec2f::_v);
             return structure;
+        }
+
+        template <> inline Type* Reflection::createType<Shader::ParameterType>()
+        {
+            Enum* enumerate = new EnumInstance<Shader::ParameterType>("Shader::ParameterType", {
+                {"Bool", Shader::ParameterType::Bool},
+                {"Int", Shader::ParameterType::Int},
+                {"Float", Shader::ParameterType::Float},
+                {"Vec2f", Shader::ParameterType::Vec2f},
+                {"Vec3f", Shader::ParameterType::Vec3f},
+                {"Vec4f", Shader::ParameterType::Vec4f},
+                {"Texture", Shader::ParameterType::Texture},
+            });
+            return enumerate;
         }
 
         template <>

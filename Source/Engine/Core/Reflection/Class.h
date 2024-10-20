@@ -76,6 +76,21 @@ namespace xxx::refl
             return false;
         }
 
+        void addDerivedClass(Class* derivedClass)
+        {
+            mDerivedClasses.emplace_back(derivedClass);
+        }
+
+        const std::vector<Class*>& getDerivedClasses() const
+        {
+            return mDerivedClasses;
+        }
+
+        bool isAbstruct() const
+        {
+            return mIsAbstruct;
+        }
+
     protected:
         template <std::size_t Index = 0, typename Owner, typename Declared>
         Property* addProperty(std::string_view name, Declared Owner::* member)
@@ -95,12 +110,12 @@ namespace xxx::refl
 
     protected:
         Class(std::string_view name, size_t size) :
-            Type(name, size),
-            mBaseClass(nullptr),
-            mDefaultObject(nullptr)
+            Type(name, size)
         {}
 
         Class* mBaseClass;
+        std::vector<Class*> mDerivedClasses;
+        bool mIsAbstruct;
         std::vector<Property*> mProperties;
         std::vector<Method*> mMethods;
         xxx::Object* mDefaultObject;
@@ -167,12 +182,17 @@ namespace xxx::refl
             if constexpr (std::is_same_v<T, Object>)
                 mBaseClass = nullptr;
             else
+            {
                 mBaseClass = dynamic_cast<Class*>(Reflection::getType<Base>());
+                mBaseClass->addDerivedClass(this);
+            }
 
             if constexpr (std::is_abstract_v<T>)
                 mDefaultObject = nullptr;
             else
                 mDefaultObject = new T;
+
+            mIsAbstruct = std::is_abstract_v<T>;
 
             Reflection::registerClass(name, this);
         }

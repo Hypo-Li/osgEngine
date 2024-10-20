@@ -9,12 +9,12 @@ namespace xxx
     class Entity;
     class Component : public Object
     {
-        friend class Entity;
         REFLECT_CLASS(Component)
     public:
         enum class Type
         {
             MeshRenderer,
+            DirectionLight,
             Count,
         };
 
@@ -24,9 +24,18 @@ namespace xxx
 
         virtual Type getType() const = 0;
 
+        virtual void onAddToEntity(Entity* entity);
+
+        virtual void onRemoveFromEntity(Entity* entity);
+
         inline Entity* getEntity() const
         {
             return mEntity;
+        }
+
+        osg::Node* getOsgNode() const
+        {
+            return mOsgComponentGroup;
         }
 
         virtual void hide()
