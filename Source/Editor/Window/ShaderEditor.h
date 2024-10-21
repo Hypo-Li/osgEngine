@@ -115,6 +115,8 @@ namespace xxx::editor
                     if (ImGui::Button("+"))
                     {
                         addParameter(parameterName, parameterType);
+                        parameterName = "";
+                        parameterType = Shader::ParameterType::Bool;
                     }
 
                     float windowWidth = ImGui::GetContentRegionAvail().x;

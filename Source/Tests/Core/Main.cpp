@@ -53,6 +53,7 @@ int main()
     //am.createAsset(texture, "Engine/Texture/DefaultTexture")->save();
 
     TextureCubemap* textureCubemap = new TextureCubemap(TEMP_DIR "zwartkops_straight_sunset_1k.hdr");
+    am.createAsset(textureCubemap, "Engine/Texture/TestCubemap")->save();
 
     /*Entity* entity = new Entity("TestEntity");
     MeshRenderer* meshRenderer = entity->addComponent<MeshRenderer>();

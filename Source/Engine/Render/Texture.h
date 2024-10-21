@@ -6,9 +6,10 @@
 #include <osg/Texture2DArray>
 #include <osg/Texture3D>
 #include <osg/TextureCubeMap>
-#include <osgDB/ReadFile>
 #include <osg/BindImageTexture>
 #include <osg/DispatchCompute>
+#include <osgDB/ReadFile>
+#include <osgDB/WriteFile>
 
 namespace xxx
 {
@@ -139,14 +140,18 @@ namespace xxx
         Texture2D() = default;
         Texture2D(const std::string& imagePath)
         {
-            osg::Image* image = osgDB::readImageFile(imagePath);
+            osg::State* state = Context::get().getGraphicsContext()->getState();
+            osg::ref_ptr<osg::Image> image = osgDB::readImageFile(imagePath);
             mWidth = image->s();
             mHeight = image->t();
             mFormat = image->getInternalTextureFormat();
             mPixelFormat = image->getPixelFormat();
             mPixelType = image->getDataType();
-            mOsgTexture = new osg::Texture2D(image);
+            osg::Texture2D* texture2d = new osg::Texture2D((image));
+            mOsgTexture = texture2d;
             apply();
+            texture2d->apply(*state);
+            texture2d->setImage(nullptr);
         }
         virtual ~Texture2D() = default;
 
@@ -154,9 +159,12 @@ namespace xxx
         {
             if (serializer->isSaver())
             {
-                osg::Texture2D* texture2d = dynamic_cast<osg::Texture2D*>(mOsgTexture.get());
-                uint32_t dataSize = texture2d->getImage()->getTotalSizeInBytes();
-                const uint8_t* dataPtr = static_cast<const uint8_t*>(texture2d->getImage()->data());
+                osg::State* state = Context::get().getGraphicsContext()->getState();
+                mOsgTexture->apply(*state);
+                osg::ref_ptr<osg::Image> image = new osg::Image;
+                image->readImageFromCurrentTexture(state->getContextID(), false, mPixelType);
+                uint32_t dataSize = image->getTotalSizeInBytes();
+                const uint8_t* dataPtr = static_cast<const uint8_t*>(image->data());
                 mData.assign(dataPtr, dataPtr + dataSize);
             }
         }
@@ -165,6 +173,7 @@ namespace xxx
         {
             if (serializer->isLoader())
             {
+                osg::State* state = Context::get().getGraphicsContext()->getState();
                 osg::ref_ptr<osg::Image> image = new osg::Image;
                 image->allocateImage(mWidth, mHeight, 1, mPixelFormat, mPixelType);
                 std::memcpy(image->data(), mData.data(), mData.size());
@@ -172,6 +181,8 @@ namespace xxx
                 texture2d->setImage(image);
                 mOsgTexture = texture2d;
                 apply();
+                texture2d->apply(*state);
+                texture2d->setImage(nullptr);
             }
             mData.clear();
         }
@@ -198,9 +209,9 @@ namespace xxx
             osg::ref_ptr<osg::Image> image = osgDB::readImageFile(imagePath);
             mWidth = mHeight = cubemapSize;
             mMipmapLevels = mipmapLevels;
-            mFormat = image->getInternalTextureFormat();
-            mPixelFormat = image->getPixelFormat();
-            mPixelType = image->getDataType();
+            mFormat = GL_RGBA16F;// image->getInternalTextureFormat();
+            mPixelFormat = GL_RGBA;
+            mPixelType = GL_FLOAT;
             mMinFilter = mipmapLevels == 0 ? GL_LINEAR : GL_LINEAR_MIPMAP_LINEAR;
 
             osg::Texture2D* hdrTexture = new osg::Texture2D(image);
@@ -212,18 +223,61 @@ namespace xxx
 
             osg::Program* envCubemapProgram = new osg::Program;
             envCubemapProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "IBL/EnvCubemap.comp.glsl"));
-            osg::ref_ptr<osg::BindImageTexture> cubemapImage = new osg::BindImageTexture(0, textureCubemap, osg::BindImageTexture::WRITE_ONLY, image->getInternalTextureFormat(), 0, true);
-            osg::ref_ptr<osg::DispatchCompute> envCubemapDispatch = new osg::DispatchCompute(16, 16, 6);
-            envCubemapDispatch->getOrCreateStateSet()->setAttributeAndModes(envCubemapProgram);
-            envCubemapDispatch->getOrCreateStateSet()->setAttributeAndModes(cubemapImage);
-            envCubemapDispatch->getOrCreateStateSet()->addUniform(new osg::Uniform("uEnvMapTexture", 0));
-            envCubemapDispatch->getOrCreateStateSet()->setTextureAttributeAndModes(0, hdrTexture);
+            osg::ref_ptr<osg::BindImageTexture> cubemapImage = new osg::BindImageTexture(0, textureCubemap, osg::BindImageTexture::WRITE_ONLY, GL_RGBA16F/*image->getInternalTextureFormat()*/, 0, true);
+            osg::StateSet* stateSet = new osg::StateSet;
+            stateSet->setAttributeAndModes(envCubemapProgram);
+            stateSet->setAttributeAndModes(cubemapImage);
+            stateSet->addUniform(new osg::Uniform("uEnvMapTexture", 0));
+            stateSet->setTextureAttributeAndModes(0, hdrTexture);
 
             osg::State* state = Context::get().getGraphicsContext()->getState();
-            state->apply(envCubemapDispatch->getOrCreateStateSet());
             osg::GLExtensions* extensions = state->get<osg::GLExtensions>();
+            state->apply(stateSet);
             extensions->glDispatchCompute(16, 16, 6);
             extensions->glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+        }
+
+        virtual void preSerialize(Serializer* serializer) override
+        {
+            if (serializer->isSaver())
+            {
+                osg::State* state = Context::get().getGraphicsContext()->getState();
+                mOsgTexture->apply(*state);
+                for (int i = 0; i < 6; ++i)
+                {
+                    osg::ref_ptr<osg::Image> image = new osg::Image;
+                    image->readImageFromCurrentTexture(state->getContextID(), false, mPixelType, i);
+                    uint32_t faceDataSize = image->getTotalSizeInBytes();
+                    if (i == 0)
+                        mData.resize(faceDataSize * 6);
+                    std::memcpy(mData.data() + i * faceDataSize, image->data(), faceDataSize);
+                }
+            }
+        }
+
+        virtual void postSerialize(Serializer* serializer) override
+        {
+            if (serializer->isLoader())
+            {
+                osg::State* state = Context::get().getGraphicsContext()->getState();
+                size_t faceDataSize = mData.size() / 6;
+                osg::TextureCubeMap* textureCubemap = new osg::TextureCubeMap;
+                for (int i = 0; i < 6; ++i)
+                {
+                    osg::ref_ptr<osg::Image> image = new osg::Image;
+                    image->allocateImage(mWidth, mHeight, 1, mPixelFormat, mPixelType);
+                    size_t mySize = image->getTotalDataSize();
+                    std::memcpy(image->data(), mData.data() + i * faceDataSize, faceDataSize);
+                    textureCubemap->setImage(i, image);
+                }
+                mOsgTexture = textureCubemap;
+                apply();
+                textureCubemap->apply(*state);
+                for (int i = 0; i < 6; ++i)
+                    textureCubemap->setImage(i, nullptr);
+
+            }
+            mData.clear();
         }
 
         virtual void apply() override
@@ -249,6 +303,7 @@ namespace xxx
             Class* clazz = new ClassInstance<TextureCubemap, Texture>("TextureCubemap");
             clazz->addProperty("Width", &TextureCubemap::mWidth);
             clazz->addProperty("Height", &TextureCubemap::mHeight);
+            clazz->addProperty("MipmapLevels", &TextureCubemap::mMipmapLevels);
             return clazz;
         }
     }
