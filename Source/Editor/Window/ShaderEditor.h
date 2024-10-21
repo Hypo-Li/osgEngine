@@ -56,14 +56,14 @@ namespace xxx::editor
                         case size_t(Shader::ParameterType::Float):
                         {
                             float floatValue = std::get<float>(parameterValue);
-                            if (ImGui::DragFloat(parameterName.c_str(), &floatValue))
+                            if (ImGui::DragFloat(parameterName.c_str(), &floatValue, 0.01f))
                                 mShader->setParameter(parameterName, floatValue);
                             break;
                         }
                         case size_t(Shader::ParameterType::Vec2f):
                         {
                             osg::Vec2f vec2fValue = std::get<osg::Vec2f>(parameterValue);
-                            if (ImGui::DragFloat2(parameterName.c_str(), &vec2fValue.x()))
+                            if (ImGui::DragFloat2(parameterName.c_str(), &vec2fValue.x(), 0.01f))
                                 mShader->setParameter(parameterName, vec2fValue);
                             break;
                         }
@@ -77,7 +77,7 @@ namespace xxx::editor
                         case size_t(Shader::ParameterType::Vec4f):
                         {
                             osg::Vec4 vec4fValue = std::get<osg::Vec4f>(parameterValue);
-                            if (ImGui::DragFloat4(parameterName.c_str(), &vec4fValue.x()))
+                            if (ImGui::DragFloat4(parameterName.c_str(), &vec4fValue.x(), 0.01f))
                                 mShader->setParameter(parameterName, vec4fValue);
                             break;
                         }

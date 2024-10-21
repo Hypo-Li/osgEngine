@@ -7,6 +7,7 @@
 #include "ImGuiHandler.h"
 #include "PickEventHandler.h"
 #include "ControllerManipulator.h"
+#include "GLDebugCallback.h"
 #include <Engine/Core/Engine.h>
 
 #include <osgViewer/CompositeViewer>
@@ -17,6 +18,25 @@ namespace xxx::editor
     struct EditorSetupConfig
     {
 
+    };
+
+    class EditorRealizeOperation: public osg::Operation
+    {
+    public:
+        EditorRealizeOperation() : osg::Operation("EditorRealizeOperation", false)
+        {
+            mOperations[0] = new EnableGLDebugOperation;
+            mOperations[1] = new ImGuiInitOperation;
+        }
+
+        void operator()(osg::Object* object) override
+        {
+            for (int i = 0; i < mOperations.size(); ++i)
+                mOperations[i]->operator()(object);
+        }
+
+    protected:
+        std::array<osg::ref_ptr<osg::Operation>, 2> mOperations;
     };
 
     class Editor
@@ -34,7 +54,7 @@ namespace xxx::editor
             engineSetupConfig.runMode = RunMode::Edit;
             mEngine = new Engine(engineSetupConfig);
 
-            mViewer->setRealizeOperation(new ImGuiInitOperation);
+            mViewer->setRealizeOperation(new EditorRealizeOperation);
             mViewer->setThreadingModel(osgViewer::Viewer::SingleThreaded);
 
             Pipeline* enginePipeline = mEngine->getPipeline();
@@ -57,9 +77,19 @@ namespace xxx::editor
             engineView->addEventHandler(imguiHandler);
             engineView->addEventHandler(new PickEventHandler(engineView->getCamera(), sceneView->getViewport()));
             engineView->addEventHandler(new osgViewer::StatsHandler);
-            engineView->setCameraManipulator(new ControllerManipulator(0.05));
+            //engineView->setCameraManipulator(new ControllerManipulator(0.05));
 
             mViewer->addView(engineView);
+
+            mViewer->realize();
+
+            Context::get().getGraphicsContext()->makeCurrent();
+
+            Asset* asset = AssetManager::get().getAsset("Engine/Entity/TestEntity");
+            asset->load();
+            engineView->setSceneData(dynamic_cast<Entity*>(asset->getRootObject())->getOsgNode());
+
+            Context::get().getGraphicsContext()->releaseContext();
 
             
             /*mSimpleView = new osgViewer::View;
@@ -90,7 +120,6 @@ namespace xxx::editor
 
         void run()
         {
-            mViewer->realize();
             while (!mViewer->done())
             {
                 mViewer->frame();
@@ -100,8 +129,8 @@ namespace xxx::editor
     protected:
         Engine* mEngine;
         osg::ref_ptr<osgViewer::CompositeViewer> mViewer;
-        osg::ref_ptr<osgViewer::View> mSimpleView;
-        osg::ref_ptr<Pipeline> mSimplePipeline;
+        //osg::ref_ptr<osgViewer::View> mSimpleView;
+        //osg::ref_ptr<Pipeline> mSimplePipeline;
 
         //void drawSceneView();
         //void drawInspector();

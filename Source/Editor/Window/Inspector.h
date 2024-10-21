@@ -71,6 +71,7 @@ namespace xxx::editor
                             continue;
                         }
                         ++componentIt;
+                        ++componentId;
                     }
 
                     ImGui::NewLine();

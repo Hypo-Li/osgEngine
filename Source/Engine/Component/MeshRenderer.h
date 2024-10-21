@@ -62,6 +62,8 @@ namespace xxx
 
             mOsgGeometries = mMesh->generateGeometries();
             mOverlayMaterials.resize(mOsgGeometries.size());
+            for (uint32_t i = 0; i < mOverlayMaterials.size(); ++i)
+                mOverlayMaterials[i] = nullptr;
 
             mOsgGeode->removeDrawables(0, mOsgGeode->getNumDrawables());
             for (uint32_t i = 0; i < mOsgGeometries.size(); ++i)

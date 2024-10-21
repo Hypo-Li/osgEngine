@@ -56,10 +56,6 @@ namespace xxx
             initContext(setupConfig);
             initPipeline(setupConfig);
 
-            Asset* asset = AssetManager::get().getAsset("Engine/Entity/TestEntity");
-            asset->load();
-
-            mView->setSceneData(dynamic_cast<Entity*>(asset->getRootObject())->getOsgNode());
             mView->setCameraManipulator(new osgGA::TrackballManipulator);
         }
 

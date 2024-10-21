@@ -2,6 +2,7 @@
 #include <Engine/Core/Component.h>
 #include <Engine/Core/Engine.h>
 #include <Engine/Core/Context.h>
+#include <Engine/Render/Texture.h>
 
 namespace xxx
 {
@@ -18,17 +19,15 @@ namespace xxx
     {
         REFLECT_CLASS(DirectionalLight)
     public:
-        DirectionalLight()
+        virtual void onAddToEntity(Entity* entity) override
         {
+            Light::onAddToEntity(entity);
+
+            mLightIndex = sTotalLightCount++;
             std::string colorUniformName = "uDirectionalLight[" + std::to_string(mLightIndex) + "].color";
             mColorUniform = new osg::Uniform(colorUniformName.c_str(), mColor * mIntensity);
             std::string directionUniformName = "uDirectionalLight[" + std::to_string(mLightIndex) + "].direction";
             mDirectionUniform = new osg::Uniform(directionUniformName.c_str(), mDirection);
-        }
-
-        virtual void onAddToEntity(Entity* entity) override
-        {
-            Light::onAddToEntity(entity);
 
             Pipeline* pipeline = Context::get().getEngine()->getPipeline();
             Pipeline::Pass* lightingPass = pipeline->getPass("Lighting");
@@ -59,6 +58,7 @@ namespace xxx
             uint32_t directionalLightCount = 0;
             directionalLightCountUniform->get(directionalLightCount);
             directionalLightCountUniform->set(directionalLightCount - 1);
+            --sTotalLightCount;
 
             Light::onRemoveFromEntity(entity);
         }
@@ -115,6 +115,7 @@ namespace xxx
         osg::Vec3f mColor = osg::Vec3f(1, 1, 1);
         bool mCastShadows = true;
 
+        inline static uint8_t sTotalLightCount = 0;
         uint8_t mLightIndex = 0;
         osg::Vec3f mDirection = osg::Vec3f(0, 0, -1);
         bool mIsSunLight = true;
@@ -145,10 +146,31 @@ namespace xxx
         }
     };
 
-    /*class ImageBasedLight
+    class ImageBasedLight : public Light
     {
+        REFLECT_CLASS(ImageBasedLight)
+    public:
+        virtual void onAddToEntity(Entity* entity) override
+        {
+            Light::onAddToEntity(entity);
 
-    };*/
+        }
+
+        virtual void onRemoveFromEntity(Entity* entity) override
+        {
+
+            Light::onRemoveFromEntity(entity);
+        }
+
+        virtual void setEnableCastShadows(bool enable) override
+        {
+
+        }
+
+    protected:
+        osg::Vec4f mDiffuseSH[9];
+        osg::ref_ptr<TextureCubemap> mSpecular;
+    };
 
     namespace refl
     {
@@ -166,6 +188,12 @@ namespace xxx
             clazz->addProperty("CastShadows", &DirectionalLight::mCastShadows);
             clazz->addProperty("Direction", &DirectionalLight::mDirection);
             clazz->addProperty("IsSunLight", &DirectionalLight::mIsSunLight);
+            return clazz;
+        }
+
+        template <> Type* Reflection::createType<ImageBasedLight>()
+        {
+            Class* clazz = new ClassInstance<ImageBasedLight, Light>("ImageBasedLight");
             return clazz;
         }
     }

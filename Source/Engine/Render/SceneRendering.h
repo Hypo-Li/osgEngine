@@ -100,6 +100,14 @@ namespace xxx
         combineOpaqueAndTransparentPass->applyTexture(transparentPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uTransparentColorTexture", 1);
         combineOpaqueAndTransparentPass->setAttribute(new osg::Depth(osg::Depth::ALWAYS));
 
+        osg::Program* colorGradingProgram = new osg::Program;
+        colorGradingProgram->addShader(screenQuadShader);
+        colorGradingProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/ColorGrading.frag.glsl"));
+        Pipeline::Pass* colorGradingPass = pipeline->addWorkPass("ColorGrading", colorGradingProgram, GL_COLOR_BUFFER_BIT);
+        colorGradingPass->attach(BufferType::COLOR_BUFFER0, gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER0));
+        colorGradingPass->applyTexture(combineOpaqueAndTransparentPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorTexture", 0);
+        colorGradingPass->setAttribute(new osg::Depth(osg::Depth::ALWAYS));
+
         osg::Program* emptyProgram = new osg::Program;
         emptyProgram->addShader(screenQuadShader);
         emptyProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/Empty.frag.glsl"));
