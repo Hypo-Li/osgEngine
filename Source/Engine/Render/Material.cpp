@@ -121,9 +121,30 @@ namespace xxx
             case size_t(Shader::ParameterType::Vec4f):
                 uniform = new osg::Uniform(uniformName.c_str(), std::get<osg::Vec4f>(parameterValue));
                 break;
-            case size_t(Shader::ParameterType::Texture):
+            case size_t(Shader::ParameterType::Texture2D):
             {
-                const Shader::TextureAndUnit& textureAndUnit = std::get<Shader::TextureAndUnit>(parameterValue);
+                const Shader::Texture2DUnitPair& textureAndUnit = std::get<Shader::Texture2DUnitPair>(parameterValue);
+                uniform = new osg::Uniform(uniformName.c_str(), textureAndUnit.second);
+                mOsgStateSet->setTextureAttribute(textureAndUnit.second, textureAndUnit.first->getOsgTexture(), osg::StateAttribute::ON);
+                break;
+            }
+            case size_t(Shader::ParameterType::Texture2DArray):
+            {
+                const Shader::Texture2DArrayUnitPair& textureAndUnit = std::get<Shader::Texture2DArrayUnitPair>(parameterValue);
+                uniform = new osg::Uniform(uniformName.c_str(), textureAndUnit.second);
+                mOsgStateSet->setTextureAttribute(textureAndUnit.second, textureAndUnit.first->getOsgTexture(), osg::StateAttribute::ON);
+                break;
+            }
+            case size_t(Shader::ParameterType::Texture3D):
+            {
+                const Shader::Texture3DUnitPair& textureAndUnit = std::get<Shader::Texture3DUnitPair>(parameterValue);
+                uniform = new osg::Uniform(uniformName.c_str(), textureAndUnit.second);
+                mOsgStateSet->setTextureAttribute(textureAndUnit.second, textureAndUnit.first->getOsgTexture(), osg::StateAttribute::ON);
+                break;
+            }
+            case size_t(Shader::ParameterType::TextureCubemap):
+            {
+                const Shader::TextureCubemapUnitPair& textureAndUnit = std::get<Shader::TextureCubemapUnitPair>(parameterValue);
                 uniform = new osg::Uniform(uniformName.c_str(), textureAndUnit.second);
                 mOsgStateSet->setTextureAttribute(textureAndUnit.second, textureAndUnit.first->getOsgTexture(), osg::StateAttribute::ON);
                 break;
@@ -211,22 +232,14 @@ namespace xxx
             return "vec3";
         case size_t(Shader::ParameterType::Vec4f):
             return "vec4";
-        case size_t(Shader::ParameterType::Texture):
-        {
-            switch (std::get<Shader::TextureAndUnit>(parameter).first->getOsgTexture()->getTextureTarget())
-            {
-            case GL_TEXTURE_2D:
-                return "sampler2D";
-            case GL_TEXTURE_2D_ARRAY:
-                return "sampler2DArray";
-            case GL_TEXTURE_3D:
-                return "sampler3D";
-            case GL_TEXTURE_CUBE_MAP:
-                return "samplerCube";
-            default:
-                return "";
-            }
-        }
+        case size_t(Shader::ParameterType::Texture2D):
+            return "sampler2D";
+        case size_t(Shader::ParameterType::Texture2DArray):
+            return "sampler2DArray";
+        case size_t(Shader::ParameterType::Texture3D):
+            return "sampler3D";
+        case size_t(Shader::ParameterType::TextureCubemap):
+            return "samplerCube";
         default:
             return "";
         }
@@ -262,9 +275,27 @@ namespace xxx
         case size_t(Shader::ParameterType::Vec4f):
             uniform->set(std::get<osg::Vec4f>(parameterValue));
             return;
-        case size_t(Shader::ParameterType::Texture):
+        case size_t(Shader::ParameterType::Texture2D):
         {
-            const Shader::TextureAndUnit& textureAndUnit = std::get<Shader::TextureAndUnit>(parameterValue);
+            const Shader::Texture2DUnitPair& textureAndUnit = std::get<Shader::Texture2DUnitPair>(parameterValue);
+            mOsgStateSet->setTextureAttribute(textureAndUnit.second, textureAndUnit.first->getOsgTexture(), osg::StateAttribute::ON);
+            return;
+        }
+        case size_t(Shader::ParameterType::Texture2DArray):
+        {
+            const Shader::Texture2DArrayUnitPair& textureAndUnit = std::get<Shader::Texture2DArrayUnitPair>(parameterValue);
+            mOsgStateSet->setTextureAttribute(textureAndUnit.second, textureAndUnit.first->getOsgTexture(), osg::StateAttribute::ON);
+            return;
+        }
+        case size_t(Shader::ParameterType::Texture3D):
+        {
+            const Shader::Texture3DUnitPair& textureAndUnit = std::get<Shader::Texture3DUnitPair>(parameterValue);
+            mOsgStateSet->setTextureAttribute(textureAndUnit.second, textureAndUnit.first->getOsgTexture(), osg::StateAttribute::ON);
+            return;
+        }
+        case size_t(Shader::ParameterType::TextureCubemap):
+        {
+            const Shader::TextureCubemapUnitPair& textureAndUnit = std::get<Shader::TextureCubemapUnitPair>(parameterValue);
             mOsgStateSet->setTextureAttribute(textureAndUnit.second, textureAndUnit.first->getOsgTexture(), osg::StateAttribute::ON);
             return;
         }

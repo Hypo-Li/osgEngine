@@ -1,5 +1,9 @@
 #pragma once
 #include "Texture.h"
+#include "Texture2D.h"
+#include "Texture2DArray.h"
+#include "Texture3D.h"
+#include "TextureCubemap.h"
 #include <Engine/Core/AssetManager.h>
 
 #include <osg/Shader>
@@ -13,25 +17,22 @@ static constexpr bool is_shader_parameter_v =
     std::is_same_v<T, osg::Vec2f> ||
     std::is_same_v<T, osg::Vec3f> ||
     std::is_same_v<T, osg::Vec4f> ||
-    std::is_base_of_v<xxx::Texture, std::remove_pointer_t<T>>;
+    std::is_same_v<std::remove_pointer_t<T>, xxx::Texture2D> ||
+    std::is_same_v<std::remove_pointer_t<T>, xxx::Texture2DArray> ||
+    std::is_same_v<std::remove_pointer_t<T>, xxx::Texture3D> ||
+    std::is_same_v<std::remove_pointer_t<T>, xxx::TextureCubemap>;
 
 template<typename T, typename V, size_t I = 0>
 constexpr size_t variant_index()
 {
     if constexpr (I >= std::variant_size_v<V>)
-    {
         return (std::variant_size_v<V>);
-    }
     else
     {
         if constexpr (std::is_same_v<std::variant_alternative_t<I, V>, T>)
-        {
             return (I);
-        }
         else
-        {
             return (variant_index<T, V, I + 1>());
-        }
     }
 }
 
@@ -43,8 +44,6 @@ namespace xxx
     public:
         Shader();
 
-        using TextureAndUnit = std::pair<osg::ref_ptr<Texture>, int>;
-        using ParameterValue = std::variant<bool, int, float, osg::Vec2f, osg::Vec3f, osg::Vec4f, TextureAndUnit>;
         enum class ParameterType
         {
             Bool,
@@ -53,8 +52,27 @@ namespace xxx
             Vec2f,
             Vec3f,
             Vec4f,
-            Texture,
+            Texture2D,
+            Texture2DArray,
+            Texture3D,
+            TextureCubemap,
         };
+        using Texture2DUnitPair = std::pair<osg::ref_ptr<Texture2D>, int>;
+        using Texture2DArrayUnitPair = std::pair<osg::ref_ptr<Texture2DArray>, int>;
+        using Texture3DUnitPair = std::pair<osg::ref_ptr<Texture3D>, int>;
+        using TextureCubemapUnitPair = std::pair<osg::ref_ptr<TextureCubemap>, int>;
+        using ParameterValue = std::variant<
+            bool,
+            int,
+            float,
+            osg::Vec2f,
+            osg::Vec3f,
+            osg::Vec4f,
+            Texture2DUnitPair,
+            Texture2DArrayUnitPair,
+            Texture3DUnitPair,
+            TextureCubemapUnitPair
+        >;
         using Parameters = std::map<std::string, ParameterValue>;
 
         void setSource(const std::string& source)
@@ -76,7 +94,7 @@ namespace xxx
         void addParameter(const std::string& name, T defaultValue)
         {
             if constexpr (std::is_base_of_v<xxx::Texture, std::remove_pointer_t<T>>)
-                mParameters.emplace(name, std::make_pair(osg::ref_ptr<Texture>(defaultValue), assignTextureUnit()));
+                mParameters.emplace(name, std::make_pair(osg::ref_ptr<std::remove_pointer_t<T>>(defaultValue), assignTextureUnit()));
             else
                 mParameters.emplace(name, defaultValue);
         }
@@ -85,10 +103,28 @@ namespace xxx
         void setParameter(const std::string& name, T value)
         {
             auto findResult = mParameters.find(name);
-            if constexpr (std::is_base_of_v<xxx::Texture, std::remove_pointer_t<T>>)
+            if (findResult == mParameters.end())
+                return;
+            size_t typeIndex = findResult->second.index();
+            if constexpr (std::is_same_v<std::remove_pointer_t<T>, Texture2D>)
             {
-                if (findResult != mParameters.end() && findResult->second.index() == size_t(ParameterType::Texture))
-                    findResult->second = std::make_pair(osg::ref_ptr<Texture>(value), std::get<TextureAndUnit>(findResult->second).second);
+                if (typeIndex == size_t(ParameterType::Texture2D))
+                    findResult->second = std::make_pair(osg::ref_ptr<Texture2D>(value), std::get<Texture2DUnitPair>(findResult->second).second);
+            }
+            else if constexpr (std::is_same_v<std::remove_pointer_t<T>, Texture2DArray>)
+            {
+                if (typeIndex == size_t(ParameterType::Texture2DArray))
+                    findResult->second = std::make_pair(osg::ref_ptr<Texture2DArray>(value), std::get<Texture2DArrayUnitPair>(findResult->second).second);
+            }
+            else if constexpr (std::is_same_v<std::remove_pointer_t<T>, Texture3D>)
+            {
+                if (typeIndex == size_t(ParameterType::Texture3D))
+                    findResult->second = std::make_pair(osg::ref_ptr<Texture3D>(value), std::get<Texture3DUnitPair>(findResult->second).second);
+            }
+            else if constexpr (std::is_same_v<std::remove_pointer_t<T>, TextureCubemap>)
+            {
+                if (typeIndex == size_t(ParameterType::TextureCubemap))
+                    findResult->second = std::make_pair(osg::ref_ptr<TextureCubemap>(value), std::get<TextureCubemapUnitPair>(findResult->second).second);
             }
             else
             {
@@ -121,10 +157,22 @@ namespace xxx
             std::unordered_set<int> unavailableTextureUnit;
             for (const auto& param : mParameters)
             {
-                if (param.second.index() == size_t(ParameterType::Texture))
+                switch (param.second.index())
                 {
-                    int unit = std::get<TextureAndUnit>(param.second).second;
-                    unavailableTextureUnit.insert(unit);
+                case size_t(ParameterType::Texture2D):
+                    unavailableTextureUnit.insert(std::get<Texture2DUnitPair>(param.second).second);
+                    break;
+                case size_t(ParameterType::Texture2DArray):
+                    unavailableTextureUnit.insert(std::get<Texture2DArrayUnitPair>(param.second).second);
+                    break;
+                case size_t(ParameterType::Texture3D):
+                    unavailableTextureUnit.insert(std::get<Texture3DUnitPair>(param.second).second);
+                    break;
+                case size_t(ParameterType::TextureCubemap):
+                    unavailableTextureUnit.insert(std::get<TextureCubemapUnitPair>(param.second).second);
+                    break;
+                default:
+                    break;
                 }
             }
 
@@ -184,7 +232,10 @@ namespace xxx
                 {"Vec2f", Shader::ParameterType::Vec2f},
                 {"Vec3f", Shader::ParameterType::Vec3f},
                 {"Vec4f", Shader::ParameterType::Vec4f},
-                {"Texture", Shader::ParameterType::Texture},
+                {"Texture2D", Shader::ParameterType::Texture2D},
+                {"Texture2DArray", Shader::ParameterType::Texture2DArray},
+                {"Texture3D", Shader::ParameterType::Texture3D},
+                {"TextureCubemap", Shader::ParameterType::TextureCubemap},
             });
             return enumerate;
         }
@@ -193,8 +244,8 @@ namespace xxx
         inline Type* Reflection::createType<Shader>()
         {
             Class* clazz = new ClassInstance<Shader>("Shader");
-            Property* propParameters = clazz->addProperty("Parameters", &Shader::mParameters);
-            Property* propSource = clazz->addProperty("Source", &Shader::mSource);
+            clazz->addProperty("Parameters", &Shader::mParameters);
+            clazz->addProperty("Source", &Shader::mSource);
             return clazz;
         }
     }

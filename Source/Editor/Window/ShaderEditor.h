@@ -81,18 +81,47 @@ namespace xxx::editor
                                 mShader->setParameter(parameterName, vec4fValue);
                             break;
                         }
-                        case size_t(Shader::ParameterType::Texture):
+                        case size_t(Shader::ParameterType::Texture2D):
                         {
-                            const Shader::TextureAndUnit& textureAndUnit = std::get<Shader::TextureAndUnit>(parameterValue);
-                            Asset* textureAsset = textureAndUnit.first->getAsset();
-                            if (textureAsset)
+                            Asset* textureAsset = std::get<Shader::Texture2DUnitPair>(parameterValue).first->getAsset();
+                            if (AssetCombo<Texture>(parameterName.c_str(), &textureAsset))
                             {
-                                if (AssetCombo<Texture>(parameterName.c_str(), &textureAsset))
-                                {
-                                    if (!textureAsset->isLoaded())
-                                        textureAsset->load();
-                                    mShader->setParameter(parameterName, textureAsset->getRootObject<Texture>());
-                                }
+                                if (!textureAsset->isLoaded())
+                                    textureAsset->load();
+                                mShader->setParameter(parameterName, textureAsset->getRootObject<Texture2D>());
+                            }
+                            break;
+                        }
+                        case size_t(Shader::ParameterType::Texture2DArray):
+                        {
+                            Asset* textureAsset = std::get<Shader::Texture2DArrayUnitPair>(parameterValue).first->getAsset();
+                            if (AssetCombo<Texture>(parameterName.c_str(), &textureAsset))
+                            {
+                                if (!textureAsset->isLoaded())
+                                    textureAsset->load();
+                                mShader->setParameter(parameterName, textureAsset->getRootObject<Texture2DArray>());
+                            }
+                            break;
+                        }
+                        case size_t(Shader::ParameterType::Texture3D):
+                        {
+                            Asset* textureAsset = std::get<Shader::Texture3DUnitPair>(parameterValue).first->getAsset();
+                            if (AssetCombo<Texture>(parameterName.c_str(), &textureAsset))
+                            {
+                                if (!textureAsset->isLoaded())
+                                    textureAsset->load();
+                                mShader->setParameter(parameterName, textureAsset->getRootObject<Texture3D>());
+                            }
+                            break;
+                        }
+                        case size_t(Shader::ParameterType::TextureCubemap):
+                        {
+                            Asset* textureAsset = std::get<Shader::TextureCubemapUnitPair>(parameterValue).first->getAsset();
+                            if (AssetCombo<Texture>(parameterName.c_str(), &textureAsset))
+                            {
+                                if (!textureAsset->isLoaded())
+                                    textureAsset->load();
+                                mShader->setParameter(parameterName, textureAsset->getRootObject<TextureCubemap>());
                             }
                             break;
                         }
@@ -179,12 +208,12 @@ namespace xxx::editor
             case xxx::Shader::ParameterType::Vec4f:
                 mShader->addParameter(name, osg::Vec4f(0, 0, 0, 0));
                 break;
-            case xxx::Shader::ParameterType::Texture:
+            case xxx::Shader::ParameterType::Texture2D:
             {
-                Asset* defaultTextureAsset = AssetManager::get().getAsset("Engine/Texture/DefaultTexture");
+                Asset* defaultTextureAsset = AssetManager::get().getAsset("Engine/Texture/AwesomeFace");
                 if (!defaultTextureAsset->isLoaded())
                     defaultTextureAsset->load();
-                mShader->addParameter(name, defaultTextureAsset->getRootObject<Texture>());
+                mShader->addParameter(name, defaultTextureAsset->getRootObject<Texture2D>());
                 break;
             }
             default:

@@ -1,6 +1,10 @@
 #version 460 core
+#pragma import_defines(IMAGE_FORMAT)
+#ifndef IMAGE_FORMAT
+#define IMAGE_FORMAT rgba16f
+#endif
 layout(local_size_x = 32, local_size_y = 32) in;
-layout(binding = 0, rgba16f) uniform imageCube uEnvCubemapImage;
+layout(binding = 0, IMAGE_FORMAT) uniform imageCube uEnvCubemapImage;
 uniform sampler2D uEnvMapTexture;
 const float PI = 3.14159265358979323846;
 const float TAU = 2.0 * PI;

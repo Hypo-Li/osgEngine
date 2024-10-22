@@ -24,9 +24,19 @@ namespace xxx
 
         virtual Type getType() const = 0;
 
-        virtual void onAddToEntity(Entity* entity);
+        virtual bool onAddToEntity(Entity* entity);
 
-        virtual void onRemoveFromEntity(Entity* entity);
+        virtual bool onRemoveFromEntity(Entity* entity);
+
+        virtual void postSerialize(Serializer* serializer) override
+        {
+            if (serializer->isLoader())
+            {
+                Entity* entity = mEntity;
+                mEntity = nullptr;
+                onAddToEntity(entity);
+            }
+        }
 
         inline Entity* getEntity() const
         {

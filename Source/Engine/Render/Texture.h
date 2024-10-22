@@ -13,102 +13,269 @@
 
 namespace xxx
 {
+    struct TextureImportOptions;
+
     class Texture : public Object
     {
         REFLECT_CLASS(Texture)
     public:
         Texture() = default;
+        Texture(const TextureImportOptions& options);
         virtual ~Texture() = default;
+
+        enum Format
+        {
+            R8 = GL_R8,
+            RG8 = GL_RG8,
+            RGB8 = GL_RGB8,
+            RGBA8 = GL_RGBA8,
+
+            R16 = GL_R16,
+            RG16 = GL_RG16,
+            RGB16 = GL_RGB16,
+            RGBA16 = GL_RGBA16,
+
+            R8S = GL_R8_SNORM,
+            RG8S = GL_RG8_SNORM,
+            RGB8S = GL_RGB8_SNORM,
+            RGBA8S = GL_RGBA8_SNORM,
+
+            R16S = GL_R16_SNORM,
+            RG16S = GL_RG16_SNORM,
+            RGB16S = GL_RGB16_SNORM,
+            RGBA16S = GL_RGBA16_SNORM,
+
+            R8I = GL_R8I,
+            RG8I = GL_RG8I,
+            RGB8I = GL_RGB8I,
+            RGBA8I = GL_RGBA8I,
+
+            R16I = GL_R16I,
+            RG16I = GL_RG16I,
+            RGB16I = GL_RGB16I,
+            RGBA16I = GL_RGBA16I,
+
+            R32I = GL_R32I,
+            RG32I = GL_RG32I,
+            RGB32I = GL_RGB32I,
+            RGBA32I = GL_RGBA32I,
+
+            R8UI = GL_R8UI,
+            RG8UI = GL_RG8UI,
+            RGB8UI = GL_RGB8UI,
+            RGBA8UI = GL_RGBA8UI,
+
+            R16UI = GL_R16UI,
+            RG16UI = GL_RG16UI,
+            RGB16UI = GL_RGB16UI,
+            RGBA16UI = GL_RGBA16UI,
+
+            R32UI = GL_R32UI,
+            RG32UI = GL_RG32UI,
+            RGB32UI = GL_RGB32UI,
+            RGBA32UI = GL_RGBA32UI,
+
+            R16F = GL_R16F,
+            RG16F = GL_RG16F,
+            RGB16F = GL_RGB16F,
+            RGBA16F = GL_RGBA16F,
+
+            R32F = GL_R32F,
+            RG32F = GL_RG32F,
+            RGB32F = GL_RGB32F,
+            RGBA32F = GL_RGBA32F,
+
+            SRGB8 = GL_SRGB8,
+            SRGB8_Alpha8 = GL_SRGB8_ALPHA8,
+
+            /*Compressed_Red_RGTC1,
+            Compressed_Signed_Red_RGTC1,
+            Compressed_RG_RGTC2,
+            Compressed_Signed_RG_RGTC2,
+
+            Compressed_RGBA_BPTC_Unorm,
+            Compressed_SRGB_Alpha_BPTC_Unorm,
+            Compressed_RGB_BPTC_Signed_Float,
+            Compressed_RGB_BPTC_Unsigned_Float,
+
+            Compressed_RGBA_ASTC_4x4,
+            Compressed_RGBA_ASTC_5x4,
+            Compressed_RGBA_ASTC_5x5,
+            Compressed_RGBA_ASTC_6x5,
+            Compressed_RGBA_ASTC_6x6,
+            Compressed_RGBA_ASTC_8x5,
+            Compressed_RGBA_ASTC_8x6,
+            Compressed_RGBA_ASTC_10x5,
+            Compressed_RGBA_ASTC_10x6,
+            Compressed_RGBA_ASTC_8x8,
+            Compressed_RGBA_ASTC_10x8,
+            Compressed_RGBA_ASTC_10x10,
+            Compressed_RGBA_ASTC_12x10,
+            Compressed_RGBA_ASTC_12x12,
+            Compressed_SRGB8_Alpha8_ASTC_4x4,
+            Compressed_SRGB8_Alpha8_ASTC_5x4,
+            Compressed_SRGB8_Alpha8_ASTC_5x5,
+            Compressed_SRGB8_Alpha8_ASTC_6x5,
+            Compressed_SRGB8_Alpha8_ASTC_6x6,
+            Compressed_SRGB8_Alpha8_ASTC_8x5,
+            Compressed_SRGB8_Alpha8_ASTC_8x6,
+            Compressed_SRGB8_Alpha8_ASTC_10x5,
+            Compressed_SRGB8_Alpha8_ASTC_10x6,
+            Compressed_SRGB8_Alpha8_ASTC_8x8,
+            Compressed_SRGB8_Alpha8_ASTC_10x8,
+            Compressed_SRGB8_Alpha8_ASTC_10x10,
+            Compressed_SRGB8_Alpha8_ASTC_12x10,
+            Compressed_SRGB8_Alpha8_ASTC_12x12,
+
+            Compressed_RGB_S3TC_DXT1,
+            Compressed_RGBA_S3TC_DXT1,
+            Compressed_RGBA_S3TC_DXT3,
+            Compressed_RGBA_S3TC_DXT5,
+            Compressed_SRGB_S3TC_DXT1,
+            Compressed_SRGB_Alpha_S3TC_DXT1,
+            Compressed_SRGB_Alpha_S3TC_DXT3,
+            Compressed_SRGB_Alpha_S3TC_DXT5,*/
+        };
+
+        enum PixelFormat
+        {
+            R = GL_RED,
+            RG = GL_RG,
+            RGB = GL_RGB,
+            RGBA = GL_RGBA,
+        };
+
+        enum PixelType
+        {
+            Unsigned_Byte = GL_UNSIGNED_BYTE,
+            Byte = GL_BYTE,
+            Unsigned_Short = GL_UNSIGNED_SHORT,
+            Short = GL_SHORT,
+            Unsigned_Int = GL_UNSIGNED_INT,
+            Int = GL_INT,
+            Half = GL_HALF_FLOAT,
+            Float = GL_FLOAT,
+        };
+
+        enum FilterMode
+        {
+            Linear = GL_LINEAR,
+            Nearest = GL_NEAREST,
+            Linear_Mipmap_Linear = GL_LINEAR_MIPMAP_LINEAR,
+            Linear_Mipmap_Nearest = GL_LINEAR_MIPMAP_NEAREST,
+            Nearest_Mipmap_Linear = GL_NEAREST_MIPMAP_LINEAR,
+            Nearest_Mipmap_Nearest = GL_NEAREST_MIPMAP_NEAREST,
+        };
+
+        enum WrapMode
+        {
+            Repeat = GL_REPEAT,
+            Mirrored_Repeat = GL_MIRRORED_REPEAT,
+            Clamp = GL_CLAMP,
+            Clamp_To_Edge = GL_CLAMP_TO_EDGE,
+            Clamp_To_Border = GL_CLAMP_TO_BORDER,
+            Mirror_Clamp_To_Edge = GL_MIRROR_CLAMP_TO_EDGE,
+        };
 
         osg::Texture* getOsgTexture() const
         {
             return mOsgTexture;
         }
 
-        void setFormat(GLenum format)
+        void setFormat(Format format)
         {
             mFormat = format;
         }
 
-        GLenum getFormat() const
+        Format getFormat() const
         {
             return mFormat;
         }
 
-        void setPixelFormat(GLenum pixelFormat)
+        void setPixelFormat(PixelFormat pixelFormat)
         {
             mPixelFormat = pixelFormat;
         }
 
-        GLenum getPixelFormat() const
+        PixelFormat getPixelFormat() const
         {
             return mPixelFormat;
         }
 
-        void setPixelType(GLenum pixelType)
+        void setPixelType(PixelType pixelType)
         {
             mPixelType = pixelType;
         }
 
-        GLenum getPixelType() const
+        PixelType getPixelType() const
         {
             return mPixelType;
         }
 
-        void setMinFilter(GLenum minFilter)
+        void setMinFilter(FilterMode minFilter)
         {
             mMinFilter = minFilter;
         }
 
-        GLenum getMinFilter() const
+        FilterMode getMinFilter() const
         {
             return mMinFilter;
         }
 
-        void setMagFilter(GLenum magFilter)
+        void setMagFilter(FilterMode magFilter)
         {
             mMagFilter = magFilter;
         }
 
-        GLenum getMagFilter() const
+        FilterMode getMagFilter() const
         {
             return mMagFilter;
         }
 
-        void setWrapR(GLenum wrapR)
+        void setWrapR(WrapMode wrapR)
         {
             mWrapR = wrapR;
         }
 
-        GLenum getWrapR() const
+        WrapMode getWrapR() const
         {
             return mWrapR;
         }
 
-        void setWrapS(GLenum wrapS)
+        void setWrapS(WrapMode wrapS)
         {
             mWrapS = wrapS;
         }
 
-        GLenum getWrapS() const
+        WrapMode getWrapS() const
         {
             return mWrapS;
         }
 
-        void setWrapT(GLenum wrapT)
+        void setWrapT(WrapMode wrapT)
         {
             mWrapT = wrapT;
         }
 
-        GLenum getWrapT() const
+        WrapMode getWrapT() const
         {
             return mWrapT;
         }
 
-        virtual void apply()
+        void setBorderColor(osg::Vec4f borderColor)
+        {
+            mBorderColor = borderColor;
+        }
+
+        osg::Vec4f getBorderColor() const
+        {
+            return mBorderColor;
+        }
+
+        virtual bool apply()
         {
             if (!mOsgTexture)
-                return;
+                return false;
             mOsgTexture->setInternalFormat(mFormat);
             mOsgTexture->setSourceFormat(mPixelFormat);
             mOsgTexture->setSourceType(mPixelType);
@@ -117,194 +284,47 @@ namespace xxx
             mOsgTexture->setWrap(osg::Texture::WRAP_R, osg::Texture::WrapMode(mWrapR));
             mOsgTexture->setWrap(osg::Texture::WRAP_S, osg::Texture::WrapMode(mWrapS));
             mOsgTexture->setWrap(osg::Texture::WRAP_T, osg::Texture::WrapMode(mWrapT));
+            mOsgTexture->setBorderColor(mBorderColor);
+            return true;
         }
 
     protected:
-        GLenum mFormat = GL_RGBA;
-        GLenum mPixelFormat = GL_RGBA;
-        GLenum mPixelType = GL_UNSIGNED_BYTE;
-        GLenum mMinFilter = GL_LINEAR_MIPMAP_LINEAR;
-        GLenum mMagFilter = GL_LINEAR;
-        GLenum mWrapR = GL_CLAMP;
-        GLenum mWrapS = GL_CLAMP;
-        GLenum mWrapT = GL_CLAMP;
+        Format mFormat = Format::RGBA8;
+        PixelFormat mPixelFormat = PixelFormat::RGBA;
+        PixelType mPixelType = PixelType::Unsigned_Byte;
+        FilterMode mMinFilter = FilterMode::Linear_Mipmap_Linear;
+        FilterMode mMagFilter = FilterMode::Linear;
+        WrapMode mWrapR = WrapMode::Clamp;
+        WrapMode mWrapS = WrapMode::Clamp;
+        WrapMode mWrapT = WrapMode::Clamp;
+        osg::Vec4f mBorderColor = osg::Vec4(0, 0, 0, 1);
         std::vector<uint8_t> mData;
 
         osg::ref_ptr<osg::Texture> mOsgTexture = nullptr;
+
+        static std::pair<PixelFormat, PixelType> getPixelFormatAndTypeFromFormat(Format format);
+
+        static std::string getImageFormatName(Format format);
     };
 
-    class Texture2D : public Texture
+    struct TextureImportOptions
     {
-        REFLECT_CLASS(Texture2D)
-    public:
-        Texture2D() = default;
-        Texture2D(const std::string& imagePath)
-        {
-            osg::State* state = Context::get().getGraphicsContext()->getState();
-            osg::ref_ptr<osg::Image> image = osgDB::readImageFile(imagePath);
-            mWidth = image->s();
-            mHeight = image->t();
-            mFormat = image->getInternalTextureFormat();
-            mPixelFormat = image->getPixelFormat();
-            mPixelType = image->getDataType();
-            osg::Texture2D* texture2d = new osg::Texture2D((image));
-            mOsgTexture = texture2d;
-            apply();
-            texture2d->apply(*state);
-            texture2d->setImage(nullptr);
-        }
-        virtual ~Texture2D() = default;
-
-        virtual void preSerialize(Serializer* serializer) override
-        {
-            if (serializer->isSaver())
-            {
-                osg::State* state = Context::get().getGraphicsContext()->getState();
-                mOsgTexture->apply(*state);
-                osg::ref_ptr<osg::Image> image = new osg::Image;
-                image->readImageFromCurrentTexture(state->getContextID(), false, mPixelType);
-                uint32_t dataSize = image->getTotalSizeInBytes();
-                const uint8_t* dataPtr = static_cast<const uint8_t*>(image->data());
-                mData.assign(dataPtr, dataPtr + dataSize);
-            }
-        }
-
-        virtual void postSerialize(Serializer* serializer) override
-        {
-            if (serializer->isLoader())
-            {
-                osg::State* state = Context::get().getGraphicsContext()->getState();
-                osg::ref_ptr<osg::Image> image = new osg::Image;
-                image->allocateImage(mWidth, mHeight, 1, mPixelFormat, mPixelType);
-                std::memcpy(image->data(), mData.data(), mData.size());
-                osg::Texture2D* texture2d = new osg::Texture2D;
-                texture2d->setImage(image);
-                mOsgTexture = texture2d;
-                apply();
-                texture2d->apply(*state);
-                texture2d->setImage(nullptr);
-            }
-            mData.clear();
-        }
-
-        virtual void apply() override
-        {
-            Texture::apply();
-            osg::Texture2D* texture2d = dynamic_cast<osg::Texture2D*>(mOsgTexture.get());
-            texture2d->setTextureWidth(mWidth);
-            texture2d->setTextureHeight(mHeight);
-        }
-
-    protected:
-        uint32_t mWidth = 0, mHeight = 0;
-    };
-
-    class TextureCubemap : public Texture
-    {
-        REFLECT_CLASS(TextureCubemap)
-    public:
-        TextureCubemap() = default;
-        TextureCubemap(const std::string& imagePath, uint32_t cubemapSize = 512, uint32_t mipmapLevels = 0)
-        {
-            osg::ref_ptr<osg::Image> image = osgDB::readImageFile(imagePath);
-            mWidth = mHeight = cubemapSize;
-            mMipmapLevels = mipmapLevels;
-            mFormat = GL_RGBA16F;// image->getInternalTextureFormat();
-            mPixelFormat = GL_RGBA;
-            mPixelType = GL_FLOAT;
-            mMinFilter = mipmapLevels == 0 ? GL_LINEAR : GL_LINEAR_MIPMAP_LINEAR;
-
-            osg::Texture2D* hdrTexture = new osg::Texture2D(image);
-
-            osg::TextureCubeMap* textureCubemap = new osg::TextureCubeMap;
-            mOsgTexture = textureCubemap;
-
-            apply();
-
-            osg::Program* envCubemapProgram = new osg::Program;
-            envCubemapProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "IBL/EnvCubemap.comp.glsl"));
-            osg::ref_ptr<osg::BindImageTexture> cubemapImage = new osg::BindImageTexture(0, textureCubemap, osg::BindImageTexture::WRITE_ONLY, GL_RGBA16F/*image->getInternalTextureFormat()*/, 0, true);
-            osg::StateSet* stateSet = new osg::StateSet;
-            stateSet->setAttributeAndModes(envCubemapProgram);
-            stateSet->setAttributeAndModes(cubemapImage);
-            stateSet->addUniform(new osg::Uniform("uEnvMapTexture", 0));
-            stateSet->setTextureAttributeAndModes(0, hdrTexture);
-
-            osg::State* state = Context::get().getGraphicsContext()->getState();
-            osg::GLExtensions* extensions = state->get<osg::GLExtensions>();
-            state->apply(stateSet);
-            extensions->glDispatchCompute(16, 16, 6);
-            extensions->glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-        }
-
-        virtual void preSerialize(Serializer* serializer) override
-        {
-            if (serializer->isSaver())
-            {
-                osg::State* state = Context::get().getGraphicsContext()->getState();
-                mOsgTexture->apply(*state);
-                for (int i = 0; i < 6; ++i)
-                {
-                    osg::ref_ptr<osg::Image> image = new osg::Image;
-                    image->readImageFromCurrentTexture(state->getContextID(), false, mPixelType, i);
-                    uint32_t faceDataSize = image->getTotalSizeInBytes();
-                    if (i == 0)
-                        mData.resize(faceDataSize * 6);
-                    std::memcpy(mData.data() + i * faceDataSize, image->data(), faceDataSize);
-                }
-            }
-        }
-
-        virtual void postSerialize(Serializer* serializer) override
-        {
-            if (serializer->isLoader())
-            {
-                osg::State* state = Context::get().getGraphicsContext()->getState();
-                size_t faceDataSize = mData.size() / 6;
-                osg::TextureCubeMap* textureCubemap = new osg::TextureCubeMap;
-                for (int i = 0; i < 6; ++i)
-                {
-                    osg::ref_ptr<osg::Image> image = new osg::Image;
-                    image->allocateImage(mWidth, mHeight, 1, mPixelFormat, mPixelType);
-                    size_t mySize = image->getTotalDataSize();
-                    std::memcpy(image->data(), mData.data() + i * faceDataSize, faceDataSize);
-                    textureCubemap->setImage(i, image);
-                }
-                mOsgTexture = textureCubemap;
-                apply();
-                textureCubemap->apply(*state);
-                for (int i = 0; i < 6; ++i)
-                    textureCubemap->setImage(i, nullptr);
-
-            }
-            mData.clear();
-        }
-
-        virtual void apply() override
-        {
-            Texture::apply();
-            osg::TextureCubeMap* textureCubemap = dynamic_cast<osg::TextureCubeMap*>(mOsgTexture.get());
-            textureCubemap->setTextureWidth(mWidth);
-            textureCubemap->setTextureHeight(mHeight);
-            textureCubemap->setNumMipmapLevels(mMipmapLevels);
-        }
-
-    protected:
-        uint32_t mWidth = 0, mHeight = 0;
-        uint32_t mMipmapLevels = 0;
+        Texture::Format format = Texture::Format::RGBA8;
+        Texture::FilterMode minFilter = Texture::FilterMode::Linear_Mipmap_Linear;
+        Texture::FilterMode magFilter = Texture::FilterMode::Linear;
+        Texture::WrapMode wrapR = Texture::WrapMode::Clamp;
+        Texture::WrapMode wrapS = Texture::WrapMode::Clamp;
+        Texture::WrapMode wrapT = Texture::WrapMode::Clamp;
+        osg::Vec4f borderColor = osg::Vec4f(0, 0, 0, 1);
     };
 
     namespace refl
     {
+        template <> Type* Reflection::createType<Texture::Format>();
+        template <> Type* Reflection::createType<Texture::PixelFormat>();
+        template <> Type* Reflection::createType<Texture::PixelType>();
+        template <> Type* Reflection::createType<Texture::FilterMode>();
+        template <> Type* Reflection::createType<Texture::WrapMode>();
         template <> Type* Reflection::createType<Texture>();
-        template <> Type* Reflection::createType<Texture2D>();
-        template <> inline Type* Reflection::createType<TextureCubemap>()
-        {
-            Class* clazz = new ClassInstance<TextureCubemap, Texture>("TextureCubemap");
-            clazz->addProperty("Width", &TextureCubemap::mWidth);
-            clazz->addProperty("Height", &TextureCubemap::mHeight);
-            clazz->addProperty("MipmapLevels", &TextureCubemap::mMipmapLevels);
-            return clazz;
-        }
     }
 }

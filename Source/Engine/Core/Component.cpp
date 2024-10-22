@@ -17,23 +17,25 @@ namespace xxx
 
     }
 
-    void Component::onAddToEntity(Entity* entity)
+    bool Component::onAddToEntity(Entity* entity)
     {
         if (mEntity == entity)
-            return;
+            return false;
         if (mEntity != nullptr)
             mEntity->removeComponent(this);
 
         setOwner(entity);
         mEntity = entity;
+        return true;
     }
 
-    void Component::onRemoveFromEntity(Entity* entity)
+    bool Component::onRemoveFromEntity(Entity* entity)
     {
         if (mEntity != entity)
-            return;
+            return false;
         setOwner(nullptr);
         mEntity = nullptr;
+        return true;
     }
 
     namespace refl

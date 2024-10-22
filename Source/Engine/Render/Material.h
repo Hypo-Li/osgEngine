@@ -55,23 +55,58 @@ namespace xxx
         void setParameter(const std::string& name, T value)
         {
             auto materialParamIt = mParameters.find(name);
-            if constexpr (std::is_base_of_v<xxx::Texture, std::remove_pointer_t<T>>)
+            size_t typeIndex = materialParamIt->second.first.index();
+            if (materialParamIt == mParameters.end())
+                return;
+
+            if constexpr (std::is_same_v<std::remove_pointer_t<T>, xxx::Texture2D>)
             {
-                if (materialParamIt != mParameters.end() && materialParamIt->second.first.index() == size_t(Shader::ParameterType::Texture))
+                if (typeIndex == size_t(Shader::ParameterType::Texture2D))
                 {
-                    const Shader::TextureAndUnit& textureAndUnit = std::get<Shader::TextureAndUnit>(materialParamIt->second.first);
-                    mParameters[name].first = std::make_pair(osg::ref_ptr<Texture>(value), textureAndUnit.second);
-                    applyParameter(materialParamIt);
+                    mParameters[name].first = std::make_pair(
+                        osg::ref_ptr<Texture2D>(value),
+                        std::get<Shader::Texture2DUnitPair>(materialParamIt->second.first).second
+                    );
+                }
+            }
+            else if constexpr (std::is_same_v<std::remove_pointer_t<T>, xxx::Texture2DArray>)
+            {
+                if (typeIndex == size_t(Shader::ParameterType::Texture2DArray))
+                {
+                    mParameters[name].first = std::make_pair(
+                        osg::ref_ptr<Texture2DArray>(value),
+                        std::get<Shader::Texture2DArrayUnitPair>(materialParamIt->second.first).second
+                    );
+                }
+            }
+            else if constexpr (std::is_same_v<std::remove_pointer_t<T>, xxx::Texture3D>)
+            {
+                if (typeIndex == size_t(Shader::ParameterType::Texture3D))
+                {
+                    mParameters[name].first = std::make_pair(
+                        osg::ref_ptr<Texture3D>(value),
+                        std::get<Shader::Texture3DUnitPair>(materialParamIt->second.first).second
+                    );
+                }
+            }
+            else if constexpr (std::is_same_v<std::remove_pointer_t<T>, xxx::TextureCubemap>)
+            {
+                if (typeIndex == size_t(Shader::ParameterType::TextureCubemap))
+                {
+                    mParameters[name].first = std::make_pair(
+                            osg::ref_ptr<TextureCubemap>(value),
+                            std::get<Shader::TextureCubemapUnitPair>(materialParamIt->second.first).second
+                    );
                 }
             }
             else
             {
-                if (materialParamIt != mParameters.end() && materialParamIt->second.first.index() == variant_index<T, Shader::ParameterValue>())
+                if (materialParamIt->second.first.index() == variant_index<T, Shader::ParameterValue>())
                 {
                     mParameters[name].first = value;
-                    applyParameter(materialParamIt);
                 }
             }
+            applyParameter(materialParamIt);
         }
 
         void setParameter(const std::string& name, const Shader::ParameterValue& value)
