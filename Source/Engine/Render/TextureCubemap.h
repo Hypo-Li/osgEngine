@@ -69,7 +69,9 @@ namespace xxx
                 {
                     osg::ref_ptr<osg::Image> image = new osg::Image;
                     image->allocateImage(mWidth, mHeight, 1, mPixelFormat, mPixelType);
-                    size_t mySize = image->getTotalDataSize();
+                    image->setInternalTextureFormat(mFormat);
+                    image->setPixelFormat(mPixelFormat);
+                    image->setDataType(mPixelType);
                     std::memcpy(image->data(), mData.data() + i * faceDataSize, faceDataSize);
                     textureCubemap->setImage(i, image);
                 }
@@ -78,7 +80,6 @@ namespace xxx
                 textureCubemap->apply(*state);
                 for (int i = 0; i < 6; ++i)
                     textureCubemap->setImage(i, nullptr);
-
             }
             mData.clear();
         }

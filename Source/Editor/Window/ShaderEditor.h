@@ -84,7 +84,7 @@ namespace xxx::editor
                         case size_t(Shader::ParameterType::Texture2D):
                         {
                             Asset* textureAsset = std::get<Shader::Texture2DUnitPair>(parameterValue).first->getAsset();
-                            if (AssetCombo<Texture>(parameterName.c_str(), &textureAsset))
+                            if (AssetCombo<Texture2D>(parameterName.c_str(), &textureAsset))
                             {
                                 if (!textureAsset->isLoaded())
                                     textureAsset->load();
@@ -95,7 +95,7 @@ namespace xxx::editor
                         case size_t(Shader::ParameterType::Texture2DArray):
                         {
                             Asset* textureAsset = std::get<Shader::Texture2DArrayUnitPair>(parameterValue).first->getAsset();
-                            if (AssetCombo<Texture>(parameterName.c_str(), &textureAsset))
+                            if (AssetCombo<Texture2DArray>(parameterName.c_str(), &textureAsset))
                             {
                                 if (!textureAsset->isLoaded())
                                     textureAsset->load();
@@ -106,7 +106,7 @@ namespace xxx::editor
                         case size_t(Shader::ParameterType::Texture3D):
                         {
                             Asset* textureAsset = std::get<Shader::Texture3DUnitPair>(parameterValue).first->getAsset();
-                            if (AssetCombo<Texture>(parameterName.c_str(), &textureAsset))
+                            if (AssetCombo<Texture3D>(parameterName.c_str(), &textureAsset))
                             {
                                 if (!textureAsset->isLoaded())
                                     textureAsset->load();
@@ -117,7 +117,7 @@ namespace xxx::editor
                         case size_t(Shader::ParameterType::TextureCubemap):
                         {
                             Asset* textureAsset = std::get<Shader::TextureCubemapUnitPair>(parameterValue).first->getAsset();
-                            if (AssetCombo<Texture>(parameterName.c_str(), &textureAsset))
+                            if (AssetCombo<TextureCubemap>(parameterName.c_str(), &textureAsset))
                             {
                                 if (!textureAsset->isLoaded())
                                     textureAsset->load();
@@ -214,6 +214,14 @@ namespace xxx::editor
                 if (!defaultTextureAsset->isLoaded())
                     defaultTextureAsset->load();
                 mShader->addParameter(name, defaultTextureAsset->getRootObject<Texture2D>());
+                break;
+            }
+            case xxx::Shader::ParameterType::TextureCubemap:
+            {
+                Asset* defaultTextureAsset = AssetManager::get().getAsset("Engine/Texture/TestCubemap");
+                if (!defaultTextureAsset->isLoaded())
+                    defaultTextureAsset->load();
+                mShader->addParameter(name, defaultTextureAsset->getRootObject<TextureCubemap>());
                 break;
             }
             default:

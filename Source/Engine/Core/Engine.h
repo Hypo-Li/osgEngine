@@ -100,7 +100,7 @@ namespace xxx
         {
             osg::ref_ptr<osg::Camera> camera = mView->getCamera();
             camera->setViewport(0, 0, setupConfig.width, setupConfig.height);
-            camera->setProjectionMatrixAsPerspective(90.0, double(setupConfig.width) / double(setupConfig.height), 0.1, 400.0);
+            camera->setProjectionMatrixAsPerspective(75.0, double(setupConfig.width) / double(setupConfig.height), 0.1, 400.0);
 
             mPipeline = createSceneRenderingPipeline(mView, true);
             Context::get().getGraphicsContext()->setResizedCallback(new ResizedCallback(mPipeline, true));

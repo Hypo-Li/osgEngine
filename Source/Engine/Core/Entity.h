@@ -154,7 +154,7 @@ namespace xxx
         }
         
 		template<typename T = Component, typename = std::enable_if_t<std::is_base_of_v<Component, T>>>
-		T* getComponent(uint32_t index)
+		T* getComponent(uint32_t index = 0)
 		{
             if constexpr (std::is_same_v<T, Component>)
             {

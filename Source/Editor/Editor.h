@@ -59,7 +59,7 @@ namespace xxx::editor
 
             Pipeline* enginePipeline = mEngine->getPipeline();
             osg::Camera* imguiCamera = enginePipeline->getPass("Display")->getCamera();
-            osg::Texture2D* sceneColorTexture = dynamic_cast<osg::Texture2D*>(enginePipeline->getPass("CombineOpaqueAndTransparent")->getBufferTexture(Pipeline::Pass::BufferType::COLOR_BUFFER0));
+            osg::Texture2D* sceneColorTexture = dynamic_cast<osg::Texture2D*>(enginePipeline->getPass("ColorGrading")->getBufferTexture(Pipeline::Pass::BufferType::COLOR_BUFFER0));
 
             WindowManager& wm = WindowManager::get();
             DockSpace* dockSpace = wm.createWindow<DockSpace>();

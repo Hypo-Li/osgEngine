@@ -158,16 +158,20 @@ namespace xxx
     public:
         virtual bool onAddToEntity(Entity* entity) override
         {
-            if (!Light::onAddToEntity(entity))
-                return false;
-            return true;
+            if (Light::onAddToEntity(entity))
+            {
+                return true;
+            }
+            return false;
         }
 
         virtual bool onRemoveFromEntity(Entity* entity) override
         {
-            if (!Light::onRemoveFromEntity(entity))
-                return false;
-            return true;
+            if (Light::onRemoveFromEntity(entity))
+            {
+                return true;
+            }
+            return false;
         }
 
         virtual void setEnableCastShadows(bool enable) override
@@ -176,8 +180,9 @@ namespace xxx
         }
 
     protected:
-        osg::Vec4f mDiffuseSH[9];
-        osg::ref_ptr<TextureCubemap> mSpecular;
+        osg::ref_ptr<TextureCubemap> mImageCubemap;
+        std::array<osg::Vec4f, 9> mDiffuseSH;
+        osg::ref_ptr<TextureCubemap> mSpecularCubemap;
     };
 
     namespace refl

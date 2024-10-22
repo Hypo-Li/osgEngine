@@ -142,6 +142,12 @@ namespace xxx
             Asset* asset = AssetManager::get().getAsset(guid);
             if (!asset)
             {
+                // try to use path get asset
+                asset = AssetManager::get().getAsset(mStringTable[mImportTable[index].pathStrIndex]);
+                // LogWarnning
+            }
+            if (!asset)
+            {
                 // LogError could not find asset getString(mImportTable[index].path)
                 object = nullptr;
             }

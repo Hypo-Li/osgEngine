@@ -285,6 +285,8 @@ namespace xxx
             mOsgTexture->setWrap(osg::Texture::WRAP_S, osg::Texture::WrapMode(mWrapS));
             mOsgTexture->setWrap(osg::Texture::WRAP_T, osg::Texture::WrapMode(mWrapT));
             mOsgTexture->setBorderColor(mBorderColor);
+            if (mMinFilter != FilterMode::Linear && mMinFilter != FilterMode::Nearest)
+                mOsgTexture->setUseHardwareMipMapGeneration(true);
             return true;
         }
 

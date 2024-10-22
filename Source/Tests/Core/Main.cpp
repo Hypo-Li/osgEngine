@@ -86,8 +86,12 @@ int main()
 
     //createTestAssets();
 
-    //TextureCubemap* textureCubemap = new TextureCubemap(TEMP_DIR "zwartkops_straight_sunset_1k.hdr");
-    //am.createAsset(textureCubemap, "Engine/Texture/TestCubemap")->save();
+    osg::ref_ptr<osg::Image> hdrImage = osgDB::readImageFile(TEMP_DIR "zwartkops_straight_sunset_1k.hdr");
+    TextureImportOptions options;
+    options.format = Texture::Format::RGBA16F;
+    options.minFilter = Texture::FilterMode::Linear;
+    TextureCubemap* textureCubemap = new TextureCubemap(hdrImage, options);
+    am.createAsset(textureCubemap, "Engine/Texture/TestCubemap")->save();
 
     /*osg::Image* image = osgDB::readImageFile(TEMP_DIR "white.png");
     osg::ref_ptr<Texture2D> whiteTexture2D = new Texture2D(image, TextureImportOptions());
@@ -101,14 +105,7 @@ int main()
     mesh->setDefaultMaterial(0, material);
     am.createAsset(mesh, "Engine/Mesh/Sphere")->save();*/
 
-    Asset* entityAsset = am.getAsset("Engine/Entity/TestEntity");
-    entityAsset->load();
-    Entity* entity = entityAsset->getRootObject<Entity>();
-    DirectionalLight* directionalLight = entity->addComponent<DirectionalLight>();
-    osg::Vec3f lightDirection(1, 1, -1);
-    lightDirection.normalize();
-    directionalLight->setDirection(lightDirection);
-    entityAsset->save();
+
 
     Context::get().getGraphicsContext()->releaseContext();
 
