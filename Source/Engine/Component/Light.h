@@ -207,8 +207,8 @@ namespace xxx
                 return;
 
             mImageCubemap = cubemap;
-            generateSpecularCubemap();
             generateDiffuseSHCoeff();
+            generateSpecularCubemap();
         }
 
     protected:
@@ -223,18 +223,19 @@ namespace xxx
             shCoeffBuffer->setBufferObject(shCoeffSSBO);
             osg::ref_ptr<osg::ShaderStorageBufferBinding> shCoeffSSBB = new osg::ShaderStorageBufferBinding(0, shCoeffBuffer, 0, shCoeffBuffer->size() * sizeof(osg::Vec4));
 
-            osg::ref_ptr<osg::StateSet> computeStateSet = new osg::StateSet;
-            osg::ref_ptr<osg::Program> diffuseSHCoeffProgram = new osg::Program;
-            diffuseSHCoeffProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "SphericalHarmonics/DiffuseSHCoeff.comp.glsl"));
-            computeStateSet->setAttribute(diffuseSHCoeffProgram, osg::StateAttribute::ON);
-            computeStateSet->setAttribute(shCoeffSSBB, osg::StateAttribute::ON);
-            computeStateSet->addUniform(new osg::Uniform("uCubemapTexture", 0));
-            computeStateSet->setTextureAttribute(0, mImageCubemap->getOsgTexture());
-            computeStateSet->setMode(GL_TEXTURE_CUBE_MAP_SEAMLESS, osg::StateAttribute::ON);
-
             osg::State* state = Context::get().getGraphicsContext()->getState();
             osg::GLExtensions* extensions = state->get<osg::GLExtensions>();
-            state->apply(computeStateSet);
+
+            osg::ref_ptr<osg::Program> diffuseSHCoeffProgram = new osg::Program;
+            diffuseSHCoeffProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "SphericalHarmonics/DiffuseSHCoeff.comp.glsl"));
+            diffuseSHCoeffProgram->apply(*state);
+            osg::ref_ptr<osg::Uniform> uniform = new osg::Uniform("uCubemapTexture", 0);
+            diffuseSHCoeffProgram->getPCP(*state)->apply(*uniform);
+            shCoeffSSBB->apply(*state);
+            state->setActiveTextureUnit(0);
+            mImageCubemap->getOsgTexture()->apply(*state);
+            state->applyMode(GL_TEXTURE_CUBE_MAP_SEAMLESS, true);
+
             extensions->glDispatchCompute(16, 16, 1);
             extensions->glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
@@ -272,22 +273,8 @@ namespace xxx
 
                 mSpecularCubemap = new TextureCubemap(textureCubemap);
                 mSpecularCubemap->apply();
-
-                /*mSpecularCubemap = new TextureCubemap(new osg::TextureCubeMap);
-                mSpecularCubemap->setSize(512);
-                mSpecularCubemap->setFormat(Texture::Format::RGBA16F);
-                mSpecularCubemap->setPixelFormat(Texture::PixelFormat::RGBA);
-                mSpecularCubemap->setPixelType(Texture::PixelType::Half);
-                mSpecularCubemap->setMinFilter(Texture::FilterMode::Linear_Mipmap_Linear);
-                mSpecularCubemap->setMipmapGeneration(false);
-                mSpecularCubemap->setMipmapCount(4);
-                mSpecularCubemap->apply();*/
             }
-            
-            osg::ref_ptr<osg::StateSet> computeStateSet = new osg::StateSet;
-            computeStateSet->addUniform(new osg::Uniform("uCubemapTexture", 0));
-            computeStateSet->setTextureAttribute(0, mImageCubemap->getOsgTexture());
-            computeStateSet->setMode(GL_TEXTURE_CUBE_MAP_SEAMLESS, osg::StateAttribute::ON);
+
             int numGroups[5][3] = {
                 {16, 16, 6},
                 {8, 8, 6},
@@ -295,20 +282,27 @@ namespace xxx
                 {16, 16, 6},
                 {8, 8, 6}
             };
+            
             osg::State* state = Context::get().getGraphicsContext()->getState();
             osg::GLExtensions* extensions = state->get<osg::GLExtensions>();
+
+            state->setActiveTextureUnit(0);
+            mImageCubemap->getOsgTexture()->apply(*state);
+            state->applyMode(GL_TEXTURE_CUBE_MAP_SEAMLESS, true);
+            osg::ref_ptr<osg::Uniform> uniform = new osg::Uniform("uCubemapTexture", 0);
+
             for (int i = 0; i < 5; ++i)
             {
                 osg::ref_ptr<osg::BindImageTexture> prefilterImage = new osg::BindImageTexture(0, mSpecularCubemap->getOsgTexture(), osg::BindImageTexture::WRITE_ONLY, GL_RGBA16F, i, true);
                 osg::ref_ptr<osg::Program> prefilterProgram = new osg::Program;
                 prefilterProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "IBL/Prefilter" + std::to_string(i) + ".comp.glsl"));
-                computeStateSet->setAttribute(prefilterProgram, osg::StateAttribute::ON);
-                computeStateSet->setAttribute(prefilterImage, osg::StateAttribute::ON);
-                state->apply(computeStateSet);
+                prefilterProgram->apply(*state);
+                prefilterProgram->getPCP(*state)->apply(*uniform);
+                prefilterImage->apply(*state);
+
                 extensions->glDispatchCompute(numGroups[i][0], numGroups[i][1], numGroups[i][2]);
                 extensions->glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
             }
-            //mSpecularCubemap = AssetManager::get().getAsset("Engine/Texture/SpecularCubemap")->getRootObject<TextureCubemap>();
         }
     };
 

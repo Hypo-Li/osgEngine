@@ -10,9 +10,6 @@ namespace xxx::editor
     public:
         MaterialEditor(Asset* materialAsset) : Window(materialAsset->getName() + "##" + materialAsset->getPath()), mMaterialAsset(materialAsset)
         {
-            if (!mMaterialAsset->isLoaded())
-                mMaterialAsset->load();
-
             mMaterial = mMaterialAsset->getRootObject<Material>();
 
             /*mSimpleView = new osgViewer::View;
@@ -70,8 +67,6 @@ namespace xxx::editor
                 Asset* shaderAsset = mMaterial->getShader()->getAsset();
                 if (AssetCombo<Shader>("Shader", &shaderAsset))
                 {
-                    if (shaderAsset->isLoaded())
-                        shaderAsset->load();
                     mMaterial->setShader(shaderAsset->getRootObject<Shader>());
                 }
 
@@ -121,21 +116,21 @@ namespace xxx::editor
                     case size_t(Shader::ParameterType::Vec2f):
                     {
                         osg::Vec2f vec2fValue = std::get<osg::Vec2f>(parameterValue);
-                        if (ImGui::DragFloat2(parameterName.c_str(), &vec2fValue.x()))
+                        if (ImGui::DragFloat2(parameterName.c_str(), vec2fValue.ptr()))
                             mMaterial->setParameter(parameterName, vec2fValue);
                         break;
                     }
                     case size_t(Shader::ParameterType::Vec3f):
                     {
                         osg::Vec3f vec3fValue = std::get<osg::Vec3f>(parameterValue);
-                        if (ImGui::DragFloat3(parameterName.c_str(), &vec3fValue.x(), 0.01f))
+                        if (ImGui::ColorEdit3(parameterName.c_str(), vec3fValue.ptr(), ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR))
                             mMaterial->setParameter(parameterName, vec3fValue);
                         break;
                     }
                     case size_t(Shader::ParameterType::Vec4f):
                     {
                         osg::Vec4 vec4fValue = std::get<osg::Vec4f>(parameterValue);
-                        if (ImGui::DragFloat4(parameterName.c_str(), &vec4fValue.x(), 0.01f))
+                        if (ImGui::ColorEdit4(parameterName.c_str(), vec4fValue.ptr(), ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR))
                             mMaterial->setParameter(parameterName, vec4fValue);
                         break;
                     }
@@ -144,8 +139,6 @@ namespace xxx::editor
                         Asset* textureAsset = std::get<Shader::Texture2DUnitPair>(parameterValue).first->getAsset();
                         if (AssetCombo<Texture2D>(parameterName.c_str(), &textureAsset))
                         {
-                            if (!textureAsset->isLoaded())
-                                textureAsset->load();
                             mMaterial->setParameter(parameterName, textureAsset->getRootObject<Texture2D>());
                         }
                         break;
@@ -155,8 +148,6 @@ namespace xxx::editor
                         Asset* textureAsset = std::get<Shader::Texture2DArrayUnitPair>(parameterValue).first->getAsset();
                         if (AssetCombo<Texture2DArray>(parameterName.c_str(), &textureAsset))
                         {
-                            if (!textureAsset->isLoaded())
-                                textureAsset->load();
                             mMaterial->setParameter(parameterName, textureAsset->getRootObject<Texture2DArray>());
                         }
                         break;
@@ -166,8 +157,6 @@ namespace xxx::editor
                         Asset* textureAsset = std::get<Shader::Texture3DUnitPair>(parameterValue).first->getAsset();
                         if (AssetCombo<Texture3D>(parameterName.c_str(), &textureAsset))
                         {
-                            if (!textureAsset->isLoaded())
-                                textureAsset->load();
                             mMaterial->setParameter(parameterName, textureAsset->getRootObject<Texture3D>());
                         }
                         break;
@@ -177,8 +166,6 @@ namespace xxx::editor
                         Asset* textureAsset = std::get<Shader::TextureCubemapUnitPair>(parameterValue).first->getAsset();
                         if (AssetCombo<TextureCubemap>(parameterName.c_str(), &textureAsset))
                         {
-                            if (!textureAsset->isLoaded())
-                                textureAsset->load();
                             mMaterial->setParameter(parameterName, textureAsset->getRootObject<TextureCubemap>());
                         }
                         break;

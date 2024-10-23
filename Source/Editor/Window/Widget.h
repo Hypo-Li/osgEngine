@@ -195,16 +195,12 @@ namespace xxx::editor
             std::string materialLabel = "Material" + std::to_string(i);
             if (AssetCombo<Material>(materialLabel.c_str(), &materialAsset))
             {
-                if (!materialAsset->isLoaded())
-                    materialAsset->load();
                 meshRenderer->setOverlayMaterial(i, materialAsset->getRootObject<Material>());
             }
         }
 
         if (meshChanged)
         {
-            if (!meshAsset->isLoaded())
-                meshAsset->load();
             meshRenderer->setMesh(meshAsset->getRootObject<Mesh>());
         }
     }

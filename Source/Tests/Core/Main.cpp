@@ -245,8 +245,10 @@ int main()
     ////am.createAsset(specularCubemap, "Engine/Texture/SpecularCubemap")->save();
     //generateDiffuseSHCoeff(cubemap);
 
-    Texture2D* brdfLutTexture = generateBRDFLut();
-    am.createAsset(brdfLutTexture, "Engine/Texture/BRDFLut")->save();
+    Material* testMaterial = am.getAsset("Engine/Material/TestMaterial")->getRootObject<Material>();
+    Mesh* mesh = new Mesh(TEMP_DIR "Suzanne.obj");
+    mesh->setDefaultMaterial(0, testMaterial);
+    am.createAsset(mesh, "Engine/Mesh/Suzanne")->save();
 
     Context::get().getGraphicsContext()->releaseContext();
 
