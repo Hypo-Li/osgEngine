@@ -11,6 +11,7 @@ namespace xxx
         mWrapS = options.wrapS;
         mWrapT = options.wrapT;
         mBorderColor = options.borderColor;
+        mMipmapGeneration = options.mipmapGeneration;
     }
 
     std::pair<Texture::PixelFormat, Texture::PixelType> Texture::getPixelFormatAndTypeFromFormat(Format format)
@@ -364,8 +365,13 @@ namespace xxx::refl
         clazz->addProperty("PixelType", &Texture::mPixelType);
         clazz->addProperty("MinFilter", &Texture::mMinFilter);
         clazz->addProperty("MagFilter", &Texture::mMagFilter);
+        clazz->addProperty("WrapR", &Texture::mWrapR);
         clazz->addProperty("WrapS", &Texture::mWrapS);
         clazz->addProperty("WrapT", &Texture::mWrapT);
+        clazz->addProperty("BorderColor", &Texture::mBorderColor);
+        clazz->addProperty("MipmapGeneration", &Texture::mMipmapGeneration);
+        clazz->addProperty("MipmapCount", &Texture::mMipmapCount);
+        clazz->addProperty("MipmapDataOffsets", &Texture::mMipmapDataOffsets);
         Property* propData = clazz->addProperty("Data", &Texture::mData);
         propData->addMetadata(MetaKey::Hidden, true);
         return clazz;

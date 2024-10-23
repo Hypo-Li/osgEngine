@@ -15,6 +15,7 @@ namespace xxx
         {
             MeshRenderer,
             DirectionLight,
+            ImageBasedLight,
             Count,
         };
 

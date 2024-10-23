@@ -8,6 +8,14 @@ namespace xxx
         REFLECT_CLASS(Texture2D)
     public:
         Texture2D() = default;
+        Texture2D(osg::Texture2D* texture2D) : Texture(texture2D)
+        {
+            if (!texture2D)
+                return;
+            mWidth = texture2D->getTextureWidth();
+            mHeight = texture2D->getTextureHeight();
+            mMipmapCount = texture2D->getNumMipmapLevels() - 1;
+        }
         Texture2D(osg::Image* image, const TextureImportOptions& options) : Texture(options)
         {
             mWidth = image->s();
@@ -20,8 +28,6 @@ namespace xxx
 
             // apply and clear image
             apply();
-            osg::State* state = Context::get().getGraphicsContext()->getState();
-            texture2d->apply(*state);
             texture2d->setImage(nullptr);
             std::tie(mPixelFormat, mPixelType) = getPixelFormatAndTypeFromFormat(mFormat);
         }
@@ -32,10 +38,22 @@ namespace xxx
             if (serializer->isSaver())
             {
                 osg::State* state = Context::get().getGraphicsContext()->getState();
-                mOsgTexture->apply(*state);
+                mOsgTexture->getTextureObject(state->getContextID())->bind();
+                bool saveMipmap = false;
+                if (mMinFilter != FilterMode::Linear && mMinFilter != FilterMode::Nearest && !mMipmapGeneration)
+                    saveMipmap = true;
                 osg::ref_ptr<osg::Image> image = new osg::Image;
-                image->readImageFromCurrentTexture(state->getContextID(), false, mPixelType);
-                uint32_t dataSize = image->getTotalSizeInBytes();
+                image->readImageFromCurrentTexture(state->getContextID(), saveMipmap, mPixelType);
+                if (saveMipmap)
+                {
+                    mMipmapDataOffsets = image->getMipmapLevels();
+                    if (mMipmapCount < mMipmapDataOffsets.size())
+                    {
+                        mMipmapDataOffsets.resize(mMipmapCount);
+                        image->setMipmapLevels(mMipmapDataOffsets);
+                    }
+                }
+                uint32_t dataSize = saveMipmap ? image->getTotalSizeInBytesIncludingMipmaps() : image->getTotalSizeInBytes();
                 const uint8_t* dataPtr = static_cast<const uint8_t*>(image->data());
                 mData.assign(dataPtr, dataPtr + dataSize);
             }
@@ -45,30 +63,26 @@ namespace xxx
         {
             if (serializer->isLoader())
             {
-                osg::State* state = Context::get().getGraphicsContext()->getState();
                 osg::ref_ptr<osg::Image> image = new osg::Image;
-                image->allocateImage(mWidth, mHeight, 1, mPixelFormat, mPixelType);
-                std::memcpy(image->data(), mData.data(), mData.size());
+                image->setImage(mWidth, mHeight, 1, mFormat, mPixelFormat, mPixelType, mData.data(), osg::Image::NO_DELETE);
+                image->setMipmapLevels(mMipmapDataOffsets);
                 osg::Texture2D* texture2d = new osg::Texture2D;
                 texture2d->setImage(image);
                 mOsgTexture = texture2d;
                 apply();
-                texture2d->apply(*state);
                 texture2d->setImage(nullptr);
             }
             mData.clear();
         }
 
-        virtual bool apply() override
+        virtual void apply() override
         {
-            if (Texture::apply())
-            {
-                osg::Texture2D* texture2d = dynamic_cast<osg::Texture2D*>(mOsgTexture.get());
-                texture2d->setTextureWidth(mWidth);
-                texture2d->setTextureHeight(mHeight);
-                return true;
-            }
-            return false;
+            if (!mOsgTexture)
+                mOsgTexture = new osg::Texture2D;
+            osg::Texture2D* texture2d = dynamic_cast<osg::Texture2D*>(mOsgTexture.get());
+            texture2d->setTextureWidth(mWidth);
+            texture2d->setTextureHeight(mHeight);
+            Texture::apply();
         }
 
     protected:

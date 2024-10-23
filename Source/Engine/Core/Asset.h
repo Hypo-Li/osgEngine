@@ -41,6 +41,8 @@ namespace xxx
         template <typename T = Object, std::enable_if_t<std::is_base_of_v<Object, T>, int> = 0>
         T* getRootObject()
         {
+            if (!isLoaded())
+                load();
             return dynamic_cast<T*>(mRootObject.get());
         }
 

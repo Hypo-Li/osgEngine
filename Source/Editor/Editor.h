@@ -32,7 +32,8 @@ namespace xxx::editor
         void operator()(osg::Object* object) override
         {
             for (int i = 0; i < mOperations.size(); ++i)
-                mOperations[i]->operator()(object);
+                if (mOperations[i])
+                    mOperations[i]->operator()(object);
         }
 
     protected:

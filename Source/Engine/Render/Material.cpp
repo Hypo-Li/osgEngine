@@ -6,10 +6,14 @@ struct MaterialInputs
 {
     vec3 fragPosVS;
     vec3 normalVS;
+    vec3 normalWS;
     vec3 tangentVS;
+    vec3 tangentWS;
     vec4 color;
     vec4 texcoord0;
     vec4 texcoord1;
+    vec3 viewDirWS;
+    vec3 reflDirWS;
 };
 
 struct MaterialOutputs

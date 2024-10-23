@@ -156,10 +156,28 @@ namespace xxx
     {
         REFLECT_CLASS(ImageBasedLight)
     public:
+        virtual Type getType() const override
+        {
+            return Type::ImageBasedLight;
+        }
+
         virtual bool onAddToEntity(Entity* entity) override
         {
             if (Light::onAddToEntity(entity))
             {
+                if (!mImageCubemap)
+                    setImageCubemap(AssetManager::get().getAsset("Engine/Texture/TestCubemap")->getRootObject<TextureCubemap>());
+                Texture2D* brdfLutTexture = AssetManager::get().getAsset("Engine/Texture/BRDFLut")->getRootObject<Texture2D>();
+                Pipeline* pipeline = Context::get().getEngine()->getPipeline();
+                Pipeline::Pass* lightingPass = pipeline->getPass("Lighting");
+                osg::StateSet* stateSet = lightingPass->getCamera()->getStateSet();
+                stateSet->getUniform("uEnableIBL")->set(true);
+                stateSet->setTextureAttribute(5, brdfLutTexture->getOsgTexture(), osg::StateAttribute::ON);
+                stateSet->setTextureAttribute(6, mSpecularCubemap->getOsgTexture(), osg::StateAttribute::ON);
+                osg::Uniform* shCoeffUniform = stateSet->getUniform("uSHCoeff");
+                for (int i = 0; i < 9; ++i)
+                    shCoeffUniform->setElement(i, mDiffuseSHCoeff[i]);
+
                 return true;
             }
             return false;
@@ -169,6 +187,10 @@ namespace xxx
         {
             if (Light::onRemoveFromEntity(entity))
             {
+                Pipeline* pipeline = Context::get().getEngine()->getPipeline();
+                Pipeline::Pass* lightingPass = pipeline->getPass("Lighting");
+                osg::StateSet* stateSet = lightingPass->getCamera()->getStateSet();
+                stateSet->getUniform("uEnableIBL")->set(false);
                 return true;
             }
             return false;
@@ -179,10 +201,115 @@ namespace xxx
 
         }
 
+        void setImageCubemap(TextureCubemap* cubemap)
+        {
+            if (cubemap == mImageCubemap)
+                return;
+
+            mImageCubemap = cubemap;
+            generateSpecularCubemap();
+            generateDiffuseSHCoeff();
+        }
+
     protected:
         osg::ref_ptr<TextureCubemap> mImageCubemap;
-        std::array<osg::Vec4f, 9> mDiffuseSH;
+        std::array<osg::Vec4f, 9> mDiffuseSHCoeff;
         osg::ref_ptr<TextureCubemap> mSpecularCubemap;
+
+        void generateDiffuseSHCoeff()
+        {
+            osg::ref_ptr<osg::Vec4Array> shCoeffBuffer = new osg::Vec4Array(16 * 16 * 9);
+            osg::ref_ptr<osg::ShaderStorageBufferObject> shCoeffSSBO = new osg::ShaderStorageBufferObject;
+            shCoeffBuffer->setBufferObject(shCoeffSSBO);
+            osg::ref_ptr<osg::ShaderStorageBufferBinding> shCoeffSSBB = new osg::ShaderStorageBufferBinding(0, shCoeffBuffer, 0, shCoeffBuffer->size() * sizeof(osg::Vec4));
+
+            osg::ref_ptr<osg::StateSet> computeStateSet = new osg::StateSet;
+            osg::ref_ptr<osg::Program> diffuseSHCoeffProgram = new osg::Program;
+            diffuseSHCoeffProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "SphericalHarmonics/DiffuseSHCoeff.comp.glsl"));
+            computeStateSet->setAttribute(diffuseSHCoeffProgram, osg::StateAttribute::ON);
+            computeStateSet->setAttribute(shCoeffSSBB, osg::StateAttribute::ON);
+            computeStateSet->addUniform(new osg::Uniform("uCubemapTexture", 0));
+            computeStateSet->setTextureAttribute(0, mImageCubemap->getOsgTexture());
+            computeStateSet->setMode(GL_TEXTURE_CUBE_MAP_SEAMLESS, osg::StateAttribute::ON);
+
+            osg::State* state = Context::get().getGraphicsContext()->getState();
+            osg::GLExtensions* extensions = state->get<osg::GLExtensions>();
+            state->apply(computeStateSet);
+            extensions->glDispatchCompute(16, 16, 1);
+            extensions->glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+            shCoeffSSBO->getGLBufferObject(state->getContextID())->bindBuffer();
+            extensions->glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, shCoeffBuffer->getTotalDataSize(), &shCoeffBuffer->at(0));
+
+            const osg::Vec4f* shCoeffTemp = &shCoeffBuffer->at(0);
+            for (int i = 0; i < 16 * 16; ++i)
+            {
+                mDiffuseSHCoeff[0] += shCoeffTemp[i * 9 + 0];
+                mDiffuseSHCoeff[1] += shCoeffTemp[i * 9 + 1];
+                mDiffuseSHCoeff[2] += shCoeffTemp[i * 9 + 2];
+                mDiffuseSHCoeff[3] += shCoeffTemp[i * 9 + 3];
+                mDiffuseSHCoeff[4] += shCoeffTemp[i * 9 + 4];
+                mDiffuseSHCoeff[5] += shCoeffTemp[i * 9 + 5];
+                mDiffuseSHCoeff[6] += shCoeffTemp[i * 9 + 6];
+                mDiffuseSHCoeff[7] += shCoeffTemp[i * 9 + 7];
+                mDiffuseSHCoeff[8] += shCoeffTemp[i * 9 + 8];
+            }
+            return;
+        }
+
+        void generateSpecularCubemap()
+        {
+            if (!mSpecularCubemap)
+            {
+                osg::TextureCubeMap* textureCubemap = new osg::TextureCubeMap;
+                textureCubemap->setTextureSize(512, 512);
+                textureCubemap->setInternalFormat(GL_RGBA16F);
+                textureCubemap->setSourceFormat(GL_RGB);
+                textureCubemap->setSourceType(GL_HALF_FLOAT);
+                textureCubemap->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR_MIPMAP_LINEAR);
+                textureCubemap->setUseHardwareMipMapGeneration(false);
+                textureCubemap->setNumMipmapLevels(5);
+
+                mSpecularCubemap = new TextureCubemap(textureCubemap);
+                mSpecularCubemap->apply();
+
+                /*mSpecularCubemap = new TextureCubemap(new osg::TextureCubeMap);
+                mSpecularCubemap->setSize(512);
+                mSpecularCubemap->setFormat(Texture::Format::RGBA16F);
+                mSpecularCubemap->setPixelFormat(Texture::PixelFormat::RGBA);
+                mSpecularCubemap->setPixelType(Texture::PixelType::Half);
+                mSpecularCubemap->setMinFilter(Texture::FilterMode::Linear_Mipmap_Linear);
+                mSpecularCubemap->setMipmapGeneration(false);
+                mSpecularCubemap->setMipmapCount(4);
+                mSpecularCubemap->apply();*/
+            }
+            
+            osg::ref_ptr<osg::StateSet> computeStateSet = new osg::StateSet;
+            computeStateSet->addUniform(new osg::Uniform("uCubemapTexture", 0));
+            computeStateSet->setTextureAttribute(0, mImageCubemap->getOsgTexture());
+            computeStateSet->setMode(GL_TEXTURE_CUBE_MAP_SEAMLESS, osg::StateAttribute::ON);
+            int numGroups[5][3] = {
+                {16, 16, 6},
+                {8, 8, 6},
+                {32, 32, 6},
+                {16, 16, 6},
+                {8, 8, 6}
+            };
+            osg::State* state = Context::get().getGraphicsContext()->getState();
+            osg::GLExtensions* extensions = state->get<osg::GLExtensions>();
+            for (int i = 0; i < 5; ++i)
+            {
+                osg::ref_ptr<osg::BindImageTexture> prefilterImage = new osg::BindImageTexture(0, mSpecularCubemap->getOsgTexture(), osg::BindImageTexture::WRITE_ONLY, GL_RGBA16F, i, true);
+                osg::ref_ptr<osg::Program> prefilterProgram = new osg::Program;
+                prefilterProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "IBL/Prefilter" + std::to_string(i) + ".comp.glsl"));
+                computeStateSet->setAttribute(prefilterProgram, osg::StateAttribute::ON);
+                computeStateSet->setAttribute(prefilterImage, osg::StateAttribute::ON);
+                state->apply(computeStateSet);
+                extensions->glDispatchCompute(numGroups[i][0], numGroups[i][1], numGroups[i][2]);
+                extensions->glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+            }
+            //mSpecularCubemap = AssetManager::get().getAsset("Engine/Texture/SpecularCubemap")->getRootObject<TextureCubemap>();
+        }
     };
 
     namespace refl

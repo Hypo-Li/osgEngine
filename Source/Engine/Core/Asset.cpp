@@ -84,9 +84,6 @@ namespace xxx
 
     void Asset::load()
     {
-        if (mIsLoaded)
-            return;
-
         std::ifstream ifs(convertAssetPathToFullPath(mPath), std::ios::binary);
         AssetSerializer* assetLoader = new AssetLoader(this);
         AssetHeader header;

@@ -1,6 +1,7 @@
 #pragma once
 #include <Engine/Core/Object.h>
 #include <Engine/Core/Context.h>
+#include <Engine/Core/OsgReflection.h>
 
 #include <osg/Texture2D>
 #include <osg/Texture2DArray>
@@ -20,6 +21,21 @@ namespace xxx
         REFLECT_CLASS(Texture)
     public:
         Texture() = default;
+        Texture(osg::Texture* texture) : mOsgTexture(texture)
+        {
+            if (!mOsgTexture)
+                return;
+            mFormat = Format(mOsgTexture->getInternalFormat());
+            mPixelFormat = PixelFormat(mOsgTexture->getSourceFormat());
+            mPixelType = PixelType(mOsgTexture->getSourceType());
+            mMinFilter = FilterMode(mOsgTexture->getFilter(osg::Texture::MIN_FILTER));
+            mMagFilter = FilterMode(mOsgTexture->getFilter(osg::Texture::MAG_FILTER));
+            mWrapR = WrapMode(mOsgTexture->getWrap(osg::Texture::WRAP_R));
+            mWrapS = WrapMode(mOsgTexture->getWrap(osg::Texture::WRAP_S));
+            mWrapT = WrapMode(mOsgTexture->getWrap(osg::Texture::WRAP_T));
+            mBorderColor = mOsgTexture->getBorderColor();
+            mMipmapGeneration = mOsgTexture->getUseHardwareMipMapGeneration();
+        }
         Texture(const TextureImportOptions& options);
         virtual ~Texture() = default;
 
@@ -272,10 +288,28 @@ namespace xxx
             return mBorderColor;
         }
 
-        virtual bool apply()
+        void setMipmapGeneration(bool generation)
         {
-            if (!mOsgTexture)
-                return false;
+            mMipmapGeneration = generation;
+        }
+
+        bool getMipmapGeneration() const
+        {
+            return mMipmapGeneration;
+        }
+
+        void setMipmapCount(uint8_t mipmapCount)
+        {
+            mMipmapCount = mipmapCount;
+        }
+
+        uint8_t getMipmapCount() const
+        {
+            return mMipmapCount;
+        }
+
+        virtual void apply()
+        {
             mOsgTexture->setInternalFormat(mFormat);
             mOsgTexture->setSourceFormat(mPixelFormat);
             mOsgTexture->setSourceType(mPixelType);
@@ -285,9 +319,9 @@ namespace xxx
             mOsgTexture->setWrap(osg::Texture::WRAP_S, osg::Texture::WrapMode(mWrapS));
             mOsgTexture->setWrap(osg::Texture::WRAP_T, osg::Texture::WrapMode(mWrapT));
             mOsgTexture->setBorderColor(mBorderColor);
-            if (mMinFilter != FilterMode::Linear && mMinFilter != FilterMode::Nearest)
-                mOsgTexture->setUseHardwareMipMapGeneration(true);
-            return true;
+            mOsgTexture->setUseHardwareMipMapGeneration(mMipmapGeneration);
+            osg::State* state = Context::get().getGraphicsContext()->getState();
+            mOsgTexture->apply(*state);
         }
 
     protected:
@@ -300,6 +334,10 @@ namespace xxx
         WrapMode mWrapS = WrapMode::Clamp;
         WrapMode mWrapT = WrapMode::Clamp;
         osg::Vec4f mBorderColor = osg::Vec4(0, 0, 0, 1);
+        bool mMipmapGeneration = true;
+        // only useful when mMipmapGeneration == false and mMinFilter is mipmap filter
+        uint8_t mMipmapCount = 0;
+        std::vector<uint32_t> mMipmapDataOffsets;
         std::vector<uint8_t> mData;
 
         osg::ref_ptr<osg::Texture> mOsgTexture = nullptr;
@@ -318,6 +356,7 @@ namespace xxx
         Texture::WrapMode wrapS = Texture::WrapMode::Clamp;
         Texture::WrapMode wrapT = Texture::WrapMode::Clamp;
         osg::Vec4f borderColor = osg::Vec4f(0, 0, 0, 1);
+        bool mipmapGeneration = true;
     };
 
     namespace refl

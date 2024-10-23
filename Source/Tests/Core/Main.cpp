@@ -1,3 +1,4 @@
+#include "Engine/Core/OsgReflection.h"
 #include "Engine/Core/Entity.h"
 #include "Engine/Core/Component.h"
 #include "Engine/Render/Shader.h"
@@ -10,6 +11,7 @@
 #include "Engine/Component/Light.h"
 #include "Engine/Core/Engine.h"
 #include "Engine/Render/Texture2D.h"
+#include <Editor/Editor.h>
 
 #include <osg/Vec2f>
 #include <osg/Vec3f>
@@ -66,6 +68,115 @@ void createTestAssets()
     am.createAsset(entity, "Engine/Entity/TestEntity")->save();
 }
 
+TextureCubemap* generateSpecularCubemap(TextureCubemap* imageCubemap)
+{
+    TextureCubemap* specularCubemap = new TextureCubemap(new osg::TextureCubeMap);
+    specularCubemap->setSize(512);
+    specularCubemap->setFormat(Texture::Format::RGBA16F);
+    specularCubemap->setPixelFormat(Texture::PixelFormat::RGBA);
+    specularCubemap->setPixelType(Texture::PixelType::Half);
+    specularCubemap->setMinFilter(Texture::FilterMode::Linear_Mipmap_Linear);
+    specularCubemap->setMipmapGeneration(false);
+    specularCubemap->setMipmapCount(4);
+    specularCubemap->apply();
+
+    osg::State* state = Context::get().getGraphicsContext()->getState();
+    osg::GLExtensions* extensions = state->get<osg::GLExtensions>();
+    osg::ref_ptr<osg::StateSet> computeStateSet = new osg::StateSet;
+    computeStateSet->addUniform(new osg::Uniform("uCubemapTexture", 0));
+    computeStateSet->setTextureAttribute(0, imageCubemap->getOsgTexture());
+    computeStateSet->setMode(GL_TEXTURE_CUBE_MAP_SEAMLESS, osg::StateAttribute::ON);
+    int numGroups[5][3] = {
+        {16, 16, 6},
+        {8, 8, 6},
+        {32, 32, 6},
+        {16, 16, 6},
+        {8, 8, 6}
+    };
+    for (int i = 0; i < 5; ++i)
+    {
+        osg::ref_ptr<osg::BindImageTexture> prefilterImage = new osg::BindImageTexture(0, specularCubemap->getOsgTexture(), osg::BindImageTexture::WRITE_ONLY, GL_RGBA16F, i, true);
+        osg::ref_ptr<osg::Program> prefilterProgram = new osg::Program;
+        prefilterProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "IBL/Prefilter" + std::to_string(i) + ".comp.glsl"));
+        computeStateSet->setAttribute(prefilterProgram, osg::StateAttribute::ON);
+        computeStateSet->setAttribute(prefilterImage, osg::StateAttribute::ON);
+        state->apply(computeStateSet);
+        extensions->glDispatchCompute(numGroups[i][0], numGroups[i][1], numGroups[i][2]);
+        extensions->glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+    }
+    return specularCubemap;
+}
+
+void generateDiffuseSHCoeff(TextureCubemap* imageCubemap)
+{
+    osg::ref_ptr<osg::Vec4Array> shCoeffBuffer = new osg::Vec4Array(16 * 16 * 9);
+    osg::ref_ptr<osg::ShaderStorageBufferObject> shCoeffSSBO = new osg::ShaderStorageBufferObject;
+    shCoeffBuffer->setBufferObject(shCoeffSSBO);
+    osg::ref_ptr<osg::ShaderStorageBufferBinding> shCoeffSSBB = new osg::ShaderStorageBufferBinding(0, shCoeffBuffer, 0, shCoeffBuffer->getTotalDataSize());
+
+    osg::ref_ptr<osg::StateSet> computeStateSet = new osg::StateSet;
+    osg::ref_ptr<osg::Program> diffuseSHCoeffProgram = new osg::Program;
+    diffuseSHCoeffProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "SphericalHarmonics/DiffuseSHCoeff.comp.glsl"));
+    computeStateSet->setAttribute(diffuseSHCoeffProgram, osg::StateAttribute::ON);
+    computeStateSet->setAttribute(shCoeffSSBB, osg::StateAttribute::ON);
+    computeStateSet->addUniform(new osg::Uniform("uCubemapTexture", 0));
+    computeStateSet->setTextureAttribute(0, imageCubemap->getOsgTexture());
+    computeStateSet->setMode(GL_TEXTURE_CUBE_MAP_SEAMLESS, osg::StateAttribute::ON);
+
+    osg::State* state = Context::get().getGraphicsContext()->getState();
+    osg::GLExtensions* extensions = state->get<osg::GLExtensions>();
+    state->apply(computeStateSet);
+    extensions->glDispatchCompute(16, 16, 1);
+    extensions->glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+    shCoeffSSBO->getGLBufferObject(state->getContextID())->bindBuffer();
+    extensions->glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, shCoeffBuffer->getTotalDataSize(), &shCoeffBuffer->at(0));
+
+    const osg::Vec4f* shCoeffTemp = &shCoeffBuffer->at(0);
+    std::array<osg::Vec4f, 9> diffuseSHCoeff;
+    for (int i = 0; i < 16 * 16; ++i)
+    {
+        diffuseSHCoeff[0] += shCoeffTemp[i * 9 + 0];
+        diffuseSHCoeff[1] += shCoeffTemp[i * 9 + 1];
+        diffuseSHCoeff[2] += shCoeffTemp[i * 9 + 2];
+        diffuseSHCoeff[3] += shCoeffTemp[i * 9 + 3];
+        diffuseSHCoeff[4] += shCoeffTemp[i * 9 + 4];
+        diffuseSHCoeff[5] += shCoeffTemp[i * 9 + 5];
+        diffuseSHCoeff[6] += shCoeffTemp[i * 9 + 6];
+        diffuseSHCoeff[7] += shCoeffTemp[i * 9 + 7];
+        diffuseSHCoeff[8] += shCoeffTemp[i * 9 + 8];
+    }
+    return;
+}
+
+Texture2D* generateBRDFLut()
+{
+    osg::ref_ptr<osg::Texture2D> brdfLutTexture = new osg::Texture2D;
+    brdfLutTexture->setTextureSize(128, 128);
+    brdfLutTexture->setInternalFormat(GL_RG16F);
+    brdfLutTexture->setSourceFormat(GL_RG);
+    brdfLutTexture->setSourceType(GL_HALF_FLOAT);
+    brdfLutTexture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR);
+    brdfLutTexture->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE);
+    brdfLutTexture->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE);
+    brdfLutTexture->setUseHardwareMipMapGeneration(false);
+
+    osg::ref_ptr<osg::Program> brdfLutProgram = new osg::Program;
+    brdfLutProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "IBL/BRDFLut.comp.glsl"));
+    osg::ref_ptr<osg::BindImageTexture> brdfLutImage = new osg::BindImageTexture(0, brdfLutTexture, osg::BindImageTexture::WRITE_ONLY, GL_RG16F);
+    osg::ref_ptr<osg::StateSet> computeStateSet = new osg::StateSet;
+    computeStateSet->setAttribute(brdfLutProgram, osg::StateAttribute::ON);
+    computeStateSet->setAttribute(brdfLutImage, osg::StateAttribute::ON);
+
+    osg::State* state = Context::get().getGraphicsContext()->getState();
+    osg::GLExtensions* extensions = state->get<osg::GLExtensions>();
+    state->apply(computeStateSet);
+    extensions->glDispatchCompute(4, 4, 1);
+    extensions->glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+    return new Texture2D(brdfLutTexture);
+}
+
 int main()
 {
     AssetManager& am = AssetManager::get();
@@ -78,6 +189,7 @@ int main()
     engineSetupConfig.runMode = RunMode::Edit;
     Engine* engine = new Engine(engineSetupConfig);
     osgViewer::CompositeViewer viewer;
+    //viewer.setRealizeOperation(new editor::EditorRealizeOperation);
     viewer.setThreadingModel(osgViewer::Viewer::SingleThreaded);
     viewer.addView(engine->getView());
     viewer.realize();
@@ -86,12 +198,12 @@ int main()
 
     //createTestAssets();
 
-    osg::ref_ptr<osg::Image> hdrImage = osgDB::readImageFile(TEMP_DIR "zwartkops_straight_sunset_1k.hdr");
+    /*osg::ref_ptr<osg::Image> hdrImage = osgDB::readImageFile(TEMP_DIR "zwartkops_straight_sunset_1k.hdr");
     TextureImportOptions options;
     options.format = Texture::Format::RGBA16F;
     options.minFilter = Texture::FilterMode::Linear;
     TextureCubemap* textureCubemap = new TextureCubemap(hdrImage, options);
-    am.createAsset(textureCubemap, "Engine/Texture/TestCubemap")->save();
+    am.createAsset(textureCubemap, "Engine/Texture/TestCubemap")->save();*/
 
     /*osg::Image* image = osgDB::readImageFile(TEMP_DIR "white.png");
     osg::ref_ptr<Texture2D> whiteTexture2D = new Texture2D(image, TextureImportOptions());
@@ -105,7 +217,36 @@ int main()
     mesh->setDefaultMaterial(0, material);
     am.createAsset(mesh, "Engine/Mesh/Sphere")->save();*/
 
+    /*osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "awesomeface.png");
+    TextureImportOptions options;
+    options.minFilter = Texture::FilterMode::Linear_Mipmap_Linear;
+    options.mipmapGeneration = true;
+    osg::ref_ptr<Texture2D> texture = new Texture2D(image, options);
+    texture->setMipmapGeneration(false);
+    texture->setMipmapCount(3);
+    am.createAsset(texture, "Engine/Texture/Test")->save();*/
 
+    /*osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "zwartkops_straight_sunset_1k.hdr");
+    TextureImportOptions options;
+    options.format = Texture::Format::RGBA16F;
+    options.minFilter = Texture::FilterMode::Linear_Mipmap_Linear;
+    options.mipmapGeneration = true;
+    osg::ref_ptr<TextureCubemap> texture = new TextureCubemap(image, options);
+    am.createAsset(texture, "Engine/Texture/TestCubemap")->save();*/
+
+    // Asset* asset = am.getAsset("Engine/Texture/Test");
+    // asset->load();
+    // Texture2D* texture2D = asset->getRootObject<Texture2D>();
+
+    //Asset* cubemapAsset = am.getAsset("Engine/Texture/TestCubemap");
+    //cubemapAsset->load();
+    //TextureCubemap* cubemap = cubemapAsset->getRootObject<TextureCubemap>();
+    ////TextureCubemap* specularCubemap = generateSpecularCubemap(cubemap);
+    ////am.createAsset(specularCubemap, "Engine/Texture/SpecularCubemap")->save();
+    //generateDiffuseSHCoeff(cubemap);
+
+    Texture2D* brdfLutTexture = generateBRDFLut();
+    am.createAsset(brdfLutTexture, "Engine/Texture/BRDFLut")->save();
 
     Context::get().getGraphicsContext()->releaseContext();
 

@@ -48,10 +48,14 @@ struct MaterialInputs
 {
     vec3 fragPosVS;
     vec3 normalVS;
+    vec3 normalWS;
     vec3 tangentVS;
+    vec3 tangentWS;
     vec4 color;
     vec4 texcoord0;
     vec4 texcoord1;
+    vec3 viewDirWS;
+    vec3 reflDirWS;
 };
 
 struct MaterialOutputs
@@ -118,10 +122,14 @@ void initMaterialInputs(inout MaterialInputs mi)
 {
     mi.fragPosVS = v2f.fragPosVS;
     mi.normalVS = normalize(v2f.normalVS);
+    mi.normalWS = mat3(osg_ViewMatrixInverse) * mi.normalVS;
     mi.tangentVS = normalize(v2f.tangentVS.xyz);
+    mi.tangentWS = mat3(osg_ViewMatrixInverse) * mi.tangentVS;
     mi.color = v2f.color;
     mi.texcoord0 = v2f.texcoord0;
     mi.texcoord1 = v2f.texcoord1;
+    mi.viewDirWS = mat3(osg_ViewMatrixInverse) * normalize(-v2f.fragPosVS);
+    mi.reflDirWS = reflect(-mi.viewDirWS, mi.normalWS);
 }
 
 void initMaterialOutputs(inout MaterialOutputs mo)

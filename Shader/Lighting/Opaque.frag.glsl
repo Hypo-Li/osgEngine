@@ -7,8 +7,9 @@ uniform sampler2D uGBufferBTexture;
 uniform sampler2D uGBufferCTexture;
 uniform sampler2D uGBufferDTexture;
 uniform sampler2D uDepthTexture;
+uniform sampler2D uBRDFLutTexture;
 
-#define PI 3.1415926
+#define PI 3.14159265358
 
 #define MAX_DIRECTIONAL_LIGHT_COUNT 2
 struct DirectionalLight
@@ -18,6 +19,10 @@ struct DirectionalLight
 };
 uniform DirectionalLight uDirectionalLight[MAX_DIRECTIONAL_LIGHT_COUNT];
 uniform uint uDirectionalLightCount;
+
+uniform bool uEnableIBL;
+uniform samplerCube uPrefilterTexture;
+uniform vec4 uSHCoeff[9];
 
 layout(std140, binding = 0) uniform ViewData
 {
@@ -39,8 +44,8 @@ struct PixelParameters
     float fragDepth;
     vec3 fragPosVS;
     vec3 viewDirWS;
-    float NoV;
     vec3 reflDirWS;
+    float NoV;
     vec3 F0;
 };
 
@@ -106,14 +111,38 @@ vec3 evaluateDirectionalLight(in PixelParameters pp, vec3 lightColor, vec3 light
     vec3 F = F_Schlick(VoH, pp.F0);
     float D = D_GGX(NoH, pp.roughness);
     float V = V_SmithGGXCorrelated(pp.NoV, NoL, pp.roughness);
-    vec3 diffuse = pp.baseColor * (1.0 - F) * (1.0 - pp.metallic) / PI;
-    vec3 specular = F * D * V;
-    vec3 color = (diffuse + specular) * NoL * lightColor;
+    vec3 Fd = pp.baseColor * (1.0 - F) * (1.0 - pp.metallic) / PI;
+    vec3 Fr = F * D * V;
 
-    return color;
+    return (Fd + Fr) * NoL * lightColor;
 }
 
-vec3 evaluateLighting(in PixelParameters pp)
+vec3 calcSHLighting(vec3 N)
+{
+    vec3 result = vec3(0.0);
+    result += uSHCoeff[0].xyz * 0.5 * sqrt(1.0 / PI);
+    result -= uSHCoeff[1].xyz * 0.5 * sqrt(3.0 / PI) * N.y;
+    result += uSHCoeff[2].xyz * 0.5 * sqrt(3.0 / PI) * N.z;
+    result -= uSHCoeff[3].xyz * 0.5 * sqrt(3.0 / PI) * N.x;
+    result += uSHCoeff[4].xyz * 0.5 * sqrt(15.0 / PI) * N.x * N.y;
+    result -= uSHCoeff[5].xyz * 0.5 * sqrt(15.0 / PI) * N.y * N.z;
+    result += uSHCoeff[6].xyz * 0.25 * sqrt(5.0 / PI) * (3.0 * N.z * N.z - 1.0);
+    result -= uSHCoeff[7].xyz * 0.5 * sqrt(15.0 / PI) * N.x * N.z;
+    result += uSHCoeff[8].xyz * 0.25 * sqrt(15.0 / PI) * (N.x * N.x - N.y * N.y);
+    return result;
+}
+
+vec3 evaluateIBL(in PixelParameters pp)
+{
+    vec2 brdf = texture(uBRDFLutTexture, vec2(pp.NoV, pp.roughness)).rg;
+    vec3 E = mix(brdf.xxx, brdf.yyy, pp.F0);
+    vec3 Fd = calcSHLighting(pp.normalWS) * pp.baseColor * (1.0 - E) * (1.0 - pp.metallic);
+    vec3 Fr = textureLod(uPrefilterTexture, pp.reflDirWS, pp.roughness * (2.0 - pp.roughness) * 4.0).rgb * E;
+    vec3 energyCompensation = 1.0 + pp.F0 * (1.0 / brdf.y - 1.0);
+    return Fd + Fr * energyCompensation;
+}
+
+vec3 evaluateLighs(in PixelParameters pp)
 {
     if (pp.shadingModel == 0)
         return vec3(0);
@@ -123,6 +152,10 @@ vec3 evaluateLighting(in PixelParameters pp)
     for (uint i = 0; i < directionalLightCount; ++i)
     {
         color += evaluateDirectionalLight(pp, uDirectionalLight[i].color, uDirectionalLight[i].direction);
+    }
+    if (uEnableIBL)
+    {
+        color += evaluateIBL(pp);
     }
     return color;
 }
@@ -140,9 +173,12 @@ void main()
     calcPixelParameters(gbufferA, gbufferB, gbufferC, gbufferD, fragDepth, pp);
 
     if (pp.fragDepth == 1.0)
-        discard;
+    {
+        fragData = vec4(1);
+        return;
+    }
 
-    vec3 color = evaluateLighting(pp);
+    vec3 color = evaluateLighs(pp);
 
     fragData = vec4(color, 1.0);
 }

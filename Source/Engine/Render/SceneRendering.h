@@ -1,5 +1,6 @@
 #pragma once
 #include "Pipeline.h"
+#include "Texture2D.h"
 
 #include <osg/BufferIndexBinding>
 #include <osgDB/ReadFile>
@@ -73,6 +74,10 @@ namespace xxx
         lightingPass->applyTexture(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER3), "uGBufferCTexture", 2);
         lightingPass->applyTexture(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER4), "uGBufferDTexture", 3);
         lightingPass->applyTexture(gbufferPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uDepthTexture", 4);
+        lightingPass->applyUniform(new osg::Uniform("uBRDFLutTexture", 5));
+        lightingPass->applyUniform(new osg::Uniform("uEnableIBL", false));
+        lightingPass->applyUniform(new osg::Uniform("uPrefilterTexture", 6));
+        lightingPass->applyUniform(new osg::Uniform(osg::Uniform::FLOAT_VEC4, "uSHCoeff", 9));
         lightingPass->applyUniform(new osg::Uniform("uDirectionalLightCount", uint32_t(0)));
         lightingPass->setMode(GL_BLEND, osg::StateAttribute::ON);
         lightingPass->setAttribute(new osg::BlendFunc(GL_ONE, GL_ONE));
