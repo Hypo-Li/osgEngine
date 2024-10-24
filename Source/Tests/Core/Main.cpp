@@ -245,10 +245,18 @@ int main()
     ////am.createAsset(specularCubemap, "Engine/Texture/SpecularCubemap")->save();
     //generateDiffuseSHCoeff(cubemap);
 
-    Material* testMaterial = am.getAsset("Engine/Material/TestMaterial")->getRootObject<Material>();
+    /*Material* testMaterial = am.getAsset("Engine/Material/TestMaterial")->getRootObject<Material>();
     Mesh* mesh = new Mesh(TEMP_DIR "Suzanne.obj");
     mesh->setDefaultMaterial(0, testMaterial);
-    am.createAsset(mesh, "Engine/Mesh/Suzanne")->save();
+    am.createAsset(mesh, "Engine/Mesh/Suzanne")->save();*/
+
+    osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "white.png");
+    TextureImportOptions options;
+    options.format = Texture::Format::RGBA16F;
+    options.minFilter = Texture::FilterMode::Linear_Mipmap_Linear;
+    options.mipmapGeneration = true;
+    osg::ref_ptr<TextureCubemap> texture = new TextureCubemap(image, options, 1);
+    am.createAsset(texture, "Engine/Texture/WhiteCubemap")->save();
 
     Context::get().getGraphicsContext()->releaseContext();
 

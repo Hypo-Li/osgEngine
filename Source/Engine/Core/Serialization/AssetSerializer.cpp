@@ -153,8 +153,6 @@ namespace xxx
             }
             else
             {
-                if (!asset->isLoaded())
-                    asset->load();
                 object = asset->getRootObject();
                 mAsset->addImportedObject(object);
             }

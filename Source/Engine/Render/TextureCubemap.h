@@ -54,7 +54,7 @@ namespace xxx
             extensions->glDispatchCompute(16, 16, 6);
             extensions->glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-            if ((mMinFilter != FilterMode::Linear && mMinFilter != FilterMode::Nearest) && mMipmapGeneration)
+            if (mMipmapGeneration)
             {
                 mOsgTexture->getTextureObject(state->getContextID())->bind();
                 extensions->glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
