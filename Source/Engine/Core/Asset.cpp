@@ -162,7 +162,7 @@ namespace xxx
         {
             fullPath = Context::get().getEngineAssetPath();
             fullPath /= assetPath.substr(7);
-            fullPath.replace_extension(".xast");
+            fullPath += ".xast";
             return fullPath;
         }
 
@@ -170,7 +170,7 @@ namespace xxx
         {
             fullPath = Context::get().getProjectAssetPath();
             fullPath /= assetPath.substr(8);
-            fullPath.replace_extension(".xast");
+            fullPath += ".xast";
             return fullPath;
         }
 

@@ -224,6 +224,8 @@ namespace xxx
                 std::memcpy(mData.data() + dataOffset, drawElements->getDataPointer(), drawElements->getTotalDataSize());
                 dataOffset += drawElements->getTotalDataSize();
             }
+
+            compressData();
         }
     }
 
@@ -231,6 +233,7 @@ namespace xxx
     {
         if (serializer->isLoader())
         {
+            decompressData();
             for (SubmeshView& submeshView : mSubmeshViews)
             {
                 OsgGeometryData geomData;
@@ -425,6 +428,7 @@ namespace xxx
             clazz->addProperty("Data", &Mesh::mData);
             clazz->addProperty("SubmeshViews", &Mesh::mSubmeshViews);
             clazz->addProperty("DefaultMaterials", &Mesh::mDefaultMaterials);
+            clazz->addProperty("DataCompression", &Mesh::mDataCompression);
             return clazz;
         }
     }

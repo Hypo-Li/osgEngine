@@ -90,6 +90,7 @@ namespace xxx
                         mData.resize(faceDataSize * 6); // every face's dataSize is same
                     std::memcpy(mData.data() + i * faceDataSize, image->data(), faceDataSize);
                 }
+                compressData();
             }
         }
 
@@ -97,6 +98,7 @@ namespace xxx
         {
             if (serializer->isLoader())
             {
+                decompressData();
                 size_t faceDataSize = mData.size() / 6;
                 osg::TextureCubeMap* textureCubemap = new osg::TextureCubeMap;
                 for (int i = 0; i < 6; ++i)

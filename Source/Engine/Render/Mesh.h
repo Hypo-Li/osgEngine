@@ -58,10 +58,21 @@ namespace xxx
             return mDefaultMaterials[index];
         }
 
+        void setDataCompression(bool compression)
+        {
+            mDataCompression = compression;
+        }
+
+        bool getDataCompression() const
+        {
+            return mDataCompression;
+        }
+
         std::vector<osg::ref_ptr<osg::Geometry>> generateGeometries();
 
     protected:
         std::vector<uint8_t> mData;
+        bool mDataCompression = false;
         std::vector<SubmeshView> mSubmeshViews;
         std::vector<osg::ref_ptr<Material>> mDefaultMaterials;
 
@@ -74,16 +85,33 @@ namespace xxx
 
         static osg::Array* createOsgArrayByVertexAttributeView(VertexAttributeView& vav, uint8_t* data);
         static osg::DrawElements* createOsgDrawElementsByIndexBufferView(IndexBufferView& ibv, uint8_t* data);
+
+        void compressData()
+        {
+            if (!mDataCompression)
+                return;
+            std::vector<uint8_t> compressedData(mData.size());
+            size_t compressedSize = FL2_compress(compressedData.data(), compressedData.size(), mData.data(), mData.size(), 0);
+            compressedData.resize(compressedSize);
+            mData = compressedData;
+        }
+
+        void decompressData()
+        {
+            if (!mDataCompression)
+                return;
+            size_t decompressedSize = FL2_findDecompressedSize(mData.data(), mData.size());
+            std::vector<uint8_t> decompressedData(decompressedSize);
+            FL2_decompress(decompressedData.data(), decompressedSize, mData.data(), mData.size());
+            mData = decompressedData;
+        }
     };
 
     namespace refl
     {
         template <> Type* Reflection::createType<VertexAttributeView>();
-
         template <> Type* Reflection::createType<IndexBufferView>();
-
         template <> Type* Reflection::createType<SubmeshView>();
-
         template <> Type* Reflection::createType<Mesh>();
     }
 }

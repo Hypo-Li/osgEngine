@@ -56,6 +56,8 @@ namespace xxx
                 uint32_t dataSize = saveMipmap ? image->getTotalSizeInBytesIncludingMipmaps() : image->getTotalSizeInBytes();
                 const uint8_t* dataPtr = static_cast<const uint8_t*>(image->data());
                 mData.assign(dataPtr, dataPtr + dataSize);
+
+                compressData();
             }
         }
 
@@ -63,6 +65,7 @@ namespace xxx
         {
             if (serializer->isLoader())
             {
+                decompressData();
                 osg::ref_ptr<osg::Image> image = new osg::Image;
                 image->setImage(mWidth, mHeight, 1, mFormat, mPixelFormat, mPixelType, mData.data(), osg::Image::NO_DELETE);
                 image->setMipmapLevels(mMipmapDataOffsets);

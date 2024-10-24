@@ -166,7 +166,7 @@ namespace xxx
             if (Light::onAddToEntity(entity))
             {
                 if (!mImageCubemap)
-                    setImageCubemap(AssetManager::get().getAsset("Engine/Texture/WhiteCubemap")->getRootObject<TextureCubemap>());
+                    setImageCubemap(AssetManager::get().getAsset("Engine/Texture/TestCubemap")->getRootObject<TextureCubemap>());
                 Texture2D* brdfLutTexture = AssetManager::get().getAsset("Engine/Texture/BRDFLut")->getRootObject<Texture2D>();
                 Pipeline* pipeline = Context::get().getEngine()->getPipeline();
                 Pipeline::Pass* lightingPass = pipeline->getPass("Lighting");

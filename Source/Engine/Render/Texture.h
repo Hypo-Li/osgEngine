@@ -3,6 +3,8 @@
 #include <Engine/Core/Context.h>
 #include <Engine/Core/OsgReflection.h>
 
+#include <ThirdParty/fast-lzma2/fast-lzma2.h>
+
 #include <osg/Texture2D>
 #include <osg/Texture2DArray>
 #include <osg/Texture3D>
@@ -41,10 +43,10 @@ namespace xxx
 
         enum Format
         {
-            R8 = GL_R8,
-            RG8 = GL_RG8,
-            RGB8 = GL_RGB8,
-            RGBA8 = GL_RGBA8,
+            R8 = GL_RED,
+            RG8 = GL_RG,
+            RGB8 = GL_RGB,
+            RGBA8 = GL_RGBA,
 
             R16 = GL_R16,
             RG16 = GL_RG16,
@@ -308,6 +310,16 @@ namespace xxx
             return mMipmapCount;
         }
 
+        void setDataCompression(bool compression)
+        {
+            mDataCompression = compression;
+        }
+
+        bool getDataCompression() const
+        {
+            return mDataCompression;
+        }
+
         virtual void apply()
         {
             mOsgTexture->setInternalFormat(mFormat);
@@ -339,12 +351,33 @@ namespace xxx
         uint8_t mMipmapCount = 0;
         std::vector<uint32_t> mMipmapDataOffsets;
         std::vector<uint8_t> mData;
+        bool mDataCompression = false;
 
         osg::ref_ptr<osg::Texture> mOsgTexture = nullptr;
 
         static std::pair<PixelFormat, PixelType> getPixelFormatAndTypeFromFormat(Format format);
 
         static std::string getImageFormatName(Format format);
+
+        void compressData()
+        {
+            if (!mDataCompression)
+                return;
+            std::vector<uint8_t> compressedData(mData.size());
+            size_t compressedSize = FL2_compress(compressedData.data(), compressedData.size(), mData.data(), mData.size(), 0);
+            compressedData.resize(compressedSize);
+            mData = compressedData;
+        }
+
+        void decompressData()
+        {
+            if (!mDataCompression)
+                return;
+            size_t decompressedSize = FL2_findDecompressedSize(mData.data(), mData.size());
+            std::vector<uint8_t> decompressedData(decompressedSize);
+            FL2_decompress(decompressedData.data(), decompressedSize, mData.data(), mData.size());
+            mData = decompressedData;
+        }
     };
 
     struct TextureImportOptions
@@ -352,9 +385,9 @@ namespace xxx
         Texture::Format format = Texture::Format::RGBA8;
         Texture::FilterMode minFilter = Texture::FilterMode::Linear_Mipmap_Linear;
         Texture::FilterMode magFilter = Texture::FilterMode::Linear;
-        Texture::WrapMode wrapR = Texture::WrapMode::Clamp;
-        Texture::WrapMode wrapS = Texture::WrapMode::Clamp;
-        Texture::WrapMode wrapT = Texture::WrapMode::Clamp;
+        Texture::WrapMode wrapR = Texture::WrapMode::Repeat;
+        Texture::WrapMode wrapS = Texture::WrapMode::Repeat;
+        Texture::WrapMode wrapT = Texture::WrapMode::Repeat;
         osg::Vec4f borderColor = osg::Vec4f(0, 0, 0, 1);
         bool mipmapGeneration = true;
     };

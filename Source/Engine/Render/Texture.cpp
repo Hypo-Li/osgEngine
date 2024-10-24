@@ -372,6 +372,7 @@ namespace xxx::refl
         clazz->addProperty("MipmapGeneration", &Texture::mMipmapGeneration);
         clazz->addProperty("MipmapCount", &Texture::mMipmapCount);
         clazz->addProperty("MipmapDataOffsets", &Texture::mMipmapDataOffsets);
+        clazz->addProperty("DataCompression", &Texture::mDataCompression);
         Property* propData = clazz->addProperty("Data", &Texture::mData);
         propData->addMetadata(MetaKey::Hidden, true);
         return clazz;

@@ -217,14 +217,10 @@ int main()
     mesh->setDefaultMaterial(0, material);
     am.createAsset(mesh, "Engine/Mesh/Sphere")->save();*/
 
-    /*osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "awesomeface.png");
-    TextureImportOptions options;
-    options.minFilter = Texture::FilterMode::Linear_Mipmap_Linear;
-    options.mipmapGeneration = true;
-    osg::ref_ptr<Texture2D> texture = new Texture2D(image, options);
-    texture->setMipmapGeneration(false);
-    texture->setMipmapCount(3);
-    am.createAsset(texture, "Engine/Texture/Test")->save();*/
+    osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "awesomeface.png");
+    osg::ref_ptr<Texture2D> texture = new Texture2D(image, TextureImportOptions());
+    texture->setDataCompression(true);
+    am.createAsset(texture, "Engine/Texture/AwesomeFace")->save();
 
     /*osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "zwartkops_straight_sunset_1k.hdr");
     TextureImportOptions options;
@@ -232,6 +228,7 @@ int main()
     options.minFilter = Texture::FilterMode::Linear_Mipmap_Linear;
     options.mipmapGeneration = true;
     osg::ref_ptr<TextureCubemap> texture = new TextureCubemap(image, options);
+    texture->setDataCompression(true);
     am.createAsset(texture, "Engine/Texture/TestCubemap")->save();*/
 
     // Asset* asset = am.getAsset("Engine/Texture/Test");
@@ -250,13 +247,20 @@ int main()
     mesh->setDefaultMaterial(0, testMaterial);
     am.createAsset(mesh, "Engine/Mesh/Suzanne")->save();*/
 
-    osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "white.png");
+    /*osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "white.png");
     TextureImportOptions options;
     options.format = Texture::Format::RGBA16F;
     options.minFilter = Texture::FilterMode::Linear_Mipmap_Linear;
     options.mipmapGeneration = true;
     osg::ref_ptr<TextureCubemap> texture = new TextureCubemap(image, options, 1);
-    am.createAsset(texture, "Engine/Texture/WhiteCubemap")->save();
+    am.createAsset(texture, "Engine/Texture/WhiteCubemap")->save();*/
+
+    /*osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "T_Rock_Marble_Polished_D.PNG");
+    TextureImportOptions options;
+    options.format = Texture::Format::RGB8;
+    Texture2D* texture = new Texture2D(image, options);
+    texture->setDataCompression(true);
+    am.createAsset(texture, "Engine/Texture/T_Rock_Marble_Polished_D")->save();*/
 
     Context::get().getGraphicsContext()->releaseContext();
 
