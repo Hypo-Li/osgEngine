@@ -106,6 +106,11 @@ namespace xxx
                     osg::ref_ptr<osg::Image> image = new osg::Image;
                     image->setImage(mSize, mSize, 1, mFormat, mPixelFormat, mPixelType, mData.data() + i * faceDataSize, osg::Image::NO_DELETE);
                     image->setMipmapLevels(mMipmapDataOffsets);
+
+                    // 如果是压缩纹理, 图像的PixelFormat需要设置为相同的格式
+                    if (isCompressedFormat(mFormat))
+                        image->setPixelFormat(mFormat);
+
                     textureCubemap->setImage(i, image);
                 }
                 mOsgTexture = textureCubemap;
@@ -115,6 +120,7 @@ namespace xxx
                     textureCubemap->setImage(i, nullptr);
             }
             mData.clear();
+            mData.shrink_to_fit();
         }
 
         virtual void apply() override

@@ -217,10 +217,10 @@ int main()
     mesh->setDefaultMaterial(0, material);
     am.createAsset(mesh, "Engine/Mesh/Sphere")->save();*/
 
-    osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "awesomeface.png");
+    /*osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "awesomeface.png");
     osg::ref_ptr<Texture2D> texture = new Texture2D(image, TextureImportOptions());
     texture->setDataCompression(true);
-    am.createAsset(texture, "Engine/Texture/AwesomeFace")->save();
+    am.createAsset(texture, "Engine/Texture/AwesomeFace")->save();*/
 
     /*osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "zwartkops_straight_sunset_1k.hdr");
     TextureImportOptions options;
@@ -255,12 +255,17 @@ int main()
     osg::ref_ptr<TextureCubemap> texture = new TextureCubemap(image, options, 1);
     am.createAsset(texture, "Engine/Texture/WhiteCubemap")->save();*/
 
-    /*osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "T_Rock_Marble_Polished_D.PNG");
+    osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "T_Ceramic_Tile_N.PNG");
     TextureImportOptions options;
-    options.format = Texture::Format::RGB8;
+    options.format = Texture::Format::Compressed_RGBA_BPTC_Unorm;
     Texture2D* texture = new Texture2D(image, options);
     texture->setDataCompression(true);
-    am.createAsset(texture, "Engine/Texture/T_Rock_Marble_Polished_D")->save();*/
+    am.createAsset(texture, "Engine/Texture/T_Ceramic_Tile_N")->save();
+
+    /*osg::ref_ptr<Mesh> mesh = new Mesh(TEMP_DIR "suzanne.obj");
+    mesh->setDefaultMaterial(0, am.getAsset("Engine/Material/TestMaterial")->getRootObject<Material>());
+    mesh->setDataCompression(true);
+    am.createAsset(mesh, "Engine/Mesh/Suzanne")->save();*/
 
     Context::get().getGraphicsContext()->releaseContext();
 

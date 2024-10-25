@@ -13,6 +13,8 @@
 #include <osgViewer/CompositeViewer>
 #include <osgViewer/ViewerEventHandlers>
 
+#include <thread>
+
 namespace xxx::editor
 {
     struct EditorSetupConfig
@@ -79,7 +81,7 @@ namespace xxx::editor
             engineView->addEventHandler(new PickEventHandler(engineView->getCamera(), sceneView->getViewport()));
             engineView->addEventHandler(new osgViewer::StatsHandler);
             //engineView->setCameraManipulator(new ControllerManipulator(0.05));
-
+            
             mViewer->addView(engineView);
 
             mViewer->realize();

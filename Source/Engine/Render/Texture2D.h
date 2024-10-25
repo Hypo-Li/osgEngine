@@ -39,6 +39,7 @@ namespace xxx
             {
                 osg::State* state = Context::get().getGraphicsContext()->getState();
                 mOsgTexture->getTextureObject(state->getContextID())->bind();
+
                 bool saveMipmap = false;
                 if (mMinFilter != FilterMode::Linear && mMinFilter != FilterMode::Nearest && !mMipmapGeneration)
                     saveMipmap = true;
@@ -69,6 +70,11 @@ namespace xxx
                 osg::ref_ptr<osg::Image> image = new osg::Image;
                 image->setImage(mWidth, mHeight, 1, mFormat, mPixelFormat, mPixelType, mData.data(), osg::Image::NO_DELETE);
                 image->setMipmapLevels(mMipmapDataOffsets);
+
+                // 如果是压缩纹理, 图像的PixelFormat需要设置为相同的格式
+                if (isCompressedFormat(mFormat))
+                    image->setPixelFormat(mFormat);
+
                 osg::Texture2D* texture2d = new osg::Texture2D;
                 texture2d->setImage(image);
                 mOsgTexture = texture2d;
@@ -76,6 +82,7 @@ namespace xxx
                 texture2d->setImage(nullptr);
             }
             mData.clear();
+            mData.shrink_to_fit();
         }
 
         virtual void apply() override

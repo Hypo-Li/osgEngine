@@ -254,7 +254,9 @@ namespace xxx
             }
         }
         mData.clear();
+        mData.shrink_to_fit();
         mSubmeshViews.clear();
+        mSubmeshViews.shrink_to_fit();
     }
 
     std::vector<osg::ref_ptr<osg::Geometry>> Mesh::generateGeometries()

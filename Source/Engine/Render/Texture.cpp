@@ -190,14 +190,18 @@ namespace xxx
             break;
         case Format::Compressed_SRGB8_Alpha8_ASTC_12x12:
             break;
+        */
         case Format::Compressed_RGB_S3TC_DXT1:
-            break;
+            return { PixelFormat::RGB, PixelType::Unsigned_Byte };
         case Format::Compressed_RGBA_S3TC_DXT1:
-            break;
+            return { PixelFormat::RGBA, PixelType::Unsigned_Byte };
         case Format::Compressed_RGBA_S3TC_DXT3:
-            break;
+            return { PixelFormat::RGBA, PixelType::Unsigned_Byte };
         case Format::Compressed_RGBA_S3TC_DXT5:
-            break;
+            return { PixelFormat::RGBA, PixelType::Unsigned_Byte };
+        case Format::Compressed_RGBA_BPTC_Unorm:
+            return { PixelFormat::RGBA, PixelType::Unsigned_Byte };
+        /*
         case Format::Compressed_SRGB_S3TC_DXT1:
             break;
         case Format::Compressed_SRGB_Alpha_S3TC_DXT1:
@@ -300,7 +304,14 @@ namespace xxx::refl
             {"RGBA32F", Texture::Format::RGBA32F},
 
             {"SRGB8", Texture::Format::SRGB8},
-            {"SRGB8_Alpha8", Texture::Format::SRGB8_Alpha8}
+            {"SRGB8_Alpha8", Texture::Format::SRGB8_Alpha8},
+
+            { "Compressed_RGB_S3TC_DXT1", Texture::Format::Compressed_RGB_S3TC_DXT1},
+            { "Compressed_RGBA_S3TC_DXT1", Texture::Format::Compressed_RGBA_S3TC_DXT1 },
+            { "Compressed_RGBA_S3TC_DXT3", Texture::Format::Compressed_RGBA_S3TC_DXT3 },
+            { "Compressed_RGBA_S3TC_DXT5", Texture::Format::Compressed_RGBA_S3TC_DXT5 },
+
+            {"Compressed_RGBA_BPTC_Unorm", Texture::Format::Compressed_RGBA_BPTC_Unorm},
         });
         return enumerate;
     }

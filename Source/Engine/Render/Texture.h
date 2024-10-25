@@ -109,9 +109,9 @@ namespace xxx
             /*Compressed_Red_RGTC1,
             Compressed_Signed_Red_RGTC1,
             Compressed_RG_RGTC2,
-            Compressed_Signed_RG_RGTC2,
+            Compressed_Signed_RG_RGTC2,*/
 
-            Compressed_RGBA_BPTC_Unorm,
+            Compressed_RGBA_BPTC_Unorm = GL_COMPRESSED_RGBA_BPTC_UNORM,/*
             Compressed_SRGB_Alpha_BPTC_Unorm,
             Compressed_RGB_BPTC_Signed_Float,
             Compressed_RGB_BPTC_Unsigned_Float,
@@ -143,13 +143,13 @@ namespace xxx
             Compressed_SRGB8_Alpha8_ASTC_10x8,
             Compressed_SRGB8_Alpha8_ASTC_10x10,
             Compressed_SRGB8_Alpha8_ASTC_12x10,
-            Compressed_SRGB8_Alpha8_ASTC_12x12,
+            Compressed_SRGB8_Alpha8_ASTC_12x12,*/
 
-            Compressed_RGB_S3TC_DXT1,
-            Compressed_RGBA_S3TC_DXT1,
-            Compressed_RGBA_S3TC_DXT3,
-            Compressed_RGBA_S3TC_DXT5,
-            Compressed_SRGB_S3TC_DXT1,
+            Compressed_RGB_S3TC_DXT1 = GL_COMPRESSED_RGB_S3TC_DXT1_EXT,
+            Compressed_RGBA_S3TC_DXT1 = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT,
+            Compressed_RGBA_S3TC_DXT3 = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT,
+            Compressed_RGBA_S3TC_DXT5 = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT,
+            /*Compressed_SRGB_S3TC_DXT1,
             Compressed_SRGB_Alpha_S3TC_DXT1,
             Compressed_SRGB_Alpha_S3TC_DXT3,
             Compressed_SRGB_Alpha_S3TC_DXT5,*/
@@ -359,6 +359,21 @@ namespace xxx
 
         static std::string getImageFormatName(Format format);
 
+        static bool isCompressedFormat(Format format)
+        {
+            switch (format)
+            {
+            case Format::Compressed_RGB_S3TC_DXT1:
+            case Format::Compressed_RGBA_S3TC_DXT1:
+            case Format::Compressed_RGBA_S3TC_DXT3:
+            case Format::Compressed_RGBA_S3TC_DXT5:
+            case Format::Compressed_RGBA_BPTC_Unorm:
+                return true;
+            default:
+                return false;
+            }
+        }
+
         void compressData()
         {
             if (!mDataCompression)
@@ -377,6 +392,14 @@ namespace xxx
             std::vector<uint8_t> decompressedData(decompressedSize);
             FL2_decompress(decompressedData.data(), decompressedSize, mData.data(), mData.size());
             mData = decompressedData;
+        }
+
+        void readTextureData()
+        {
+            osg::State* state = Context::get().getGraphicsContext()->getState();
+            mOsgTexture->getTextureObject(state->getContextID())->bind();
+            bool saveMipmap = !mMipmapGeneration;
+
         }
     };
 
