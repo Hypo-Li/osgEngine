@@ -3,13 +3,13 @@
 
 #include <set>
 
-template <typename T>
-struct container_traits<std::set<T>> {
-    using type = T;
-};
-
 namespace xxx::refl
 {
+    template <typename T>
+    struct container_traits<std::set<T>> {
+        using type = T;
+    };
+
     class StdSet : public Special
     {
     public:
@@ -24,6 +24,9 @@ namespace xxx::refl
 
         virtual void insertElement(void* instance, void* element) const = 0;
         virtual void removeElement(void* instance, void* element) const = 0;
+
+    protected:
+        StdSet(std::string_view name, size_t size) : Special(name, size) {}
     };
 
     class Reflection;
@@ -96,11 +99,12 @@ namespace xxx::refl
         }
 
     protected:
-        StdSetInstance()
+        std::string_view genName() const
         {
             static std::string name = "std::set<" + std::string(Reflection::getType<Element>()->getName()) + ">";
-            mName = name;
-            mSize = sizeof(std::set<Element>);
+            return name;
         }
+
+        StdSetInstance() : StdSet(genName(), sizeof(std::set<Element>)) {}
     };
 }

@@ -9,6 +9,7 @@ namespace xxx
     class Entity;
     class Component : public Object
     {
+        friend class Entity;
         REFLECT_CLASS(Component)
     public:
         enum class Type
@@ -25,28 +26,13 @@ namespace xxx
 
         virtual Type getType() const = 0;
 
-        virtual bool onAddToEntity(Entity* entity);
+        virtual void onEnable() {}
 
-        virtual bool onRemoveFromEntity(Entity* entity);
+        virtual void onDisable() {}
 
-        virtual void postSerialize(Serializer* serializer) override
+        virtual void postLoad() override
         {
-            if (serializer->isLoader())
-            {
-                Entity* entity = mEntity;
-                mEntity = nullptr;
-                onAddToEntity(entity);
-            }
-        }
-
-        inline Entity* getEntity() const
-        {
-            return mEntity;
-        }
-
-        osg::Node* getOsgNode() const
-        {
-            return mOsgComponentGroup;
+            onEnable();
         }
 
         virtual void hide()
@@ -57,6 +43,16 @@ namespace xxx
         virtual void show()
         {
             mOsgComponentGroup->setNodeMask(0xFFFFFFFF);
+        }
+
+        inline Entity* getEntity() const
+        {
+            return mEntity;
+        }
+
+        inline osg::Node* getOsgNode() const
+        {
+            return mOsgComponentGroup;
         }
 
     protected:

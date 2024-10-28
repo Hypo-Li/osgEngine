@@ -19,54 +19,44 @@ namespace xxx
     {
         REFLECT_CLASS(DirectionalLight)
     public:
-        virtual bool onAddToEntity(Entity* entity) override
+        virtual void onEnable() override
         {
-            if (Light::onAddToEntity(entity))
-            {
-                mLightIndex = sTotalLightCount++;
-                std::string colorUniformName = "uDirectionalLight[" + std::to_string(mLightIndex) + "].color";
-                mColorUniform = new osg::Uniform(colorUniformName.c_str(), mColor * mIntensity);
-                std::string directionUniformName = "uDirectionalLight[" + std::to_string(mLightIndex) + "].direction";
-                mDirectionUniform = new osg::Uniform(directionUniformName.c_str(), mDirection);
+            mLightIndex = sTotalLightCount++;
+            std::string colorUniformName = "uDirectionalLight[" + std::to_string(mLightIndex) + "].color";
+            mColorUniform = new osg::Uniform(colorUniformName.c_str(), mColor * mIntensity);
+            std::string directionUniformName = "uDirectionalLight[" + std::to_string(mLightIndex) + "].direction";
+            mDirectionUniform = new osg::Uniform(directionUniformName.c_str(), mDirection);
 
-                Pipeline* pipeline = Context::get().getEngine()->getPipeline();
-                Pipeline::Pass* lightingPass = pipeline->getPass("Lighting");
-                lightingPass->applyUniform(mColorUniform);
-                lightingPass->applyUniform(mDirectionUniform);
-                osg::Uniform* directionalLightCountUniform = lightingPass->getCamera()->getOrCreateStateSet()->getUniform("uDirectionalLightCount");
-                if (directionalLightCountUniform)
-                {
-                    uint32_t directionalLightCount = 0;
-                    directionalLightCountUniform->get(directionalLightCount);
-                    directionalLightCountUniform->set(directionalLightCount + 1);
-                }
-                else
-                {
-                    directionalLightCountUniform = new osg::Uniform("uDirectionalLightCount", 1);
-                    lightingPass->applyUniform(directionalLightCountUniform);
-                }
-                return true;
-            }
-            return false;
-        }
-
-        virtual bool onRemoveFromEntity(Entity* entity) override
-        {
-            if (Light::onRemoveFromEntity(entity))
+            Pipeline* pipeline = Context::get().getEngine()->getPipeline();
+            Pipeline::Pass* lightingPass = pipeline->getPass("Lighting");
+            lightingPass->applyUniform(mColorUniform);
+            lightingPass->applyUniform(mDirectionUniform);
+            osg::Uniform* directionalLightCountUniform = lightingPass->getCamera()->getOrCreateStateSet()->getUniform("uDirectionalLightCount");
+            if (directionalLightCountUniform)
             {
-                Pipeline* pipeline = Context::get().getEngine()->getPipeline();
-                Pipeline::Pass* lightingPass = pipeline->getPass("Lighting");
-                osg::StateSet* stateSet = lightingPass->getCamera()->getOrCreateStateSet();
-                stateSet->removeUniform(mColorUniform);
-                stateSet->removeUniform(mDirectionUniform);
-                osg::Uniform* directionalLightCountUniform = lightingPass->getCamera()->getOrCreateStateSet()->getUniform("uDirectionalLightCount");
                 uint32_t directionalLightCount = 0;
                 directionalLightCountUniform->get(directionalLightCount);
-                directionalLightCountUniform->set(directionalLightCount - 1);
-                --sTotalLightCount;
-                return true;
+                directionalLightCountUniform->set(directionalLightCount + 1);
             }
-            return false;
+            else
+            {
+                directionalLightCountUniform = new osg::Uniform("uDirectionalLightCount", 1);
+                lightingPass->applyUniform(directionalLightCountUniform);
+            }
+        }
+
+        virtual void onDisable() override
+        {
+            Pipeline* pipeline = Context::get().getEngine()->getPipeline();
+            Pipeline::Pass* lightingPass = pipeline->getPass("Lighting");
+            osg::StateSet* stateSet = lightingPass->getCamera()->getOrCreateStateSet();
+            stateSet->removeUniform(mColorUniform);
+            stateSet->removeUniform(mDirectionUniform);
+            osg::Uniform* directionalLightCountUniform = lightingPass->getCamera()->getOrCreateStateSet()->getUniform("uDirectionalLightCount");
+            uint32_t directionalLightCount = 0;
+            directionalLightCountUniform->get(directionalLightCount);
+            directionalLightCountUniform->set(directionalLightCount - 1);
+            --sTotalLightCount;
         }
 
         virtual Type getType() const override
@@ -161,39 +151,28 @@ namespace xxx
             return Type::ImageBasedLight;
         }
 
-        virtual bool onAddToEntity(Entity* entity) override
+        virtual void onEnable() override
         {
-            if (Light::onAddToEntity(entity))
-            {
-                if (!mImageCubemap)
-                    setImageCubemap(AssetManager::get().getAsset("Engine/Texture/TestCubemap")->getRootObject<TextureCubemap>());
-                Texture2D* brdfLutTexture = AssetManager::get().getAsset("Engine/Texture/BRDFLut")->getRootObject<Texture2D>();
-                Pipeline* pipeline = Context::get().getEngine()->getPipeline();
-                Pipeline::Pass* lightingPass = pipeline->getPass("Lighting");
-                osg::StateSet* stateSet = lightingPass->getCamera()->getStateSet();
-                stateSet->getUniform("uEnableIBL")->set(true);
-                stateSet->setTextureAttribute(5, brdfLutTexture->getOsgTexture(), osg::StateAttribute::ON);
-                stateSet->setTextureAttribute(6, mSpecularCubemap->getOsgTexture(), osg::StateAttribute::ON);
-                osg::Uniform* shCoeffUniform = stateSet->getUniform("uSHCoeff");
-                for (int i = 0; i < 9; ++i)
-                    shCoeffUniform->setElement(i, mDiffuseSHCoeff[i]);
-
-                return true;
-            }
-            return false;
+            if (!mImageCubemap)
+                setImageCubemap(AssetManager::get().getAsset("Engine/Texture/TestCubemap")->getRootObject<TextureCubemap>());
+            Texture2D* brdfLutTexture = AssetManager::get().getAsset("Engine/Texture/BRDFLut")->getRootObject<Texture2D>();
+            Pipeline* pipeline = Context::get().getEngine()->getPipeline();
+            Pipeline::Pass* lightingPass = pipeline->getPass("Lighting");
+            osg::StateSet* stateSet = lightingPass->getCamera()->getStateSet();
+            stateSet->getUniform("uEnableIBL")->set(true);
+            stateSet->setTextureAttribute(5, brdfLutTexture->getOsgTexture(), osg::StateAttribute::ON);
+            stateSet->setTextureAttribute(6, mSpecularCubemap->getOsgTexture(), osg::StateAttribute::ON);
+            osg::Uniform* shCoeffUniform = stateSet->getUniform("uSHCoeff");
+            for (int i = 0; i < 9; ++i)
+                shCoeffUniform->setElement(i, mDiffuseSHCoeff[i]);
         }
 
-        virtual bool onRemoveFromEntity(Entity* entity) override
+        virtual void onDisable() override
         {
-            if (Light::onRemoveFromEntity(entity))
-            {
-                Pipeline* pipeline = Context::get().getEngine()->getPipeline();
-                Pipeline::Pass* lightingPass = pipeline->getPass("Lighting");
-                osg::StateSet* stateSet = lightingPass->getCamera()->getStateSet();
-                stateSet->getUniform("uEnableIBL")->set(false);
-                return true;
-            }
-            return false;
+            Pipeline* pipeline = Context::get().getEngine()->getPipeline();
+            Pipeline::Pass* lightingPass = pipeline->getPass("Lighting");
+            osg::StateSet* stateSet = lightingPass->getCamera()->getStateSet();
+            stateSet->getUniform("uEnableIBL")->set(false);
         }
 
         virtual void setEnableCastShadows(bool enable) override

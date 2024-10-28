@@ -195,7 +195,7 @@ namespace xxx
     {
         template <> inline Type* Reflection::createType<Shader::ParameterType>()
         {
-            Enum* enumerate = new EnumInstance<Shader::ParameterType>("Shader::ParameterType", {
+            Enum* enumeration = new EnumInstance<Shader::ParameterType>("Shader::ParameterType", {
                 {"Bool", Shader::ParameterType::Bool},
                 {"Int", Shader::ParameterType::Int},
                 {"Float", Shader::ParameterType::Float},
@@ -207,7 +207,7 @@ namespace xxx
                 {"Texture3D", Shader::ParameterType::Texture3D},
                 {"TextureCubemap", Shader::ParameterType::TextureCubemap},
             });
-            return enumerate;
+            return enumeration;
         }
 
         template <>

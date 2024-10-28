@@ -194,12 +194,12 @@ namespace xxx
             serializeFundamental(dynamic_cast<Fundamental*>(type), data, count);
             break;
         }
-        case refl::Type::Kind::Enum:
+        case refl::Type::Kind::Enumeration:
         {
             serializeEnum(dynamic_cast<Enum*>(type), data, count);
             break;
         }
-        case refl::Type::Kind::Struct:
+        case refl::Type::Kind::Structure:
         {
             serializeStruct(dynamic_cast<Struct*>(type), data, count);
             break;

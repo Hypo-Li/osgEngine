@@ -199,8 +199,6 @@ namespace xxx
             return { PixelFormat::RGBA, PixelType::Unsigned_Byte };
         case Format::Compressed_RGBA_S3TC_DXT5:
             return { PixelFormat::RGBA, PixelType::Unsigned_Byte };
-        case Format::Compressed_RGBA_BPTC_Unorm:
-            return { PixelFormat::RGBA, PixelType::Unsigned_Byte };
         /*
         case Format::Compressed_SRGB_S3TC_DXT1:
             break;
@@ -242,7 +240,7 @@ namespace xxx::refl
 {
     template <> Type* Reflection::createType<Texture::Format>()
     {
-        Enum* enumerate = new EnumInstance<Texture::Format>("Texture::Format", {
+        Enum* enumeration = new EnumInstance<Texture::Format>("Texture::Format", {
             {"R8", Texture::Format::R8},
             {"RG8", Texture::Format::RG8},
             {"RGB8", Texture::Format::RGB8},
@@ -310,26 +308,24 @@ namespace xxx::refl
             { "Compressed_RGBA_S3TC_DXT1", Texture::Format::Compressed_RGBA_S3TC_DXT1 },
             { "Compressed_RGBA_S3TC_DXT3", Texture::Format::Compressed_RGBA_S3TC_DXT3 },
             { "Compressed_RGBA_S3TC_DXT5", Texture::Format::Compressed_RGBA_S3TC_DXT5 },
-
-            {"Compressed_RGBA_BPTC_Unorm", Texture::Format::Compressed_RGBA_BPTC_Unorm},
         });
-        return enumerate;
+        return enumeration;
     }
 
     template <> Type* Reflection::createType<Texture::PixelFormat>()
     {
-        Enum* enumerate = new EnumInstance<Texture::PixelFormat>("Texture::PixelFormat", {
+        Enum* enumeration = new EnumInstance<Texture::PixelFormat>("Texture::PixelFormat", {
             {"R", Texture::PixelFormat::R},
             {"RG", Texture::PixelFormat::RG},
             {"RGB", Texture::PixelFormat::RGB},
             {"RGBA", Texture::PixelFormat::RGBA},
         });
-        return enumerate;
+        return enumeration;
     }
 
     template <> Type* Reflection::createType<Texture::PixelType>()
     {
-        Enum* enumerate = new EnumInstance<Texture::PixelType>("Texture::PixelType", {
+        Enum* enumeration = new EnumInstance<Texture::PixelType>("Texture::PixelType", {
             {"Unsigned Byte", Texture::PixelType::Unsigned_Byte},
             {"Byte", Texture::Byte},
             {"Unsigned Short", Texture::PixelType::Unsigned_Short},
@@ -339,12 +335,12 @@ namespace xxx::refl
             {"Half", Texture::PixelType::Half},
             {"Float", Texture::PixelType::Float},
         });
-        return enumerate;
+        return enumeration;
     }
 
     template <> Type* Reflection::createType<Texture::FilterMode>()
     {
-        Enum* enumerate = new EnumInstance<Texture::FilterMode>("Texture::FilterMode", {
+        Enum* enumeration = new EnumInstance<Texture::FilterMode>("Texture::FilterMode", {
             {"Linear", Texture::FilterMode::Linear},
             {"Nearest", Texture::FilterMode::Nearest},
             {"Linear Mipmap Linear", Texture::FilterMode::Linear_Mipmap_Linear},
@@ -352,12 +348,12 @@ namespace xxx::refl
             {"Nearest Mipmap Linear", Texture::FilterMode::Nearest_Mipmap_Linear},
             {"Nearest Mipmap Nearest", Texture::FilterMode::Nearest_Mipmap_Nearest},
         });
-        return enumerate;
+        return enumeration;
     }
 
     template <> Type* Reflection::createType<Texture::WrapMode>()
     {
-        Enum* enumerate = new EnumInstance<Texture::WrapMode>("Texture::WrapMode", {
+        Enum* enumeration = new EnumInstance<Texture::WrapMode>("Texture::WrapMode", {
             {"Repeat", Texture::WrapMode::Repeat},
             {"Mirrored Repeat", Texture::WrapMode::Mirrored_Repeat},
             {"Clamp", Texture::WrapMode::Clamp},
@@ -365,7 +361,7 @@ namespace xxx::refl
             {"Clamp To Border", Texture::WrapMode::Clamp_To_Border},
             {"Mirror Clamp To Edge", Texture::WrapMode::Clamp_To_Edge},
         });
-        return enumerate;
+        return enumeration;
     }
 
     template <> Type* Reflection::createType<Texture>()

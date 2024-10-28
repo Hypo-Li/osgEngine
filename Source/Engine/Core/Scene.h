@@ -10,15 +10,10 @@ namespace xxx
     public:
         Scene() = default;
 
-        virtual void postSerializer(Serializer* serializer)
+        virtual void postLoad() override
         {
-            if (serializer->isLoader())
-            {
-                for (Entity* entity : mEntities)
-                {
-                    mOsgSceneRoot->addChild(entity->getOsgNode());
-                }
-            }
+            for (Entity* entity : mEntities)
+                mOsgSceneRoot->addChild(entity->getOsgNode());
         }
 
         void addEntity(Entity* entity)

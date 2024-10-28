@@ -3,14 +3,14 @@
 
 #include <array>
 
-template <typename T, size_t N>
-struct container_traits<std::array<T, N>> {
-    using type = T;
-    static constexpr size_t Count = N;
-};
-
 namespace xxx::refl
 {
+    template <typename T, size_t N>
+    struct container_traits<std::array<T, N>> {
+        using type = T;
+        static constexpr size_t Count = N;
+    };
+
     class StdArray : public Special
     {
     public:
@@ -21,6 +21,9 @@ namespace xxx::refl
         virtual Type* getElementType() const = 0;
         virtual size_t getElementCount() const = 0;
         virtual void* getElementPtrByIndex(void* array, uint32_t index) const = 0;
+
+    protected:
+        StdArray(std::string_view name, size_t size) : Special(name, size) {}
     };
 
     class Reflection;
@@ -72,12 +75,13 @@ namespace xxx::refl
         }
 
     protected:
-        StdArrayInstance()
+        std::string_view genName() const
         {
             static std::string name = "std::array<" + std::string(Reflection::getType<Element>()->getName()) + ", " + std::to_string(Count) + ">";
-            mName = name;
-            mSize = sizeof(std::array<Element, Count>);
+            return name;
         }
+
+        StdArrayInstance() : StdArray(genName(), sizeof(std::array<Element, Count>)) {}
         virtual ~StdArrayInstance() = default;
     };
 }

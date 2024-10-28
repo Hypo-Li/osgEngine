@@ -55,7 +55,8 @@ namespace xxx::editor
             engineSetupConfig.glContextVersion = "4.6";
             engineSetupConfig.fullScreen = false;
             engineSetupConfig.runMode = RunMode::Edit;
-            mEngine = new Engine(engineSetupConfig);
+            osg::ref_ptr<osgViewer::View> engineView = new osgViewer::View;
+            mEngine = new Engine(engineView, engineSetupConfig);
 
             mViewer->setRealizeOperation(new EditorRealizeOperation);
             mViewer->setThreadingModel(osgViewer::Viewer::SingleThreaded);
@@ -75,7 +76,6 @@ namespace xxx::editor
             Inspector* inspector = wm.createWindow<Inspector>();
             AssetBrowser* assetBrowser = wm.createWindow<AssetBrowser>();
 
-            osgViewer::View* engineView = mEngine->getView();
             ImGuiHandler* imguiHandler = new ImGuiHandler(imguiCamera);
             engineView->addEventHandler(imguiHandler);
             engineView->addEventHandler(new PickEventHandler(engineView->getCamera(), sceneView->getViewport()));

@@ -8,21 +8,10 @@ namespace xxx::refl
     class Reflection;
     class Enum : public Type
     {
-        friend class Reflection;
     public:
-        virtual Kind getKind() const override { return Kind::Enum; }
-
-        static constexpr size_t INDEX_NONE = std::numeric_limits<size_t>::max();
-        static constexpr std::string_view NAME_NONE = std::string_view("");
-
-        virtual int64_t getValueByValuePtr(void* valuePtr) const = 0;
-
         virtual void setValue(void* instance, int64_t value) const = 0;
 
-        Type* getUnderlyingType() const
-        {
-            return mUnderlyingType;
-        }
+        virtual int64_t getValue(void* instance) const = 0;
 
         size_t getValueCount() const
         {
@@ -37,7 +26,7 @@ namespace xxx::refl
                 if (mValues[i].first == name)
                     return i;
             }
-            return INDEX_NONE;
+            return count;
         }
 
         size_t getIndexByValue(int64_t value) const
@@ -48,7 +37,7 @@ namespace xxx::refl
                 if (mValues[i].second == value)
                     return i;
             }
-            return INDEX_NONE;
+            return count;
         }
 
         std::string_view getNameByIndex(size_t index) const
@@ -57,7 +46,7 @@ namespace xxx::refl
             {
                 return mValues[index].first;
             }
-            return NAME_NONE;
+            return "";
         }
 
         int64_t getValueByIndex(size_t index) const
@@ -66,37 +55,35 @@ namespace xxx::refl
             {
                 return mValues[index].second;
             }
-            return INDEX_NONE;
+            return 0;
         }
 
         std::string_view getNameByValue(int64_t value) const
         {
             size_t index = getIndexByValue(value);
-            if (index != INDEX_NONE)
+            if (index < mValues.size())
             {
                 return mValues[index].first;
             }
-            return NAME_NONE;
+            return "";
         }
 
         int64_t getValueByName(std::string_view name) const
         {
             size_t index = getIndexByName(name);
-            if (index != INDEX_NONE)
+            if (index < mValues.size())
             {
                 return mValues[index].second;
             }
-            return INDEX_NONE;
+            return 0;
         }
 
     protected:
         Enum(std::string_view name, size_t size) :
-            Type(name, size),
-            mUnderlyingType(nullptr)
+            Type(name, size, Kind::Enumeration)
         {}
 
         std::vector<std::pair<std::string_view, int64_t>> mValues;
-        Fundamental* mUnderlyingType;
     };
 
     template <typename T, typename = std::enable_if_t<std::is_enum_v<T>>>
@@ -129,23 +116,22 @@ namespace xxx::refl
             return *static_cast<const T*>(instance1) == *static_cast<const T*>(instance2);
         }
 
-        virtual int64_t getValueByValuePtr(void* valuePtr) const override
-        {
-            using UnderlyingType = std::underlying_type_t<T>;
-            return static_cast<int64_t>(*(UnderlyingType*)(valuePtr));
-        }
-
         virtual void setValue(void* instance, int64_t value) const override
         {
             using UnderlyingType = std::underlying_type_t<T>;
             *static_cast<UnderlyingType*>(instance) = static_cast<UnderlyingType>(value);
         }
 
+        virtual int64_t getValue(void* instance) const override
+        {
+            using UnderlyingType = std::underlying_type_t<T>;
+            return static_cast<int64_t>(*(UnderlyingType*)(instance));
+        }
+
     protected:
         EnumInstance(std::string_view name, std::initializer_list<std::pair<std::string_view, T>> values) :
             Enum(name, sizeof(T))
         {
-            mUnderlyingType = dynamic_cast<Fundamental*>(Reflection::getType<std::underlying_type_t<T>>());
             for (std::pair<std::string_view, T> value : values)
                 mValues.emplace_back(value.first, static_cast<int64_t>(value.second));
         }

@@ -61,7 +61,7 @@ struct MaterialInputs
 struct MaterialOutputs
 {
     vec3 emissive;
-    float opaque;
+    float opacity;
     vec3 baseColor;
     float metallic;
     float roughness;
@@ -135,7 +135,7 @@ void initMaterialInputs(inout MaterialInputs mi)
 void initMaterialOutputs(inout MaterialOutputs mo)
 {
     mo.emissive = vec3(0);
-    mo.opaque = 1;
+    mo.opacity = 1;
     mo.baseColor = vec3(0.8);
     mo.metallic = 0;
     mo.roughness = 0.5;
@@ -159,7 +159,7 @@ void main()
     calcMaterial(mi, mo);
 
 #if (ALPHA_MODE == ALPHA_MODE_MASK)
-    if (mo.opaque < 0.5)
+    if (mo.opacity < 0.5)
         discard;
 #endif
 
@@ -172,6 +172,6 @@ void main()
     fragData[3] = vec4(mo.baseColor, mo.occlusion);
     fragData[4] = vec4(0);
 #else
-    fragData = vec4(/*evaluateLighting(mo)*/mo.baseColor, mo.opaque);
+    fragData = vec4(/*evaluateLighting(mo)*/mo.baseColor, mo.opacity);
 #endif
 }

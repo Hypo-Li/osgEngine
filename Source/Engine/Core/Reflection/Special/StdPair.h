@@ -3,14 +3,14 @@
 
 #include <utility>
 
-template <typename T1, typename T2>
-struct container_traits<std::pair<T1, T2>> {
-    using type1 = T1;
-    using type2 = T2;
-};
-
 namespace xxx::refl
 {
+    template <typename T1, typename T2>
+    struct container_traits<std::pair<T1, T2>> {
+        using type1 = T1;
+        using type2 = T2;
+    };
+
     class StdPair : public Special
     {
     public:
@@ -25,6 +25,9 @@ namespace xxx::refl
         virtual const void* getFirstPtr(const void* instance) const = 0;
         virtual void* getSecondPtr(void* instance) const = 0;
         virtual const void* getSecondPtr(const void* instance) const = 0;
+
+    protected:
+        StdPair(std::string_view name, size_t size) : Special(name, size) {}
     };
 
     class Reflection;
@@ -95,11 +98,12 @@ namespace xxx::refl
         }
 
     protected:
-        StdPairInstance()
+        std::string_view genName() const
         {
             static std::string name = "std::pair<" + std::string(Reflection::getType<First>()->getName()) + ", " + std::string(Reflection::getType<Second>()->getName()) + ">";
-            mName = name;
-            mSize = sizeof(std::pair<First, Second>);
+            return name;
         }
+
+        StdPairInstance() : StdPair(genName(), sizeof(std::pair<First, Second>)) {}
     };
 }

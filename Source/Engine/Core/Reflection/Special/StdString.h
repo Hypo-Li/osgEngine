@@ -51,10 +51,6 @@ namespace xxx::refl
         }
 
     protected:
-        StdString()
-        {
-            mName = "std::string";
-            mSize = sizeof(std::string);
-        }
+        StdString() : Special("std::string", sizeof(std::string)) {}
     };
 }

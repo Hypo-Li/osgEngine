@@ -3,14 +3,14 @@
 
 #include <map>
 
-template <typename T1, typename T2>
-struct container_traits<std::map<T1, T2>> {
-    using type1 = T1;
-    using type2 = T2;
-};
-
 namespace xxx::refl
 {
+    template <typename T1, typename T2>
+    struct container_traits<std::map<T1, T2>> {
+        using type1 = T1;
+        using type2 = T2;
+    };
+
     class StdMap : public Special
     {
     public:
@@ -27,6 +27,9 @@ namespace xxx::refl
 
         virtual void insertKeyValuePair(void* instance, void* key, void* value) const = 0;
         virtual void removeKeyValuePairByKey(void* instance, void* key) const = 0;
+
+    protected:
+        StdMap(std::string_view name, size_t size) : Special(name, size) {}
     };
 
     class Reflection;
@@ -114,11 +117,12 @@ namespace xxx::refl
         }
 
     protected:
-        StdMapInstance()
+        std::string_view genName() const
         {
             static std::string name = "std::map<" + std::string(Reflection::getType<Key>()->getName()) + ", " + std::string(Reflection::getType<Value>()->getName()) + ">";
-            mName = name;
-            mSize = sizeof(std::map<Key, Value>);
+            return name;
         }
+
+        StdMapInstance() : StdMap(genName(), sizeof(std::map<Key, Value>)) {}
     };
 }

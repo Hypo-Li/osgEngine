@@ -1,9 +1,10 @@
-#if 0
-
+#if 1
+#include <Engine/Core/Engine.h>
 #include <Engine/Render/Pipeline.h>
 #include <Engine/Core/Asset.h>
 #include <Engine/Core/AssetManager.h>
 #include <Engine/Component/MeshRenderer.h>
+#include <Engine/Component/Light.h>
 
 #include <osgViewer/CompositeViewer>
 #include <osgDB/ReadFile>
@@ -16,11 +17,36 @@
 #include <osg/BindImageTexture>
 
 #include <osgViewer/ViewerEventHandlers>
-#include "../Core/DebugCallback.h"
+#include <osgParticle/ParticleSystem>
+#include <osgParticle/ModularEmitter>
+#include <osgParticle/ParticleSystemUpdater>
 
 #include <filesystem>
 
 using namespace xxx;
+
+const char* particle_vs = R"(
+#version 430 core
+in vec4 osg_Vertex;
+in vec4 osg_Color;
+out vec4 v2f_Color;
+uniform mat4 osg_ModelViewProjectionMatrix;
+void main()
+{
+    v2f_Color = osg_Color;
+    gl_Position = osg_ModelViewProjectionMatrix * osg_Vertex;
+}
+)";
+
+const char* particle_fs = R"(
+#version 430 core
+in vec4 v2f_Color;
+out vec4 fragData;
+void main()
+{
+    fragData = v2f_Color;
+}
+)";
 
 int main()
 {
@@ -36,14 +62,10 @@ int main()
     gc->getState()->setUseModelViewAndProjectionUniforms(true);
     gc->getState()->setUseVertexAttributeAliasing(true);
 
-    Asset* asset = AssetManager::get().getAsset("Engine/TestEntity.xast");
-    asset->load();
-
     osg::ref_ptr<osgViewer::CompositeViewer> viewer = new osgViewer::CompositeViewer;
 
     osg::ref_ptr<osgViewer::View> view1 = new osgViewer::View;
     viewer->addView(view1);
-    view1->setSceneData(dynamic_cast<Entity*>(asset->getRootObject())->getOsgNode());
     view1->setCameraManipulator(new osgGA::TrackballManipulator);
     view1->addEventHandler(new osgViewer::StatsHandler);
     osg::ref_ptr<osg::Camera> camera1 = view1->getCamera();
@@ -57,30 +79,40 @@ int main()
     inputPass1->attach(BufferType::COLOR_BUFFER0, GL_RGBA8);
     inputPass1->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT24);
 
-    osg::ref_ptr<osgViewer::View> view2 = new osgViewer::View;
-    viewer->addView(view2);
-    view2->setSceneData(dynamic_cast<Entity*>(asset->getRootObject())->getOsgNode());
-    view2->setCameraManipulator(new osgGA::TrackballManipulator);
-    view2->addEventHandler(new osgViewer::StatsHandler);
-    osg::ref_ptr<osg::Camera> camera2 = view2->getCamera();
-    camera2->setGraphicsContext(gc);
-    camera2->setViewport(0, 0, width * 2, height * 2);
-    camera2->setProjectionMatrixAsPerspective(30.0, double(width) / double(height), 0.1, 400.0);
+    osg::Shader* screenQuadShader = osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Common/ScreenQuad.vert.glsl");
+    osg::Program* displayProgram = new osg::Program;
+    displayProgram->addShader(screenQuadShader);
+    displayProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CopyColor.frag.glsl"));
 
-    osg::ref_ptr<xxx::Pipeline> pipeline2 = new xxx::Pipeline(view2, gc);
-    xxx::Pipeline::Pass* inputPass2 = pipeline2->addInputPass("Input2", 0xFFFFFFFF, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    inputPass2->attach(BufferType::COLOR_BUFFER0, GL_RGBA8);
-    inputPass2->attach(BufferType::COLOR_BUFFER1, GL_RGBA8);
-    inputPass2->attach(BufferType::COLOR_BUFFER2, GL_RGBA8);
-    inputPass2->attach(BufferType::COLOR_BUFFER3, GL_RGBA8);
-    inputPass2->attach(BufferType::COLOR_BUFFER4, GL_RGBA8);
-    inputPass2->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT24);
+    xxx::Pipeline::Pass* displayPass = pipeline1->addDisplayPass("Display", displayProgram);
+    displayPass->applyTexture(inputPass1->getBufferTexture(BufferType::COLOR_BUFFER0), "uColorTexture", 0);
 
-    //osg::Shader* screenQuadShader = osgDB::readShaderFile(osg::Shader::VERTEX, (currentPath / "Shader/ScreenQuad.vert.glsl").string());
+    osgParticle::ParticleSystem* ps = new osgParticle::ParticleSystem;
+    ps->setDefaultAttributesUsingShaders("", true, false);
+    ps->getDefaultParticleTemplate().setShape(osgParticle::Particle::QUAD);
+    osg::Program* particleProgram = new osg::Program;
+    particleProgram->addShader(new osg::Shader(osg::Shader::VERTEX, particle_vs));
+    particleProgram->addShader(new osg::Shader(osg::Shader::FRAGMENT, particle_fs));
+    ps->getOrCreateStateSet()->setAttribute(particleProgram, osg::StateAttribute::ON);
+
+    osgParticle::ModularEmitter* emitter = new osgParticle::ModularEmitter;
+    emitter->setParticleSystem(ps);
+
+    osgParticle::RandomRateCounter* rrc = static_cast<osgParticle::RandomRateCounter*>(emitter->getCounter());
+    rrc->setRateRange(20, 30);
+
+    osgParticle::ParticleSystemUpdater* psu = new osgParticle::ParticleSystemUpdater;
+    psu->addParticleSystem(ps);
+
+    osg::Group* root = new osg::Group;
+    root->addChild(emitter);
+    root->addChild(ps);
+    root->addChild(psu);
+    view1->setSceneData(root);
 
     viewer->setThreadingModel(osgViewer::Viewer::SingleThreaded);
-    viewer->setRealizeOperation(new EnableGLDebugOperation);
     viewer->realize();
+
     while (!viewer->done())
     {
         viewer->frame();

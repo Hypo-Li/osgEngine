@@ -26,15 +26,12 @@ namespace xxx
 
         }
 
-        virtual void postSerialize(Serializer* serializer)
+        virtual void postLoad() override
         {
-            if (serializer->isLoader())
-            {
-                setShadingModel(mShadingModel);
-                setAlphaMode(mAlphaMode);
-                setDoubleSided(mDoubleSided);
-                syncWithShader();
-            }
+            setShadingModel(mShadingModel);
+            setAlphaMode(mAlphaMode);
+            setDoubleSided(mDoubleSided);
+            syncWithShader();
         }
 
         osg::StateSet* getOsgStateSet() const
@@ -178,22 +175,22 @@ namespace xxx
         template <>
         inline Type* Reflection::createType<ShadingModel>()
         {
-            Enum* enumerate = new EnumInstance<ShadingModel>("ShadingModel", {
+            Enum* enumeration = new EnumInstance<ShadingModel>("ShadingModel", {
                 {"Unlit", ShadingModel::Unlit},
                 {"Standard", ShadingModel::Standard},
             });
-            return enumerate;
+            return enumeration;
         }
 
         template <>
         inline Type* Reflection::createType<AlphaMode>()
         {
-            Enum* enumerate = new EnumInstance<AlphaMode>("AlphaMode", {
+            Enum* enumeration = new EnumInstance<AlphaMode>("AlphaMode", {
                 {"Opaque", AlphaMode::Opaque},
                 {"Mask", AlphaMode::Mask},
                 {"Blend", AlphaMode::Blend},
             });
-            return enumerate;
+            return enumeration;
         }
 
         template<> inline Type* Reflection::createType<Material>()

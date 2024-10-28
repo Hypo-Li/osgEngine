@@ -76,17 +76,9 @@ namespace xxx
 
         Asset* getAsset() const;
 
-        // load something from osg object when serialization
-        virtual void preSerialize(Serializer* serializer)
-        {
-
-        }
-
-        // store something to osg object when deserialization and release
-        virtual void postSerialize(Serializer* serializer)
-        {
-
-        }
+        virtual void preSave() {}
+        virtual void postSave() {}
+        virtual void postLoad() {}
 
     private:
         Guid mGuid;

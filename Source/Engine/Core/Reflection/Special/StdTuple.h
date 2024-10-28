@@ -16,6 +16,9 @@ namespace xxx::refl
         virtual std::vector<Type*> getTypes() const = 0;
         virtual size_t getElementCount() const = 0;
         virtual std::vector<void*> getElementPtrs(void* instance) const = 0;
+
+    protected:
+        StdTuple(std::string_view name, size_t size) : Special(name, size) {}
     };
 
     class Reflection;
@@ -94,11 +97,12 @@ namespace xxx::refl
             return result;
         }
 
-        StdTupleInstance()
+        std::string_view genName() const
         {
             static std::string name = "std::tuple<" + createTupleArgsString(std::make_index_sequence<std::tuple_size_v<T>>{}) + ">";
-            mName = name;
-            mSize = sizeof(T);
+            return name;
         }
+
+        StdTupleInstance() : StdTuple(genName(), sizeof(T)) {}
     };
 }

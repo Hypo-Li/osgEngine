@@ -63,62 +63,57 @@ namespace xxx
             std::tie(mPixelFormat, mPixelType) = getPixelFormatAndTypeFromFormat(mFormat);
         }
 
-        virtual void preSerialize(Serializer* serializer) override
+        virtual void preSave() override
         {
-            if (serializer->isSaver())
+            osg::State* state = Context::get().getGraphicsContext()->getState();
+            mOsgTexture->getTextureObject(state->getContextID())->bind();
+            bool saveMipmap = false;
+            if (mMinFilter != FilterMode::Linear && mMinFilter != FilterMode::Nearest && !mMipmapGeneration)
+                saveMipmap = true;
+            for (int i = 0; i < 6; ++i)
             {
-                osg::State* state = Context::get().getGraphicsContext()->getState();
-                mOsgTexture->getTextureObject(state->getContextID())->bind();
-                bool saveMipmap = false;
-                if (mMinFilter != FilterMode::Linear && mMinFilter != FilterMode::Nearest && !mMipmapGeneration)
-                    saveMipmap = true;
-                for (int i = 0; i < 6; ++i)
+                osg::ref_ptr<osg::Image> image = new osg::Image;
+                image->readImageFromCurrentTexture(state->getContextID(), saveMipmap, mPixelType, i);
+                if (saveMipmap)
                 {
-                    osg::ref_ptr<osg::Image> image = new osg::Image;
-                    image->readImageFromCurrentTexture(state->getContextID(), saveMipmap, mPixelType, i);
-                    if (saveMipmap)
+                    mMipmapDataOffsets = image->getMipmapLevels();
+                    if (mMipmapCount < mMipmapDataOffsets.size())
                     {
-                        mMipmapDataOffsets = image->getMipmapLevels();
-                        if (mMipmapCount < mMipmapDataOffsets.size())
-                        {
-                            mMipmapDataOffsets.resize(mMipmapCount);
-                            image->setMipmapLevels(mMipmapDataOffsets);
-                        }
+                        mMipmapDataOffsets.resize(mMipmapCount);
+                        image->setMipmapLevels(mMipmapDataOffsets);
                     }
-                    uint32_t faceDataSize = saveMipmap ? image->getTotalSizeInBytesIncludingMipmaps() : image->getTotalSizeInBytes();
-                    if (i == 0)
-                        mData.resize(faceDataSize * 6); // every face's dataSize is same
-                    std::memcpy(mData.data() + i * faceDataSize, image->data(), faceDataSize);
                 }
-                compressData();
+                uint32_t faceDataSize = saveMipmap ? image->getTotalSizeInBytesIncludingMipmaps() : image->getTotalSizeInBytes();
+                if (i == 0)
+                    mData.resize(faceDataSize * 6); // every face's dataSize is same
+                std::memcpy(mData.data() + i * faceDataSize, image->data(), faceDataSize);
             }
+            compressData();
         }
 
-        virtual void postSerialize(Serializer* serializer) override
+        virtual void postLoad() override
         {
-            if (serializer->isLoader())
+            decompressData();
+            size_t faceDataSize = mData.size() / 6;
+            osg::TextureCubeMap* textureCubemap = new osg::TextureCubeMap;
+            for (int i = 0; i < 6; ++i)
             {
-                decompressData();
-                size_t faceDataSize = mData.size() / 6;
-                osg::TextureCubeMap* textureCubemap = new osg::TextureCubeMap;
-                for (int i = 0; i < 6; ++i)
-                {
-                    osg::ref_ptr<osg::Image> image = new osg::Image;
-                    image->setImage(mSize, mSize, 1, mFormat, mPixelFormat, mPixelType, mData.data() + i * faceDataSize, osg::Image::NO_DELETE);
-                    image->setMipmapLevels(mMipmapDataOffsets);
+                osg::ref_ptr<osg::Image> image = new osg::Image;
+                image->setImage(mSize, mSize, 1, mFormat, mPixelFormat, mPixelType, mData.data() + i * faceDataSize, osg::Image::NO_DELETE);
+                image->setMipmapLevels(mMipmapDataOffsets);
 
-                    // 如果是压缩纹理, 图像的PixelFormat需要设置为相同的格式
-                    if (isCompressedFormat(mFormat))
-                        image->setPixelFormat(mFormat);
+                // 如果是压缩纹理, 图像的PixelFormat需要设置为相同的格式
+                if (isCompressedFormat(mFormat))
+                    image->setPixelFormat(mFormat);
 
-                    textureCubemap->setImage(i, image);
-                }
-                mOsgTexture = textureCubemap;
-                apply();
-
-                for (int i = 0; i < 6; ++i)
-                    textureCubemap->setImage(i, nullptr);
+                textureCubemap->setImage(i, image);
             }
+            mOsgTexture = textureCubemap;
+            apply();
+
+            for (int i = 0; i < 6; ++i)
+                textureCubemap->setImage(i, nullptr);
+
             mData.clear();
             mData.shrink_to_fit();
         }

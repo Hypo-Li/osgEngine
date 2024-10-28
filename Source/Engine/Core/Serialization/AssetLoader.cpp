@@ -7,8 +7,6 @@ namespace xxx
     using namespace refl;
     void AssetLoader::serializeObject(Object* object)
     {
-        object->preSerialize(this);
-
         Class* clazz = object->getClass();
 
         uint32_t propertyCount;
@@ -52,7 +50,7 @@ namespace xxx
             }
         }
 
-        object->postSerialize(this);
+        object->postLoad();
     }
 
     void AssetLoader::serializeBinary(void* data, size_t count)
@@ -61,12 +59,12 @@ namespace xxx
         objectBuffer.readData(data, count);
     }
 
-    void AssetLoader::serializeEnum(Enum* enumerate, void* data, size_t count)
+    void AssetLoader::serializeEnum(Enum* enumeration, void* data, size_t count)
     {
         std::vector<std::string> valueNames(count);
         serializeStdString(valueNames.data(), count);
         for (size_t i = 0; i < count; ++i)
-            enumerate->setValue(data, enumerate->getValueByName(valueNames[i]));
+            enumeration->setValue(data, enumeration->getValueByName(valueNames[i]));
     }
 
     void AssetLoader::serializeClass(Object** data, size_t count)

@@ -7,7 +7,7 @@ namespace xxx
 
     void AssetSaver::serializeObject(Object* object)
     {
-        object->preSerialize(this);
+        object->preSave();
 
         Class* clazz = object->getClass();
         const Object* defaultObject = clazz->getDefaultObject();
@@ -45,7 +45,7 @@ namespace xxx
             seek(propertyEndPos);
         }
 
-        object->postSerialize(this);
+        object->postSave();
     }
 
     void AssetSaver::serializeBinary(void* data, size_t count)
@@ -54,11 +54,11 @@ namespace xxx
         objectBuffer.writeData(data, count);
     }
 
-    void AssetSaver::serializeEnum(Enum* enumerate, void* data, size_t count)
+    void AssetSaver::serializeEnum(Enum* enumeration, void* data, size_t count)
     {
         std::vector<std::string> valueNames(count);
         for (size_t i = 0; i < count; ++i)
-            valueNames[i] = enumerate->getNameByValue(enumerate->getValueByValuePtr(data));
+            valueNames[i] = enumeration->getNameByValue(enumeration->getValue(data));
         serializeStdString(valueNames.data(), count);
     }
 

@@ -257,7 +257,7 @@ int main()
 
     osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "T_Ceramic_Tile_N.PNG");
     TextureImportOptions options;
-    options.format = Texture::Format::Compressed_RGBA_BPTC_Unorm;
+    options.format = Texture::Format::Compressed_RGB_S3TC_DXT1;
     Texture2D* texture = new Texture2D(image, options);
     texture->setDataCompression(true);
     am.createAsset(texture, "Engine/Texture/T_Ceramic_Tile_N")->save();

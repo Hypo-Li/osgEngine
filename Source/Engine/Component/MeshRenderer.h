@@ -23,12 +23,9 @@ namespace xxx
         }
         virtual ~MeshRenderer() = default;
 
-        virtual void postSerialize(Serializer* serializer) override
+        virtual void onEnable() override
         {
-            if (serializer->isLoader())
-            {
-                syncWithMesh();
-            }
+            syncWithMesh();
         }
 
         virtual Type getType() const override

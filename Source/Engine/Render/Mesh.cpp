@@ -179,79 +179,81 @@ namespace xxx
         return;
     }
 
-    void Mesh::preSerialize(Serializer* serializer)
+    void Mesh::preSave()
     {
-        if (serializer->isSaver())
+        mSubmeshViews.resize(mOsgGeometryDatas.size());
+
+        size_t dataSize = 0;
+        for (OsgGeometryData& geomData : mOsgGeometryDatas)
         {
-            mSubmeshViews.resize(mOsgGeometryDatas.size());
+            for (auto& vertexAttribute : geomData.vertexAttributes)
+                dataSize += vertexAttribute.second->getTotalDataSize();
 
-            size_t dataSize = 0;
-            for (OsgGeometryData& geomData : mOsgGeometryDatas)
-            {
-                for (auto& vertexAttribute : geomData.vertexAttributes)
-                    dataSize += vertexAttribute.second->getTotalDataSize();
-
-                dataSize += geomData.drawElements->getTotalDataSize();
-            }
-            mData.resize(dataSize);
-
-            size_t dataOffset = 0;
-            for (uint32_t i = 0; i < mOsgGeometryDatas.size(); ++i)
-            {
-                OsgGeometryData& geomData = mOsgGeometryDatas[i];
-
-                for (auto& vertexAttribute : geomData.vertexAttributes)
-                {
-                    VertexAttributeView vav;
-                    osg::Array* vertexAttributeArray = vertexAttribute.second;
-                    vav.location = vertexAttribute.first;
-                    vav.dimension = vertexAttributeArray->getDataSize();
-                    vav.type = vertexAttributeArray->getDataType();
-                    vav.offset = dataOffset;
-                    vav.size = vertexAttributeArray->getTotalDataSize();
-                    mSubmeshViews[i].vertexAttributeViews.emplace_back(vav);
-
-                    std::memcpy(mData.data() + dataOffset, vertexAttributeArray->getDataPointer(), vertexAttributeArray->getTotalDataSize());
-                    dataOffset += vertexAttributeArray->getTotalDataSize();
-                }
-
-                osg::DrawElements* drawElements = geomData.drawElements;
-                IndexBufferView& ibv = mSubmeshViews[i].indexBufferView;
-                ibv.type = drawElements->getDataType();
-                ibv.offset = dataOffset;
-                ibv.size = drawElements->getTotalDataSize();
-
-                std::memcpy(mData.data() + dataOffset, drawElements->getDataPointer(), drawElements->getTotalDataSize());
-                dataOffset += drawElements->getTotalDataSize();
-            }
-
-            compressData();
+            dataSize += geomData.drawElements->getTotalDataSize();
         }
+        mData.resize(dataSize);
+
+        size_t dataOffset = 0;
+        for (uint32_t i = 0; i < mOsgGeometryDatas.size(); ++i)
+        {
+            OsgGeometryData& geomData = mOsgGeometryDatas[i];
+
+            for (auto& vertexAttribute : geomData.vertexAttributes)
+            {
+                VertexAttributeView vav;
+                osg::Array* vertexAttributeArray = vertexAttribute.second;
+                vav.location = vertexAttribute.first;
+                vav.dimension = vertexAttributeArray->getDataSize();
+                vav.type = vertexAttributeArray->getDataType();
+                vav.offset = dataOffset;
+                vav.size = vertexAttributeArray->getTotalDataSize();
+                mSubmeshViews[i].vertexAttributeViews.emplace_back(vav);
+
+                std::memcpy(mData.data() + dataOffset, vertexAttributeArray->getDataPointer(), vertexAttributeArray->getTotalDataSize());
+                dataOffset += vertexAttributeArray->getTotalDataSize();
+            }
+
+            osg::DrawElements* drawElements = geomData.drawElements;
+            IndexBufferView& ibv = mSubmeshViews[i].indexBufferView;
+            ibv.type = drawElements->getDataType();
+            ibv.offset = dataOffset;
+            ibv.size = drawElements->getTotalDataSize();
+
+            std::memcpy(mData.data() + dataOffset, drawElements->getDataPointer(), drawElements->getTotalDataSize());
+            dataOffset += drawElements->getTotalDataSize();
+        }
+
+        compressData();
     }
 
-    void Mesh::postSerialize(Serializer* serializer)
+    void Mesh::postSave()
     {
-        if (serializer->isLoader())
+        mData.clear();
+        mData.shrink_to_fit();
+        mSubmeshViews.clear();
+        mSubmeshViews.shrink_to_fit();
+    }
+
+    void Mesh::postLoad()
+    {
+        decompressData();
+        for (SubmeshView& submeshView : mSubmeshViews)
         {
-            decompressData();
-            for (SubmeshView& submeshView : mSubmeshViews)
+            OsgGeometryData geomData;
+
+            for (VertexAttributeView& vav : submeshView.vertexAttributeViews)
             {
-                OsgGeometryData geomData;
-
-                for (VertexAttributeView& vav : submeshView.vertexAttributeViews)
-                {
-                    osg::Array* osgArray = createOsgArrayByVertexAttributeView(vav, mData.data());
-                    if (osgArray->getNumElements() == 1)
-                        osgArray->setBinding(osg::Array::BIND_OVERALL);
-                    else
-                        osgArray->setBinding(osg::Array::BIND_PER_VERTEX);
-                    geomData.vertexAttributes.emplace_back(vav.location, osgArray);
-                }
-
-                geomData.drawElements = createOsgDrawElementsByIndexBufferView(submeshView.indexBufferView, mData.data());
-
-                mOsgGeometryDatas.emplace_back(geomData);
+                osg::Array* osgArray = createOsgArrayByVertexAttributeView(vav, mData.data());
+                if (osgArray->getNumElements() == 1)
+                    osgArray->setBinding(osg::Array::BIND_OVERALL);
+                else
+                    osgArray->setBinding(osg::Array::BIND_PER_VERTEX);
+                geomData.vertexAttributes.emplace_back(vav.location, osgArray);
             }
+
+            geomData.drawElements = createOsgDrawElementsByIndexBufferView(submeshView.indexBufferView, mData.data());
+
+            mOsgGeometryDatas.emplace_back(geomData);
         }
         mData.clear();
         mData.shrink_to_fit();

@@ -3,14 +3,14 @@
 
 #include <unordered_map>
 
-template <typename T1, typename T2>
-struct container_traits<std::unordered_map<T1, T2>> {
-    using type1 = T1;
-    using type2 = T2;
-};
-
 namespace xxx::refl
 {
+    template <typename T1, typename T2>
+    struct container_traits<std::unordered_map<T1, T2>> {
+        using type1 = T1;
+        using type2 = T2;
+    };
+
     class StdUnorderedMap : public Special
     {
     public:
@@ -27,6 +27,9 @@ namespace xxx::refl
 
         virtual void insertKeyValuePair(void* instance, void* key, void* value) const = 0;
         virtual void removeKeyValuePairByKey(void* instance, void* key) const = 0;
+
+    protected:
+        StdUnorderedMap(std::string_view name, size_t size) : Special(name, size) {}
     };
 
     class Reflection;
@@ -92,7 +95,7 @@ namespace xxx::refl
         {
             std::vector<std::pair<const void*, void*>> result;
             std::unordered_map<Key, Value>* unorderedMap = static_cast<std::unordered_map<Key, Value>*>(instance);
-            for (auto it = unordered_map->begin(); it != unordered_map->end(); ++it)
+            for (auto it = unorderedMap->begin(); it != unorderedMap->end(); ++it)
             {
                 result.emplace_back(&it->first, &it->second);
             }
@@ -114,11 +117,12 @@ namespace xxx::refl
         }
 
     protected:
-        StdUnorderedMapInstance()
+        std::string_view genName() const
         {
             static std::string name = "std::unordered_map<" + std::string(Reflection::getType<Key>()->getName()) + ", " + std::string(Reflection::getType<Value>()->getName()) + ">";
-            mName = name;
-            mSize = sizeof(std::unordered_map<Key, Value>);
+            return name;
         }
+
+        StdUnorderedMapInstance() : StdUnorderedMap(genName(), sizeof(std::unordered_map<Key, Value>)) {}
     };
 }

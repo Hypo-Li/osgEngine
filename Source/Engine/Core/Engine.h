@@ -50,8 +50,8 @@ namespace xxx
     class Engine
     {
     public:
-        Engine(const EngineSetupConfig& setupConfig) :
-            mView(new osgViewer::View)
+        Engine(osgViewer::View* view, const EngineSetupConfig& setupConfig) :
+            mView(view)
         {
             initContext(setupConfig);
             initPipeline(setupConfig);

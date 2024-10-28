@@ -17,6 +17,9 @@ namespace xxx::refl
         virtual uint32_t getTypeIndex(void* instance) const = 0;
         virtual void* getValuePtr(void* instance) const = 0;
         virtual void setValueByTypeIndex(void* instance, uint32_t typeIndex, void* value) const = 0;
+
+    protected:
+        StdVariant(std::string_view name, size_t size) : Special(name, size) {}
     };
 
     class Reflection;
@@ -114,11 +117,12 @@ namespace xxx::refl
             return result;
         }
 
-        StdVariantInstance()
+        std::string_view genName() const
         {
             static std::string name = "std::variant<" + createVariantArgsString(std::make_index_sequence<std::variant_size_v<T>>{}) + ">";
-            mName = name;
-            mSize = sizeof(T);
+            return name;
         }
+
+        StdVariantInstance() : StdVariant(genName(), sizeof(T)) {}
     };
 }

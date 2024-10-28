@@ -3,13 +3,13 @@
 
 #include <vector>
 
-template <typename T>
-struct container_traits<std::vector<T>> {
-    using type = T;
-};
-
 namespace xxx::refl
 {
+    template <typename T>
+    struct container_traits<std::vector<T>> {
+        using type = T;
+    };
+
     class StdVector : public Special
     {
     public:
@@ -25,6 +25,9 @@ namespace xxx::refl
         virtual void appendElement(void* vector, void* newElement) const = 0;
         virtual void removeElementByIndex(void* vector, size_t index) const = 0;
         virtual void resize(void* vector, size_t size) const = 0;
+
+    protected:
+        StdVector(std::string_view name, size_t size) : Special(name, size) {}
     };
 
     class Reflection;
@@ -98,11 +101,12 @@ namespace xxx::refl
         }
 
     protected:
-        StdVectorInstance()
+        std::string_view genName() const
         {
             static std::string name = "std::vector<" + std::string(Reflection::getType<Element>()->getName()) + ">";
-            mName = name;
-            mSize = sizeof(std::vector<Element>);
+            return name;
         }
+
+        StdVectorInstance() : StdVector(genName(), sizeof(std::vector<Element>)) {}
     };
 }

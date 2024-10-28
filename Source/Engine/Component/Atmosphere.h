@@ -163,13 +163,10 @@ namespace xxx
             mOsgComponentGroup->getOrCreateStateSet()->setDefine("COORDINATE_MODE", std::to_string(int64_t(coordinateMode)), osg::StateAttribute::ON);
         }
 
-        virtual void postSerialize(Serializer* serializer)
+        virtual void postLoad() override
         {
-            if (serializer->isLoader())
-            {
-                updateAtmosphereUniformBuffer();
-                setCoordinateMode(mCoordinateMode);
-            }
+            updateAtmosphereUniformBuffer();
+            setCoordinateMode(mCoordinateMode);
         }
 
         void updateAtmosphereUniformBuffer()
@@ -213,13 +210,13 @@ namespace xxx
 
         template <> inline Type* Reflection::createType<Atmosphere::CoordinateMode>()
         {
-            Enum* enumerate = new EnumInstance<Atmosphere::CoordinateMode>("Atmosphere::CoordinateMode", {
+            Enum* enumeration = new EnumInstance<Atmosphere::CoordinateMode>("Atmosphere::CoordinateMode", {
                 {"Planet Top At World Origin", Atmosphere::CoordinateMode::Planet_Top_At_World_Origin},
                 {"Planet Center At World Origin", Atmosphere::CoordinateMode::Planet_Center_At_World_Origin},
                 {"Planet Top At Translation", Atmosphere::CoordinateMode::Planet_Top_At_Translation},
                 {"Planet Center At Translation", Atmosphere::CoordinateMode::Planet_Center_At_Translation},
             });
-            return enumerate;
+            return enumeration;
         }
 
         template <> inline Type* Reflection::createType<Atmosphere>()

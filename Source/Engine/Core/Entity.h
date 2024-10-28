@@ -85,16 +85,13 @@ namespace xxx
         Entity(const Entity& other);
 		virtual ~Entity() = default;
 
-        virtual void postSerialize(Serializer* serializer) override
+        virtual void postLoad() override
         {
-            if (serializer->isLoader())
-            {
-                for (Entity* child : mChildren)
-                    mOsgChildrenGroup->addChild(child->mOsgEntityNode);
-                for (Component* component : mComponents)
-                    mOsgComponentsGroup->addChild(component->getOsgNode());
-                updateTransform();
-            }
+            for (Entity* child : mChildren)
+                mOsgChildrenGroup->addChild(child->mOsgEntityNode);
+            for (Component* component : mComponents)
+                mOsgComponentsGroup->addChild(component->getOsgNode());
+            updateTransform();
         }
 
         void setName(const std::string& name)

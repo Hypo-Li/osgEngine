@@ -14,13 +14,9 @@ namespace xxx
 
         }
 
-        virtual void postSerializer(Serializer* serializer)
+        virtual void onEnable() override
         {
-            MeshRenderer::postSerialize(serializer);
-            if (serializer->isLoader())
-            {
-                updateInstanceDatasTBO();
-            }
+            updateInstanceDatasTBO();
         }
 
         virtual void syncWithMesh() override

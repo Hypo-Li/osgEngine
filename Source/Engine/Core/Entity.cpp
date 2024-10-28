@@ -136,20 +136,29 @@ namespace xxx
 
 	void Entity::addComponent(Component* component)
 	{
-        component->onAddToEntity(this);
+        if (component->mEntity == this)
+            return;
+        if (component->mEntity)
+            component->mEntity->removeComponent(component);
+        component->mEntity = this;
+        component->setOwner(this);
+        component->onEnable();
 		mComponents.emplace_back(component);
         mOsgComponentsGroup->addChild(component->getOsgNode());
 	}
 
     Entity::Components::const_iterator Entity::removeComponent(Component* component)
 	{
-        component->onRemoveFromEntity(this);
-		mOsgComponentsGroup->removeChild(component->getOsgNode());
-
-        for (auto it = mComponents.begin(); it != mComponents.end(); ++it)
-            if (*it == component)
-                return mComponents.erase(it);
-
+        if (component->mEntity == this)
+        {
+            component->onDisable();
+            component->mEntity = nullptr;
+            component->setOwner(nullptr);
+            mOsgComponentsGroup->removeChild(component->getOsgNode());
+            for (auto it = mComponents.begin(); it != mComponents.end(); ++it)
+                if (*it == component)
+                    return mComponents.erase(it);
+        }
         return mComponents.end();
 	}
 
@@ -158,7 +167,9 @@ namespace xxx
         if (index >= mComponents.size())
             return mComponents.end();
         Component* component = mComponents[index];
-        component->onRemoveFromEntity(this);
+        component->onDisable();
+        component->mEntity = nullptr;
+        component->setOwner(nullptr);
         mOsgComponentsGroup->removeChild(component->getOsgNode());
 
         return mComponents.erase(mComponents.begin() + index);
@@ -168,7 +179,9 @@ namespace xxx
     {
         for (auto it : mComponents)
         {
-            it->onRemoveFromEntity(this);
+            it->onDisable();
+            it->mEntity = nullptr;
+            it->setOwner(nullptr);
             mOsgComponentsGroup->removeChild(it->getOsgNode());
         }
         mComponents.clear();

@@ -109,9 +109,9 @@ namespace xxx
             /*Compressed_Red_RGTC1,
             Compressed_Signed_Red_RGTC1,
             Compressed_RG_RGTC2,
-            Compressed_Signed_RG_RGTC2,*/
+            Compressed_Signed_RG_RGTC2,
 
-            Compressed_RGBA_BPTC_Unorm = GL_COMPRESSED_RGBA_BPTC_UNORM,/*
+            Compressed_RGBA_BPTC_Unorm = GL_COMPRESSED_RGBA_BPTC_UNORM,
             Compressed_SRGB_Alpha_BPTC_Unorm,
             Compressed_RGB_BPTC_Signed_Float,
             Compressed_RGB_BPTC_Unsigned_Float,
@@ -194,6 +194,12 @@ namespace xxx
             Clamp_To_Border = GL_CLAMP_TO_BORDER,
             Mirror_Clamp_To_Edge = GL_MIRROR_CLAMP_TO_EDGE,
         };
+
+        virtual void postSave() override
+        {
+            mData.clear();
+            mData.shrink_to_fit();
+        }
 
         osg::Texture* getOsgTexture() const
         {
@@ -367,7 +373,6 @@ namespace xxx
             case Format::Compressed_RGBA_S3TC_DXT1:
             case Format::Compressed_RGBA_S3TC_DXT3:
             case Format::Compressed_RGBA_S3TC_DXT5:
-            case Format::Compressed_RGBA_BPTC_Unorm:
                 return true;
             default:
                 return false;
@@ -392,14 +397,6 @@ namespace xxx
             std::vector<uint8_t> decompressedData(decompressedSize);
             FL2_decompress(decompressedData.data(), decompressedSize, mData.data(), mData.size());
             mData = decompressedData;
-        }
-
-        void readTextureData()
-        {
-            osg::State* state = Context::get().getGraphicsContext()->getState();
-            mOsgTexture->getTextureObject(state->getContextID())->bind();
-            bool saveMipmap = !mMipmapGeneration;
-
         }
     };
 

@@ -44,16 +44,16 @@ namespace xxx::editor
     static bool EnumCombo(const char* label, T* previewValue)
     {
         bool result = false;
-        refl::Enum* enumerate = refl::Reflection::getEnum<T>();
-        std::string currentValueName(enumerate->getNameByValue(int64_t(*previewValue)));
+        refl::Enum* enumeration = refl::Reflection::getEnum<T>();
+        std::string currentValueName(enumeration->getNameByValue(int64_t(*previewValue)));
         if (ImGui::BeginCombo(label, currentValueName.c_str()))
         {
-            size_t valueCount = enumerate->getValueCount();
+            size_t valueCount = enumeration->getValueCount();
             for (size_t i = 0; i < valueCount; ++i)
             {
-                int64_t currentValue = enumerate->getValueByIndex(i);
+                int64_t currentValue = enumeration->getValueByIndex(i);
                 const bool is_selected = (currentValue == int64_t(*previewValue));
-                std::string valueName(enumerate->getNameByIndex(i));
+                std::string valueName(enumeration->getNameByIndex(i));
                 if (ImGui::Selectable(valueName.c_str(), is_selected))
                 {
                     *previewValue = T(currentValue);
@@ -101,22 +101,22 @@ namespace xxx::editor
             return ImGui::DragScalar(label.c_str(), ImGuiDataType_Double, data);
     }
 
-    static bool EnumWidget(const std::string& label, refl::Enum* enumerate, void* data)
+    static bool EnumWidget(const std::string& label, refl::Enum* enumeration, void* data)
     {
         bool result = false;
-        int64_t value = enumerate->getValueByValuePtr(data);
-        std::string valueName(enumerate->getNameByValue(value));
+        int64_t value = enumeration->getValue(data);
+        std::string valueName(enumeration->getNameByValue(value));
         if (ImGui::BeginCombo(label.c_str(), valueName.c_str()))
         {
-            size_t valueCount = enumerate->getValueCount();
+            size_t valueCount = enumeration->getValueCount();
             for (size_t i = 0; i < valueCount; ++i)
             {
-                int64_t currentValue = enumerate->getValueByIndex(i);
+                int64_t currentValue = enumeration->getValueByIndex(i);
                 const bool is_selected = (currentValue == value);
-                std::string currentValueName(enumerate->getNameByIndex(i));
+                std::string currentValueName(enumeration->getNameByIndex(i));
                 if (ImGui::Selectable(currentValueName.c_str(), is_selected))
                 {
-                    enumerate->setValue(data, currentValue);
+                    enumeration->setValue(data, currentValue);
                     result = true;
                 }
 
@@ -152,7 +152,7 @@ namespace xxx::editor
 
     static bool ClassWidget(const std::string& label, refl::Class* clazz, void* data)
     {
-        // how to show it? as asset?
+        // how to show it? as an asset?
     }
 
     static bool PropertyWidget(refl::Property* property, void* data)
@@ -168,9 +168,9 @@ namespace xxx::editor
         {
         case refl::Type::Kind::Fundamental:
             return FundamentalWidget(label, dynamic_cast<refl::Fundamental*>(declaredType), propertyData);
-        case refl::Type::Kind::Enum:
+        case refl::Type::Kind::Enumeration:
             return EnumWidget(label, dynamic_cast<refl::Enum*>(declaredType), propertyData);
-        case refl::Type::Kind::Struct:
+        case refl::Type::Kind::Structure:
             return StructWidget(label, dynamic_cast<refl::Struct*>(declaredType), propertyData);
         case refl::Type::Kind::Class:
             return ClassWidget(label, dynamic_cast<refl::Class*>(declaredType), propertyData);

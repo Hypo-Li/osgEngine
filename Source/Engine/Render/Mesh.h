@@ -35,9 +35,11 @@ namespace xxx
         Mesh() = default;
         Mesh(const std::string& meshPath);
 
-        virtual void preSerialize(Serializer* serializer) override;
+        virtual void preSave() override;
 
-        virtual void postSerialize(Serializer* serializer) override;
+        virtual void postSave() override;
+
+        virtual void postLoad() override;
 
         uint32_t getSubmeshCount() const
         {

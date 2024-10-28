@@ -19,7 +19,7 @@ struct MaterialInputs
 struct MaterialOutputs
 {
     vec3 emissive;
-    float opaque;
+    float opacity;
     vec3 baseColor;
     float metallic;
     float roughness;

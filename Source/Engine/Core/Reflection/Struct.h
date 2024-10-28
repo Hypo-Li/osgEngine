@@ -15,8 +15,6 @@ namespace xxx::refl
     {
         friend class Reflection;
     public:
-        virtual Kind getKind() const override { return Kind::Struct; }
-
         Property* getProperty(std::string_view name) const
         {
             for (auto prop : mProperties)
@@ -41,7 +39,7 @@ namespace xxx::refl
 
     protected:
         Struct(std::string_view name, size_t size) :
-            Type(name, size)
+            Type(name, size, Kind::Structure)
         {}
 
         std::vector<Property*> mProperties;
