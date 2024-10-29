@@ -6,7 +6,7 @@ namespace xxx
     {
         template <> Type* Reflection::createType<Texture2DArray>()
         {
-            Class* clazz = new ClassInstance<Texture2DArray, Texture>("Texture2DArray");
+            Class* clazz = new TClass<Texture2DArray, Texture>("Texture2DArray");
             return clazz;
         }
     }

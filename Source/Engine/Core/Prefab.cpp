@@ -4,8 +4,8 @@ namespace xxx::refl
 {
     template <> Type* Reflection::createType<Prefab>()
     {
-        Class* clazz = new ClassInstance<Prefab>("Prefab");
-        clazz->addProperty("PackedEntities", &Prefab::mPackedEntities);
+        Class* clazz = new TClass<Prefab>("Prefab");
+        clazz->addProperty("RootEntity", &Prefab::mRootEntity);
         return clazz;
     }
 }
@@ -13,14 +13,14 @@ namespace xxx::refl
 namespace xxx
 {
     Prefab::Prefab() :
-        mOsgPackedEntitiesGroup(new osg::Group)
+        mRootEntity(nullptr)
     {
-        mOsgChildrenGroup->addChild(mOsgPackedEntitiesGroup);
+        
     }
 
     Prefab::Prefab(const Prefab& other) :
-        mOsgPackedEntitiesGroup(new osg::Group)
+        mRootEntity(other.mRootEntity)
     {
-        mOsgChildrenGroup->addChild(mOsgPackedEntitiesGroup);
+        // TODO: copy children
     }
 }

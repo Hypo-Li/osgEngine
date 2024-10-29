@@ -175,7 +175,7 @@ namespace xxx
         template <>
         inline Type* Reflection::createType<ShadingModel>()
         {
-            Enum* enumeration = new EnumInstance<ShadingModel>("ShadingModel", {
+            Enumeration* enumeration = new TEnumeration<ShadingModel>("ShadingModel", {
                 {"Unlit", ShadingModel::Unlit},
                 {"Standard", ShadingModel::Standard},
             });
@@ -185,7 +185,7 @@ namespace xxx
         template <>
         inline Type* Reflection::createType<AlphaMode>()
         {
-            Enum* enumeration = new EnumInstance<AlphaMode>("AlphaMode", {
+            Enumeration* enumeration = new TEnumeration<AlphaMode>("AlphaMode", {
                 {"Opaque", AlphaMode::Opaque},
                 {"Mask", AlphaMode::Mask},
                 {"Blend", AlphaMode::Blend},
@@ -195,7 +195,7 @@ namespace xxx
 
         template<> inline Type* Reflection::createType<Material>()
         {
-            Class* clazz = new ClassInstance<Material>("Material");
+            Class* clazz = new TClass<Material>("Material");
             clazz->addProperty("Shader", &Material::mShader);
             clazz->addProperty("Parameters", &Material::mParameters);
             clazz->addProperty("ShadingModel", &Material::mShadingModel);

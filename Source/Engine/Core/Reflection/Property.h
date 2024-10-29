@@ -2,33 +2,15 @@
 #include "Reflection.h"
 #include "Metadata.h"
 
-#include <functional>
-#include <map>
-#include <set>
-#include <tuple>
-#include <unordered_map>
-#include <unordered_set>
-#include <variant>
-#include <vector>
-
 namespace xxx::refl
 {
-    template <typename T>
-    static constexpr bool is_template_instance =
-        is_std_array_v<T> ||
-        is_instance_of_v<T, std::map> ||
-        is_instance_of_v<T, std::pair> ||
-        is_instance_of_v<T, std::set> ||
-        is_instance_of_v<T, std::tuple> ||
-        is_instance_of_v<T, std::unordered_map> ||
-        is_instance_of_v<T, std::unordered_set> ||
-        is_instance_of_v<T, std::variant> ||
-        is_instance_of_v<T, std::vector>;
-
     template <typename, typename = void>
     struct is_comparable : std::false_type {};
 
     template <typename T>
+    struct is_comparable<T, std::void_t<decltype(std::declval<const T>() == std::declval<const T>())>> : std::true_type {};
+
+    /*template <typename T>
     struct is_comparable<T, std::void_t<decltype(std::declval<const T>() == std::declval<const T>()), std::enable_if_t<!is_template_instance<T>>>> : std::true_type {};
 
     template <typename T1, typename T2>
@@ -47,7 +29,7 @@ namespace xxx::refl
     struct is_comparable<std::unordered_set<T>, std::enable_if_t<is_comparable<T>::value>> : std::true_type {};
 
     template <typename T>
-    struct is_comparable<std::vector<T>, std::enable_if_t<is_comparable<T>::value>> : std::true_type {};
+    struct is_comparable<std::vector<T>, std::enable_if_t<is_comparable<T>::value>> : std::true_type {};*/
 
     template <typename T>
     static constexpr bool is_comparable_v = is_comparable<T>::value;
@@ -90,13 +72,13 @@ namespace xxx::refl
 	};
 
     template <typename Owner, typename FakeDeclared, std::size_t Index = 0>
-    class PropertyInstance : public Property
+    class TProperty : public Property
     {
         using MemberObject = FakeDeclared Owner::*;
         static constexpr bool IsArrayMember = std::is_array_v<FakeDeclared>;
         using Declared = std::conditional_t<IsArrayMember, array_element_t<FakeDeclared>, FakeDeclared>;
     public:
-        PropertyInstance(std::string_view name, MemberObject memberObject) :
+        TProperty(std::string_view name, MemberObject memberObject) :
             Property(name),
             mMemberObject(memberObject)
         {}
@@ -145,10 +127,10 @@ namespace xxx::refl
 
         virtual bool compare(const void* instance1, const void* instance2) const override
         {
-            if constexpr (is_comparable_v<Declared>)
-                return *static_cast<const Declared*>(getValuePtr(instance1)) == *static_cast<const Declared*>(getValuePtr(instance2));
-            else
+            if constexpr (!is_comparable_v<Declared> || is_special_v<Declared>)
                 return Reflection::getType<Declared>()->compare(getValuePtr(instance1), getValuePtr(instance2));
+            else
+                return *static_cast<const Declared*>(getValuePtr(instance1)) == *static_cast<const Declared*>(getValuePtr(instance2));
         }
 
     protected:

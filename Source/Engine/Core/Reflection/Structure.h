@@ -11,7 +11,7 @@ namespace xxx
 namespace xxx::refl
 {
     class Reflection;
-    class Struct : public Type
+    class Structure : public Type
     {
         friend class Reflection;
     public:
@@ -32,13 +32,13 @@ namespace xxx::refl
         template <std::size_t Index = 0, typename Owner, typename Declared>
         Property* addProperty(std::string_view name, Declared Owner::* member)
         {
-            Property* newProperty = new PropertyInstance<Owner, Declared, Index>(name, member);
+            Property* newProperty = new TProperty<Owner, Declared, Index>(name, member);
             mProperties.emplace_back(newProperty);
             return newProperty;
         }
 
     protected:
-        Struct(std::string_view name, size_t size) :
+        Structure(std::string_view name, size_t size) :
             Type(name, size, Kind::Structure)
         {}
 
@@ -46,7 +46,7 @@ namespace xxx::refl
     };
 
     template <typename T, typename = std::enable_if_t<!std::is_base_of_v<Object, T>>>
-    class StructInstance : public Struct
+    class TStructure : public Structure
     {
         friend class Reflection;
     public:
@@ -86,8 +86,8 @@ namespace xxx::refl
         }
 
     protected:
-        StructInstance(std::string_view name) :
-            Struct(name, sizeof(T))
+        TStructure(std::string_view name) :
+            Structure(name, sizeof(T))
         {}
     };
 }

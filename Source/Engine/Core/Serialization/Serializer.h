@@ -26,9 +26,9 @@ namespace xxx
     protected:
         virtual void serializeType(refl::Type* type, void* data, size_t count = 1) = 0;
         virtual void serializeFundamental(refl::Fundamental* fundamental, void* data, size_t count = 1) = 0;
-        virtual void serializeStruct(refl::Struct* structure, void* data, size_t count = 1) = 0;
+        virtual void serializeStructure(refl::Structure* structure, void* data, size_t count = 1) = 0;
         virtual void serializeSpecial(refl::Special* special, void* data, size_t count = 1) = 0;
-        virtual void serializeEnum(refl::Enum* enumeration, void* data, size_t count = 1) = 0;
+        virtual void serializeEnumeration(refl::Enumeration* enumeration, void* data, size_t count = 1) = 0;
         virtual void serializeClass(Object** data, size_t count = 1) = 0;
 
         virtual void serializeStdString(std::string* data, size_t count = 1) = 0;

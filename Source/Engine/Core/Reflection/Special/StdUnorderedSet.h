@@ -31,7 +31,7 @@ namespace xxx::refl
 
     class Reflection;
     template <typename T, typename = std::enable_if_t<is_instance_of_v<T, std::unordered_set>>>
-    class StdUnorderedSetInstance : public StdUnorderedSet
+    class TStdUnorderedSet : public StdUnorderedSet
     {
         friend class Reflection;
         using Element = container_traits_t<T>;
@@ -105,6 +105,6 @@ namespace xxx::refl
             return name;
         }
 
-        StdUnorderedSetInstance() : StdUnorderedSet(genName(), sizeof(std::unordered_set<Element>)) {}
+        TStdUnorderedSet() : StdUnorderedSet(genName(), sizeof(std::unordered_set<Element>)) {}
     };
 }

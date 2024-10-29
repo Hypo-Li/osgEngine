@@ -5,19 +5,19 @@
 namespace xxx::refl
 {
     template <typename>
-    class AnyWrapperInstance;
+    class TAnyWrapper;
     template <typename, typename, std::size_t>
-    class PropertyInstance;
+    class TProperty;
     template <typename, typename>
-    class MethodInstance;
+    class TMethod;
 	class Type
 	{
         template <typename>
-        friend class AnyWrapperInstance;
+        friend class TAnyWrapper;
         template <typename, typename, std::size_t>
-        friend class PropertyInstance;
+        friend class TProperty;
         template <typename, typename>
-        friend class MethodInstance;
+        friend class TMethod;
     public:
         Type(const Type&) = delete;
 
@@ -41,7 +41,6 @@ namespace xxx::refl
         virtual bool compare(const void* instance1, const void* instance2) const = 0;
 
     protected:
-        //Type() : mName(), mSize(0) {}
         Type(std::string_view name, size_t size, Kind kind) : mName(name), mSize(size), mKind(kind) {}
         virtual ~Type() = default;
 

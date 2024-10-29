@@ -34,7 +34,7 @@ namespace xxx::refl
 
     class Reflection;
     template <typename T, typename = std::enable_if_t<is_instance_of_v<T, std::map>>>
-    class StdMapInstance : public StdMap
+    class TStdMap : public StdMap
     {
         friend class Reflection;
         using Key = container_traits_t1<T>;
@@ -123,6 +123,6 @@ namespace xxx::refl
             return name;
         }
 
-        StdMapInstance() : StdMap(genName(), sizeof(std::map<Key, Value>)) {}
+        TStdMap() : StdMap(genName(), sizeof(std::map<Key, Value>)) {}
     };
 }

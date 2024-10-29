@@ -1,7 +1,7 @@
 #pragma once
 #include "Reflection/Reflection.h"
 #include "Serialization/Serializer.h"
-#include "Guid.h"
+#include <Engine/Utility/Guid.h>
 
 #include <osg/Referenced>
 #include <osg/ref_ptr>

@@ -179,6 +179,8 @@ namespace xxx
     protected:
         AtmosphereParameters mAtmosphereParameters;
         CoordinateMode mCoordinateMode;
+        int mSunLightIndex = 0;
+        int mMoonLightIndex = -1;
 
         osg::ref_ptr<osg::UniformBufferBinding> mAtmosphereUBB;
 
@@ -204,13 +206,13 @@ namespace xxx
     {
         template <> inline Type* Reflection::createType<AtmosphereParameters>()
         {
-            Struct* structure = new StructInstance<AtmosphereParameters>("AtmosphereParameters");
+            Structure* structure = new TStructure<AtmosphereParameters>("AtmosphereParameters");
             return structure;
         }
 
         template <> inline Type* Reflection::createType<Atmosphere::CoordinateMode>()
         {
-            Enum* enumeration = new EnumInstance<Atmosphere::CoordinateMode>("Atmosphere::CoordinateMode", {
+            Enumeration* enumeration = new TEnumeration<Atmosphere::CoordinateMode>("Atmosphere::CoordinateMode", {
                 {"Planet Top At World Origin", Atmosphere::CoordinateMode::Planet_Top_At_World_Origin},
                 {"Planet Center At World Origin", Atmosphere::CoordinateMode::Planet_Center_At_World_Origin},
                 {"Planet Top At Translation", Atmosphere::CoordinateMode::Planet_Top_At_Translation},
@@ -221,7 +223,7 @@ namespace xxx
 
         template <> inline Type* Reflection::createType<Atmosphere>()
         {
-            Class* clazz = new ClassInstance<Atmosphere, Component>("Atmosphere");
+            Class* clazz = new TClass<Atmosphere, Component>("Atmosphere");
             clazz->addProperty("AtmosphereParameters", &Atmosphere::mAtmosphereParameters);
             clazz->addProperty("CoordinateMode", &Atmosphere::mCoordinateMode);
             return clazz;

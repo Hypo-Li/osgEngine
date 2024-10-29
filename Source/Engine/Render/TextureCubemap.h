@@ -60,7 +60,7 @@ namespace xxx
                 extensions->glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
             }
 
-            std::tie(mPixelFormat, mPixelType) = getPixelFormatAndTypeFromFormat(mFormat);
+            std::tie(mPixelFormat, mPixelType) = choosePixelFormatAndTypeByFormat(mFormat);
         }
 
         virtual void preSave() override

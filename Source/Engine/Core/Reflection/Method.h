@@ -97,7 +97,7 @@ namespace xxx::refl
     };
 
     template <typename T, typename = std::enable_if_t<std::is_member_function_pointer_v<T>>>
-    class MethodInstance : public Method
+    class TMethod : public Method
     {
         using ClassType = typename member_function_traits<T>::class_type;
         using ReturnType = typename member_function_traits<T>::return_type;
@@ -117,7 +117,7 @@ namespace xxx::refl
             }
         }
     public:
-        MethodInstance(std::string_view name, T method, std::initializer_list<std::string_view> paramNames) :
+        TMethod(std::string_view name, T method, std::initializer_list<std::string_view> paramNames) :
             Method(name), mMethod(method)
         {
             setParameterType<ArgsCount - 1, ArgsType>();
@@ -125,7 +125,7 @@ namespace xxx::refl
             for (auto paramName : paramNames)
                 mParameters[i++].first = paramName;
         }
-        virtual ~MethodInstance() = default;
+        virtual ~TMethod() = default;
 
         virtual Type* getReturnType() const override
         {

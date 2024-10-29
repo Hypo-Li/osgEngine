@@ -15,11 +15,11 @@ namespace xxx::refl
     };
 
     template <typename T>
-    class AnyWrapperInstance : public AnyWrapper
+    class TAnyWrapper : public AnyWrapper
     {
     public:
-        AnyWrapperInstance(T&& value) : mValue(std::forward<T>(value)) {}
-        virtual ~AnyWrapperInstance() = default;
+        TAnyWrapper(T&& value) : mValue(std::forward<T>(value)) {}
+        virtual ~TAnyWrapper() = default;
 
         virtual Type* getType() const override
         {

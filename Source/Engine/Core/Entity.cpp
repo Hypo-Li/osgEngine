@@ -31,8 +31,8 @@ namespace xxx
         mOsgEntityNode->addEventCallback(new UpdatePreFrameTransformMatrixCallback(&mPreFrameTransformMatrix));
 	}
 
-    Entity::Entity(const Entity& other) :
-        mName(other.mName + "_copy"),
+    Entity::Entity(const Entity& other, bool copyChildren) :
+        mName(other.mName),
         mParent(nullptr),
         mOsgEntityNode(new EntityNode(this)),
         mOsgChildrenGroup(new osg::Group),
@@ -45,6 +45,12 @@ namespace xxx
         // copy components
         for (Component* component : other.mComponents)
             addComponent(component->clone());
+
+        if (copyChildren)
+        {
+            for (Entity* child : other.mChildren)
+                addChild(new Entity(*child, true));
+        }
     }
 
     void Entity::setParent(Entity* entity)
@@ -192,7 +198,7 @@ namespace xxx::refl
 {
     template <> Type* Reflection::createType<Entity>()
     {
-        Class* clazz = new ClassInstance<Entity>("Entity");
+        Class* clazz = new TClass<Entity>("Entity");
         clazz->addProperty("Name", &Entity::mName);
         clazz->addProperty("Parent", &Entity::mParent);
         clazz->addProperty("Children", &Entity::mChildren);

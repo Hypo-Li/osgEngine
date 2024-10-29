@@ -53,11 +53,11 @@ namespace xxx::editor
             if (ImGui::Begin(mTitle.c_str(), &mVisibility))
             {
                 ShadingModel shadingModel = mMaterial->getShadingModel();
-                if (EnumCombo("ShadingModel", &shadingModel))
+                if (EnumerationCombo("ShadingModel", &shadingModel))
                     mMaterial->setShadingModel(shadingModel);
 
                 AlphaMode alphaMode = mMaterial->getAlphaMode();
-                if (EnumCombo("AlphaMode", &alphaMode))
+                if (EnumerationCombo("AlphaMode", &alphaMode))
                     mMaterial->setAlphaMode(alphaMode);
 
                 bool doubleSided = mMaterial->getDoubleSided();

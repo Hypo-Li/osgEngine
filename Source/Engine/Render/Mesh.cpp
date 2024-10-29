@@ -400,7 +400,7 @@ namespace xxx
     {
         template <> Type* Reflection::createType<VertexAttributeView>()
         {
-            Struct* structure = new StructInstance<VertexAttributeView>("VertexAttributeView");
+            Structure* structure = new TStructure<VertexAttributeView>("VertexAttributeView");
             structure->addProperty("Location", &VertexAttributeView::location);
             structure->addProperty("Dimension", &VertexAttributeView::dimension);
             structure->addProperty("Type", &VertexAttributeView::type);
@@ -411,7 +411,7 @@ namespace xxx
 
         template <> Type* Reflection::createType<IndexBufferView>()
         {
-            Struct* structure = new StructInstance<IndexBufferView>("IndexBufferView");
+            Structure* structure = new TStructure<IndexBufferView>("IndexBufferView");
             structure->addProperty("Type", &IndexBufferView::type);
             structure->addProperty("Offset", &IndexBufferView::offset);
             structure->addProperty("Size", &IndexBufferView::size);
@@ -420,7 +420,7 @@ namespace xxx
 
         template <> Type* Reflection::createType<SubmeshView>()
         {
-            Struct* structure = new StructInstance<SubmeshView>("SubmeshView");
+            Structure* structure = new TStructure<SubmeshView>("SubmeshView");
             structure->addProperty("VertexAttributeViews", &SubmeshView::vertexAttributeViews);
             structure->addProperty("IndexBufferView", &SubmeshView::indexBufferView);
             return structure;
@@ -428,7 +428,7 @@ namespace xxx
 
         template <> Type* Reflection::createType<Mesh>()
         {
-            Class* clazz = new ClassInstance<Mesh>("Mesh");
+            Class* clazz = new TClass<Mesh>("Mesh");
             clazz->addProperty("Data", &Mesh::mData);
             clazz->addProperty("SubmeshViews", &Mesh::mSubmeshViews);
             clazz->addProperty("DefaultMaterials", &Mesh::mDefaultMaterials);

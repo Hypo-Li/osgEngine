@@ -14,7 +14,7 @@ namespace xxx
         mMipmapGeneration = options.mipmapGeneration;
     }
 
-    std::pair<Texture::PixelFormat, Texture::PixelType> Texture::getPixelFormatAndTypeFromFormat(Format format)
+    std::pair<Texture::PixelFormat, Texture::PixelType> Texture::choosePixelFormatAndTypeByFormat(Format format)
     {
         switch (format)
         {
@@ -240,7 +240,7 @@ namespace xxx::refl
 {
     template <> Type* Reflection::createType<Texture::Format>()
     {
-        Enum* enumeration = new EnumInstance<Texture::Format>("Texture::Format", {
+        Enumeration* enumeration = new TEnumeration<Texture::Format>("Texture::Format", {
             {"R8", Texture::Format::R8},
             {"RG8", Texture::Format::RG8},
             {"RGB8", Texture::Format::RGB8},
@@ -314,7 +314,7 @@ namespace xxx::refl
 
     template <> Type* Reflection::createType<Texture::PixelFormat>()
     {
-        Enum* enumeration = new EnumInstance<Texture::PixelFormat>("Texture::PixelFormat", {
+        Enumeration* enumeration = new TEnumeration<Texture::PixelFormat>("Texture::PixelFormat", {
             {"R", Texture::PixelFormat::R},
             {"RG", Texture::PixelFormat::RG},
             {"RGB", Texture::PixelFormat::RGB},
@@ -325,7 +325,7 @@ namespace xxx::refl
 
     template <> Type* Reflection::createType<Texture::PixelType>()
     {
-        Enum* enumeration = new EnumInstance<Texture::PixelType>("Texture::PixelType", {
+        Enumeration* enumeration = new TEnumeration<Texture::PixelType>("Texture::PixelType", {
             {"Unsigned Byte", Texture::PixelType::Unsigned_Byte},
             {"Byte", Texture::Byte},
             {"Unsigned Short", Texture::PixelType::Unsigned_Short},
@@ -340,7 +340,7 @@ namespace xxx::refl
 
     template <> Type* Reflection::createType<Texture::FilterMode>()
     {
-        Enum* enumeration = new EnumInstance<Texture::FilterMode>("Texture::FilterMode", {
+        Enumeration* enumeration = new TEnumeration<Texture::FilterMode>("Texture::FilterMode", {
             {"Linear", Texture::FilterMode::Linear},
             {"Nearest", Texture::FilterMode::Nearest},
             {"Linear Mipmap Linear", Texture::FilterMode::Linear_Mipmap_Linear},
@@ -353,7 +353,7 @@ namespace xxx::refl
 
     template <> Type* Reflection::createType<Texture::WrapMode>()
     {
-        Enum* enumeration = new EnumInstance<Texture::WrapMode>("Texture::WrapMode", {
+        Enumeration* enumeration = new TEnumeration<Texture::WrapMode>("Texture::WrapMode", {
             {"Repeat", Texture::WrapMode::Repeat},
             {"Mirrored Repeat", Texture::WrapMode::Mirrored_Repeat},
             {"Clamp", Texture::WrapMode::Clamp},
@@ -366,7 +366,7 @@ namespace xxx::refl
 
     template <> Type* Reflection::createType<Texture>()
     {
-        Class* clazz = new ClassInstance<Texture>("Texture");
+        Class* clazz = new TClass<Texture>("Texture");
         clazz->addProperty("Format", &Texture::mFormat);
         clazz->addProperty("PixelFormat", &Texture::mPixelFormat);
         clazz->addProperty("PixelType", &Texture::mPixelType);

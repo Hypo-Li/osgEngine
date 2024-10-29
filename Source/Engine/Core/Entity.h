@@ -18,8 +18,6 @@ namespace xxx
         Entity* mEntity;
     };
 
-    class Prefab;
-
     enum class TransformMode
     {
         Local,
@@ -78,11 +76,10 @@ namespace xxx
 
 	class Entity : public Object
 	{
-        friend class Prefab;
         REFLECT_CLASS(Entity)
 	public:
 		Entity(const std::string& name = "");
-        Entity(const Entity& other);
+        Entity(const Entity& other, bool copyChildren = false);
 		virtual ~Entity() = default;
 
         virtual void postLoad() override

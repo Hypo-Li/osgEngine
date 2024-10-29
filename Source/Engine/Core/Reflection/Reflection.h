@@ -7,8 +7,8 @@ namespace xxx::refl
     using remove_cvrefp_t = typename std::remove_cv_t<std::remove_reference_t<std::remove_pointer_t<T>>>;
 
     class Fundamental;
-    class Enum;
-    class Struct;
+    class Enumeration;
+    class Structure;
     class Class;
     class Special;
     class Reflection
@@ -26,10 +26,10 @@ namespace xxx::refl
         static Fundamental* getFundamental();
 
         template <typename T>
-        static Enum* getEnum();
+        static Enumeration* getEnumeration();
 
         template <typename T>
-        static Struct* getStruct();
+        static Structure* getStructure();
 
         template <typename T>
         static Class* getClass();

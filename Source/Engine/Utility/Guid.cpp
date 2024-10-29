@@ -58,7 +58,7 @@ namespace xxx
     {
         template <> Type* Reflection::createType<Guid>()
         {
-            Struct* structure = new StructInstance<Guid>("Guid");
+            Structure* structure = new TStructure<Guid>("Guid");
             structure->addProperty("A", &Guid::A);
             structure->addProperty("B", &Guid::B);
             structure->addProperty("C", &Guid::C);

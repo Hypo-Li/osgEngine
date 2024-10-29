@@ -84,16 +84,11 @@ namespace xxx::refl
             return mDerivedClasses;
         }
 
-        bool isAbstruct() const
-        {
-            return mIsAbstruct;
-        }
-
     protected:
         template <std::size_t Index = 0, typename Owner, typename Declared>
         Property* addProperty(std::string_view name, Declared Owner::* member)
         {
-            Property* newProperty = new PropertyInstance<Owner, Declared, Index>(name, member);
+            Property* newProperty = new TProperty<Owner, Declared, Index>(name, member);
             mProperties.emplace_back(newProperty);
             return newProperty;
         }
@@ -101,7 +96,7 @@ namespace xxx::refl
         template <typename T>
         Method* addMethod(std::string_view name, T member, std::initializer_list<std::string_view> paramNames = {})
         {
-            Method* newMethod = new MethodInstance(name, member, paramNames);
+            Method* newMethod = new TMethod(name, member, paramNames);
             mMethods.emplace_back(newMethod);
             return newMethod;
         }
@@ -113,14 +108,13 @@ namespace xxx::refl
 
         Class* mBaseClass;
         std::vector<Class*> mDerivedClasses;
-        bool mIsAbstruct;
         std::vector<Property*> mProperties;
         std::vector<Method*> mMethods;
         xxx::Object* mDefaultObject;
 	};
 
     template <typename T, typename Base = Object, typename = std::enable_if_t<std::is_base_of_v<Object, Base> && std::is_base_of_v<Base, T>>>
-    class ClassInstance : public Class
+    class TClass : public Class
     {
         friend class Reflection;
     public:
@@ -174,7 +168,7 @@ namespace xxx::refl
         }
 
     protected:
-        ClassInstance(std::string_view name) :
+        TClass(std::string_view name) :
             Class(name, sizeof(T))
         {
             if constexpr (std::is_same_v<T, Object>)
@@ -189,8 +183,6 @@ namespace xxx::refl
                 mDefaultObject = nullptr;
             else
                 mDefaultObject = new T;
-
-            mIsAbstruct = std::is_abstract_v<T>;
 
             Reflection::registerClass(name, this);
         }

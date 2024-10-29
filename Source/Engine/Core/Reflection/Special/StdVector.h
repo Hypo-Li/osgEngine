@@ -32,7 +32,7 @@ namespace xxx::refl
 
     class Reflection;
     template <typename T, typename = std::enable_if_t<is_instance_of_v<T, std::vector>>>
-    class StdVectorInstance : public StdVector
+    class TStdVector : public StdVector
     {
         friend class Reflection;
         using Element = container_traits_t<T>;
@@ -107,6 +107,6 @@ namespace xxx::refl
             return name;
         }
 
-        StdVectorInstance() : StdVector(genName(), sizeof(std::vector<Element>)) {}
+        TStdVector() : StdVector(genName(), sizeof(std::vector<Element>)) {}
     };
 }

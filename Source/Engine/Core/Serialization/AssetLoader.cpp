@@ -59,7 +59,7 @@ namespace xxx
         objectBuffer.readData(data, count);
     }
 
-    void AssetLoader::serializeEnum(Enum* enumeration, void* data, size_t count)
+    void AssetLoader::serializeEnumeration(Enumeration* enumeration, void* data, size_t count)
     {
         std::vector<std::string> valueNames(count);
         serializeStdString(valueNames.data(), count);

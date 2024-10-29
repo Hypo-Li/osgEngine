@@ -34,7 +34,7 @@ namespace xxx::refl
 
     class Reflection;
     template <typename T, typename = std::enable_if_t<is_instance_of_v<T, std::unordered_map>>>
-    class StdUnorderedMapInstance : public StdUnorderedMap
+    class TStdUnorderedMap : public StdUnorderedMap
     {
         friend class Reflection;
         using Key = container_traits_t1<T>;
@@ -123,6 +123,6 @@ namespace xxx::refl
             return name;
         }
 
-        StdUnorderedMapInstance() : StdUnorderedMap(genName(), sizeof(std::unordered_map<Key, Value>)) {}
+        TStdUnorderedMap() : StdUnorderedMap(genName(), sizeof(std::unordered_map<Key, Value>)) {}
     };
 }

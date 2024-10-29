@@ -28,7 +28,7 @@ namespace xxx::refl
 
     class Reflection;
     template <typename T, typename = std::enable_if_t<is_std_array_v<T>>>
-    class StdArrayInstance : public StdArray
+    class TStdArray : public StdArray
     {
         friend class Reflection;
         using Element = container_traits_t<T>;
@@ -81,7 +81,7 @@ namespace xxx::refl
             return name;
         }
 
-        StdArrayInstance() : StdArray(genName(), sizeof(std::array<Element, Count>)) {}
-        virtual ~StdArrayInstance() = default;
+        TStdArray() : StdArray(genName(), sizeof(std::array<Element, Count>)) {}
+        virtual ~TStdArray() = default;
     };
 }

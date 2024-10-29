@@ -143,7 +143,7 @@ namespace xxx::editor
 
                     ImGui::SameLine();
                     ImGui::PushItemWidth(componentWidth);
-                    EnumCombo<Shader::ParameterType>("##Type", &parameterType); ImGui::SameLine();
+                    EnumerationCombo<Shader::ParameterType>("##Type", &parameterType); ImGui::SameLine();
                     ImGui::InputText("##Name", &parameterName);
                     ImGui::PopItemWidth();
                 }

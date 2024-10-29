@@ -5,6 +5,7 @@
 
 #define LOG_TRACE(...) 
 
+#if 0
 namespace xxx
 {
     class Logger
@@ -65,3 +66,5 @@ namespace xxx
         std::filesystem::path mLogDir;
     };
 }
+#endif // 0
+

@@ -101,7 +101,7 @@ namespace xxx
     {
         template <> inline Type* Reflection::createType<MeshRenderer>()
         {
-            Class* clazz = new ClassInstance<MeshRenderer, Component>("MeshRenderer");
+            Class* clazz = new TClass<MeshRenderer, Component>("MeshRenderer");
             clazz->addProperty("Mesh", &MeshRenderer::mMesh);
             clazz->addProperty("OverlayMaterials", &MeshRenderer::mOverlayMaterials);
             return clazz;

@@ -29,7 +29,7 @@ namespace xxx
             // apply and clear image
             apply();
             texture2d->setImage(nullptr);
-            std::tie(mPixelFormat, mPixelType) = getPixelFormatAndTypeFromFormat(mFormat);
+            std::tie(mPixelFormat, mPixelType) = choosePixelFormatAndTypeByFormat(mFormat);
         }
         virtual ~Texture2D() = default;
 

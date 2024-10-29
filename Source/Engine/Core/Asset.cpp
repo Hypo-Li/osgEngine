@@ -1,5 +1,5 @@
 #include "Asset.h"
-#include "AssetManager.h"
+#include <Engine/Core/Context.h>
 
 namespace xxx
 {
@@ -7,7 +7,8 @@ namespace xxx
 
     Asset::Asset(const std::string& path) :
         mPath(path),
-        mName(mPath.substr(mPath.find_last_of('/') + 1))
+        mName(mPath.substr(mPath.find_last_of('/') + 1)),
+        mRootObject(nullptr)
     {
         std::filesystem::path fullPath = convertAssetPathToFullPath(mPath);
 
@@ -37,7 +38,7 @@ namespace xxx
                 {
                     ImportItem importItem = *(ImportItem*)(dataPtr);
                     dataPtr += sizeof(ImportItem);
-                    mImportedObjects.insert(importItem.objectGuid);
+                    mImportedObjectGuids.insert(importItem.objectGuid);
                 }
 
                 ifs.seekg(sizeof(AssetHeader) + header.stringTableSize + header.importTableSize + sizeof(uint32_t));
@@ -45,40 +46,6 @@ namespace xxx
                 ifs.read((char*)(&rootObjectItem), sizeof(ExportItem));
                 mGuid = rootObjectItem.objectGuid;
             }
-        }
-    }
-
-    void Asset::setRootObject(Object* rootObject)
-    {
-        if (mRootObject == rootObject)
-            return;
-
-        AssetManager& am = AssetManager::get();
-        am.mGuidAssetMap.erase(mGuid);
-        mRootObject = rootObject;
-        if (rootObject)
-        {
-            Guid newGuid = rootObject->getGuid();
-            mGuid = newGuid;
-            am.mGuidAssetMap.emplace(newGuid, this);
-            mClass = mRootObject->getClass();
-            mIsLoaded = true;
-        }
-        else if (mGuid.isValid())
-        {
-            am.mGuidAssetMap.emplace(mGuid, this);
-        }
-    }
-
-    void Asset::setPath(const std::string& path)
-    {
-        std::string newPath = std::filesystem::path(path).make_preferred().string();
-        if (mPath == newPath)
-        {
-            AssetManager& am = AssetManager::get();
-            am.mPathAssetMap.erase(mPath);
-            am.mPathAssetMap.emplace(newPath, this);
-            mPath = newPath;
         }
     }
 
@@ -94,30 +61,41 @@ namespace xxx
         readExportEable(ifs, assetLoader, header);
         readObjectBuffers(ifs, assetLoader, header);
 
-        mImportedObjects.clear();
-        std::unordered_set<osg::ref_ptr<Object>> exportedObjectsTemp(mExportedObjects.begin(), mExportedObjects.end());
-        mExportedObjects.clear();
-
         Object* rootObject = nullptr;
         assetLoader->serialize(&rootObject);
-        setRootObject(rootObject);
 
+        mImportedObjectGuids.clear();
+        for (const ImportItem& item : assetLoader->getImportTable())
+            mImportedObjectGuids.insert(item.objectGuid);
+
+        mRootObject = rootObject;
         mIsLoaded = true;
+    }
+
+    bool Asset::unload()
+    {
+        if (mRootObject->referenceCount() == 1)
+        {
+            mRootObject = nullptr;
+            mIsLoaded = false;
+            return true;
+        }
+        return false;
     }
 
     void Asset::save()
     {
-        std::ofstream ofs(convertAssetPathToFullPath(mPath), std::ios::binary);
         AssetSerializer* assetSaver = new AssetSaver(this);
         AssetHeader header;
 
-        mImportedObjects.clear();
-        std::unordered_set<osg::ref_ptr<Object>> exportedObjectsTemp(mExportedObjects.begin(), mExportedObjects.end());
-        mExportedObjects.clear();
-
-        Object* rootObject = getRootObject();
+        Object* rootObject = mRootObject;
         assetSaver->serialize(&rootObject);
 
+        mImportedObjectGuids.clear();
+        for (const ImportItem& item : assetSaver->getImportTable())
+            mImportedObjectGuids.insert(item.objectGuid);
+
+        std::ofstream ofs(convertAssetPathToFullPath(mPath), std::ios::binary);
         writeAssetHeader(ofs, assetSaver, header);
         writeStringTable(ofs, assetSaver, header);
         writeImportTable(ofs, assetSaver, header);

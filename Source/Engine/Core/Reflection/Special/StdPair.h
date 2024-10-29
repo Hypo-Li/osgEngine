@@ -32,7 +32,7 @@ namespace xxx::refl
 
     class Reflection;
     template <typename T, typename = std::enable_if_t<is_instance_of_v<T, std::pair>>>
-    class StdPairInstance : public StdPair
+    class TStdPair : public StdPair
     {
         friend class Reflection;
         using First = container_traits_t1<T>;
@@ -104,6 +104,6 @@ namespace xxx::refl
             return name;
         }
 
-        StdPairInstance() : StdPair(genName(), sizeof(std::pair<First, Second>)) {}
+        TStdPair() : StdPair(genName(), sizeof(std::pair<First, Second>)) {}
     };
 }

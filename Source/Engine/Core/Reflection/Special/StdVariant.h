@@ -14,8 +14,9 @@ namespace xxx::refl
         }
 
         virtual std::vector<Type*> getTypes() const = 0;
-        virtual uint32_t getTypeIndex(void* instance) const = 0;
+        virtual uint32_t getTypeIndex(const void* instance) const = 0;
         virtual void* getValuePtr(void* instance) const = 0;
+        virtual const void* getValuePtr(const void* instance) const = 0;
         virtual void setValueByTypeIndex(void* instance, uint32_t typeIndex, void* value) const = 0;
 
     protected:
@@ -24,7 +25,7 @@ namespace xxx::refl
 
     class Reflection;
     template <typename T, typename = std::enable_if_t<is_instance_of_v<T, std::variant>>>
-    class StdVariantInstance : public StdVariant
+    class TStdVariant : public StdVariant
     {
         friend class Reflection;
         template <std::size_t... Is>
@@ -76,6 +77,9 @@ namespace xxx::refl
 
         virtual bool compare(const void* instance1, const void* instance2) const override
         {
+            uint32_t instance1TypeIndex = getTypeIndex(instance1);
+            if (instance1TypeIndex == getTypeIndex(instance2) && getTypes().at(instance1TypeIndex)->compare(getValuePtr(instance1), getValuePtr(instance2)))
+                return true;
             return false;
         }
 
@@ -84,15 +88,21 @@ namespace xxx::refl
             return getTypesImpl(std::make_index_sequence<std::variant_size_v<T>>());
         }
 
-        virtual uint32_t getTypeIndex(void* instance) const override
+        virtual uint32_t getTypeIndex(const void* instance) const override
         {
-            T* variant = static_cast<T*>(instance);
+            const T* variant = static_cast<const T*>(instance);
             return variant->index();
         }
 
         virtual void* getValuePtr(void* instance) const override
         {
             T* variant = static_cast<T*>(instance);
+            return getValuePtrImpl<0>(variant);
+        }
+
+        virtual const void* getValuePtr(const void* instance) const override
+        {
+            T* variant = static_cast<T*>(const_cast<void*>(instance));
             return getValuePtrImpl<0>(variant);
         }
 
@@ -123,6 +133,6 @@ namespace xxx::refl
             return name;
         }
 
-        StdVariantInstance() : StdVariant(genName(), sizeof(T)) {}
+        TStdVariant() : StdVariant(genName(), sizeof(T)) {}
     };
 }

@@ -54,7 +54,7 @@ namespace xxx
         objectBuffer.writeData(data, count);
     }
 
-    void AssetSaver::serializeEnum(Enum* enumeration, void* data, size_t count)
+    void AssetSaver::serializeEnumeration(Enumeration* enumeration, void* data, size_t count)
     {
         std::vector<std::string> valueNames(count);
         for (size_t i = 0; i < count; ++i)

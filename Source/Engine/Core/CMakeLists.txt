@@ -3,14 +3,14 @@ add_library (
     "Reflection/Any.h"
     "Reflection/Argument.h"
     "Reflection/Class.h"
-    "Reflection/Enum.h"
+    "Reflection/Enumeration.h"
     "Reflection/Fundamental.h"
     "Reflection/Method.h"
     "Reflection/Property.h"
     "Reflection/Reflection.h"
     
     "Reflection/Special.h"
-    "Reflection/Struct.h"
+    "Reflection/Structure.h"
     "Reflection/Type.h"
     "Reflection/Special/StdArray.h"
     "Reflection/Special/StdMap.h"
@@ -32,4 +32,4 @@ add_library (
     "Engine.h"
 
     "Serialization/Serializer.h"
- "Reflection/Metadata.h" "Asset.h" "Object.cpp" "AssetManager.h" "Serialization/AssetSaver.h" "Serialization/Serializer.cpp" "Serialization/AssetSaver.cpp" "Scene.h" "Serialization/AssetSerializer.h" "Serialization/AssetSerializer.cpp" "Serialization/JsonSerializer.h" "Prefab.h" "Prefab.cpp" "Asset.cpp" "AssetManager.cpp" "Serialization/AssetLoader.cpp"   "Guid.h" "Guid.cpp" "OsgReflection.h")
+ "Reflection/Metadata.h" "Asset.h" "Object.cpp" "AssetManager.h" "Serialization/AssetSaver.h" "Serialization/Serializer.cpp" "Serialization/AssetSaver.cpp" "Scene.h" "Serialization/AssetSerializer.h" "Serialization/AssetSerializer.cpp" "Serialization/JsonSerializer.h" "Prefab.h" "Prefab.cpp" "Asset.cpp" "AssetManager.cpp" "Serialization/AssetLoader.cpp" "OsgReflection.h" "Scene.cpp")

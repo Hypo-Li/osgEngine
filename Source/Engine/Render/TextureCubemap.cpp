@@ -6,7 +6,7 @@ namespace xxx
     {
         template <> Type* Reflection::createType<TextureCubemap>()
         {
-            Class* clazz = new ClassInstance<TextureCubemap, Texture>("TextureCubemap");
+            Class* clazz = new TClass<TextureCubemap, Texture>("TextureCubemap");
             clazz->addProperty("Size", &TextureCubemap::mSize);
             return clazz;
         }

@@ -8,7 +8,6 @@ namespace xxx
 {
     class AssetManager
     {
-        friend class Asset;
     public:
         AssetManager()
         {
@@ -66,8 +65,32 @@ namespace xxx
             }
         }
 
+        void setAssetRootObject(Asset* asset, Object* rootObject)
+        {
+            if (asset->mRootObject == rootObject)
+                return;
+
+            if (rootObject && rootObject->getGuid() != asset->getGuid())
+            {
+                mGuidAssetMap.erase(asset->getGuid());
+                mGuidAssetMap.emplace(rootObject->getGuid(), asset);
+            }
+
+            asset->setRootObject(rootObject);
+        }
+
+        void setAssetPath(Asset* asset, const std::string& path)
+        {
+            if (asset->mPath == path)
+                return;
+
+            mPathAssetMap.erase(asset->mPath);
+            mPathAssetMap.emplace(path, asset);
+            asset->setPath(path);
+        }
+
     private:
-        std::unordered_set<osg::ref_ptr<Asset>> mAssets;
+        std::set<osg::ref_ptr<Asset>> mAssets;
         std::unordered_map<std::string, Asset*> mPathAssetMap;
         std::unordered_map<Guid, Asset*> mGuidAssetMap;
     };

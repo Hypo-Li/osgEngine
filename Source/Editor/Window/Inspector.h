@@ -108,7 +108,7 @@ namespace xxx::editor
         {
             for (refl::Class* c : clazz->getDerivedClasses())
             {
-                if (!c->isAbstruct())
+                if (c->getDefaultObject() != nullptr)
                     mComponentClasses.emplace_back(c);
                 collectComponentClassesRecursively(c);
             }

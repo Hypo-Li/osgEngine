@@ -65,6 +65,7 @@ namespace xxx
         return mObjectBufferTable.size() - 1;
     }
 
+    // TODO: don't add imported and exported object by Asset's method, Asset get them from mImportTable and TempObjects
     int32_t AssetSerializer::getIndexOfObject(Object* object)
     {
         int32_t index = 0;
@@ -85,7 +86,7 @@ namespace xxx
                 // if no saved
                 mImportTable.push_back({ object->getGuid(), addString(object->getAsset()->getPath()) });
                 index = mImportTable.size() - 1;
-                mAsset->addImportedObject(object);
+                //mAsset->addImportedObject(object);
             }
             else
             {
@@ -111,7 +112,8 @@ namespace xxx
                 index = mExportTable.size();
                 std::string className(object->getClass()->getName());
                 mExportTable.push_back({ object->getGuid(), addString(className) });
-                mAsset->addExportedObject(object);
+                mTempObjects[index] = object;
+                //mAsset->addExportedObject(object);
 
                 pushObjectBufferIndex(createNewObjectBuffer());
                 serializeObject(object);
@@ -154,7 +156,7 @@ namespace xxx
             else
             {
                 object = asset->getRootObject();
-                mAsset->addImportedObject(object);
+                //mAsset->addImportedObject(object);
             }
         }
         else
@@ -169,7 +171,7 @@ namespace xxx
                 object = static_cast<Object*>(clazz->newInstance());
                 object->setGuid(guid);
                 mTempObjects[index] = object;
-                mAsset->addExportedObject(object);
+                //mAsset->addExportedObject(object);
 
                 // object->mGuid = guid;
                 pushObjectBufferIndex(index);
@@ -196,12 +198,12 @@ namespace xxx
         }
         case refl::Type::Kind::Enumeration:
         {
-            serializeEnum(dynamic_cast<Enum*>(type), data, count);
+            serializeEnumeration(dynamic_cast<Enumeration*>(type), data, count);
             break;
         }
         case refl::Type::Kind::Structure:
         {
-            serializeStruct(dynamic_cast<Struct*>(type), data, count);
+            serializeStructure(dynamic_cast<Structure*>(type), data, count);
             break;
         }
         case refl::Type::Kind::Class:
@@ -249,7 +251,7 @@ namespace xxx
             serializeArithmetic((double*)(data), count);
     }
 
-    void AssetSerializer::serializeStruct(Struct* structure, void* data, size_t count)
+    void AssetSerializer::serializeStructure(Structure* structure, void* data, size_t count)
     {
         for (uint32_t i = 0; i < count; ++i)
         {

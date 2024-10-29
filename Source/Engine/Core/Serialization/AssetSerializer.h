@@ -1,6 +1,6 @@
 #pragma once
 #include "Serializer.h"
-#include "../Guid.h"
+#include <Engine/Utility/Guid.h>
 #include <stack>
 
 namespace xxx
@@ -171,7 +171,7 @@ namespace xxx
 
         virtual void serializeType(refl::Type* type, void* data, size_t count = 1) override;
         virtual void serializeFundamental(refl::Fundamental* fundamental, void* data, size_t count = 1) override;
-        virtual void serializeStruct(refl::Struct* structure, void* data, size_t count = 1) override;
+        virtual void serializeStructure(refl::Structure* structure, void* data, size_t count = 1) override;
         virtual void serializeSpecial(refl::Special* special, void* data, size_t count = 1) override;
 
         virtual void serializeStdArray(refl::StdArray* stdArray, void* data, size_t count = 1) override;

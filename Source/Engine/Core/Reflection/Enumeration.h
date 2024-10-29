@@ -6,7 +6,7 @@
 namespace xxx::refl
 {
     class Reflection;
-    class Enum : public Type
+    class Enumeration : public Type
     {
     public:
         virtual void setValue(void* instance, int64_t value) const = 0;
@@ -79,7 +79,7 @@ namespace xxx::refl
         }
 
     protected:
-        Enum(std::string_view name, size_t size) :
+        Enumeration(std::string_view name, size_t size) :
             Type(name, size, Kind::Enumeration)
         {}
 
@@ -87,7 +87,7 @@ namespace xxx::refl
     };
 
     template <typename T, typename = std::enable_if_t<std::is_enum_v<T>>>
-    class EnumInstance : public Enum
+    class TEnumeration : public Enumeration
     {
         friend class Reflection;
     public:
@@ -129,8 +129,8 @@ namespace xxx::refl
         }
 
     protected:
-        EnumInstance(std::string_view name, std::initializer_list<std::pair<std::string_view, T>> values) :
-            Enum(name, sizeof(T))
+        TEnumeration(std::string_view name, std::initializer_list<std::pair<std::string_view, T>> values) :
+            Enumeration(name, sizeof(T))
         {
             for (std::pair<std::string_view, T> value : values)
                 mValues.emplace_back(value.first, static_cast<int64_t>(value.second));

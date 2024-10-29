@@ -21,7 +21,7 @@ namespace xxx
     {
         template <> Type* Reflection::createType<Component>()
         {
-            Class* clazz = new ClassInstance<Component>("Component");
+            Class* clazz = new TClass<Component>("Component");
             clazz->addProperty("Entity", &Component::mEntity);
             return clazz;
         }

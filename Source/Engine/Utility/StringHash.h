@@ -2,6 +2,7 @@
 #include <string>
 #include <cstring>
 
+#if 0
 namespace xxx
 {
     class StringHashPool
@@ -23,7 +24,7 @@ namespace xxx
                 // LOG_ERROR: Need to change hash seed!
             }
 #endif // _DEBUG
-            
+
         }
 
     private:
@@ -41,3 +42,5 @@ namespace xxx
         static uint64_t _sSeed0, _sSeed1;
     };
 }
+
+#endif // 0

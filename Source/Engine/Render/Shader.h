@@ -195,7 +195,7 @@ namespace xxx
     {
         template <> inline Type* Reflection::createType<Shader::ParameterType>()
         {
-            Enum* enumeration = new EnumInstance<Shader::ParameterType>("Shader::ParameterType", {
+            Enumeration* enumeration = new TEnumeration<Shader::ParameterType>("Shader::ParameterType", {
                 {"Bool", Shader::ParameterType::Bool},
                 {"Int", Shader::ParameterType::Int},
                 {"Float", Shader::ParameterType::Float},
@@ -213,7 +213,7 @@ namespace xxx
         template <>
         inline Type* Reflection::createType<Shader>()
         {
-            Class* clazz = new ClassInstance<Shader>("Shader");
+            Class* clazz = new TClass<Shader>("Shader");
             clazz->addProperty("Parameters", &Shader::mParameters);
             clazz->addProperty("Source", &Shader::mSource);
             return clazz;

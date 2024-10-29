@@ -13,7 +13,7 @@ namespace xxx::refl
     };
 
     template <typename T, typename = std::enable_if_t<std::is_fundamental_v<T>>>
-    class FundamentalInstance : public Fundamental
+    class TFundamental : public Fundamental
     {
         friend class Reflection;
     public:
@@ -63,7 +63,7 @@ namespace xxx::refl
                 return sizeof(T);
         }
 
-        FundamentalInstance(std::string_view name) :
+        TFundamental(std::string_view name) :
             Fundamental(name, sizeOf<T>())
         {}
     };

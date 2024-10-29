@@ -361,7 +361,7 @@ namespace xxx
 
         osg::ref_ptr<osg::Texture> mOsgTexture = nullptr;
 
-        static std::pair<PixelFormat, PixelType> getPixelFormatAndTypeFromFormat(Format format);
+        static std::pair<PixelFormat, PixelType> choosePixelFormatAndTypeByFormat(Format format);
 
         static std::string getImageFormatName(Format format);
 

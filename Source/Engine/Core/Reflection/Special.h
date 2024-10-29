@@ -15,6 +15,19 @@ namespace xxx::refl
     template <template <class...> class U, class... Vs>
     constexpr bool is_instance_of_v<U<Vs...>, U> = std::true_type{};
 
+    template <typename T>
+    constexpr bool is_special_v =
+        std::is_same_v<T, std::string> ||
+        is_std_array_v<T> ||
+        is_instance_of_v<T, std::map> ||
+        is_instance_of_v<T, std::pair> ||
+        is_instance_of_v<T, std::set> ||
+        is_instance_of_v<T, std::tuple> ||
+        is_instance_of_v<T, std::unordered_map> ||
+        is_instance_of_v<T, std::unordered_set> ||
+        is_instance_of_v<T, std::variant> ||
+        is_instance_of_v<T, std::vector>;
+
     // container Traits
     template <typename T>
     struct container_traits;

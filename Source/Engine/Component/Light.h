@@ -2,7 +2,8 @@
 #include <Engine/Core/Component.h>
 #include <Engine/Core/Engine.h>
 #include <Engine/Core/Context.h>
-#include <Engine/Render/Texture.h>
+#include <Engine/Render/Texture2D.h>
+#include <Engine/Render/TextureCubemap.h>
 
 namespace xxx
 {
@@ -289,13 +290,13 @@ namespace xxx
     {
         template <> Type* Reflection::createType<Light>()
         {
-            Class* clazz = new ClassInstance<Light, Component>("Light");
+            Class* clazz = new TClass<Light, Component>("Light");
             return clazz;
         }
 
         template <> Type* Reflection::createType<DirectionalLight>()
         {
-            Class* clazz = new ClassInstance<DirectionalLight, Light>("DirectionalLight");
+            Class* clazz = new TClass<DirectionalLight, Light>("DirectionalLight");
             clazz->addProperty("Intensity", &DirectionalLight::mIntensity);
             clazz->addProperty("Color", &DirectionalLight::mColor);
             clazz->addProperty("CastShadows", &DirectionalLight::mCastShadows);
@@ -306,7 +307,7 @@ namespace xxx
 
         template <> Type* Reflection::createType<ImageBasedLight>()
         {
-            Class* clazz = new ClassInstance<ImageBasedLight, Light>("ImageBasedLight");
+            Class* clazz = new TClass<ImageBasedLight, Light>("ImageBasedLight");
             return clazz;
         }
     }

@@ -1,5 +1,5 @@
 #pragma once
-#include "Reflection/Reflection.h"
+#include <Engine/Core/Reflection/Reflection.h>
 
 #include <string>
 
@@ -9,17 +9,8 @@ namespace xxx
     {
         union
         {
-            struct
-            {
-                uint32_t A;
-                uint32_t B;
-                uint32_t C;
-                uint32_t D;
-            };
-            struct
-            {
-                uint64_t data[2];
-            };
+            struct { uint32_t A, B, C, D; };
+            struct { uint64_t data[2]; };
         };
 
         Guid()

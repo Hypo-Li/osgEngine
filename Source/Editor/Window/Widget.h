@@ -41,10 +41,10 @@ namespace xxx::editor
     }
 
     template <typename T>
-    static bool EnumCombo(const char* label, T* previewValue)
+    static bool EnumerationCombo(const char* label, T* previewValue)
     {
         bool result = false;
-        refl::Enum* enumeration = refl::Reflection::getEnum<T>();
+        refl::Enumeration* enumeration = refl::Reflection::getEnumeration<T>();
         std::string currentValueName(enumeration->getNameByValue(int64_t(*previewValue)));
         if (ImGui::BeginCombo(label, currentValueName.c_str()))
         {
@@ -101,7 +101,7 @@ namespace xxx::editor
             return ImGui::DragScalar(label.c_str(), ImGuiDataType_Double, data);
     }
 
-    static bool EnumWidget(const std::string& label, refl::Enum* enumeration, void* data)
+    static bool EnumWidget(const std::string& label, refl::Enumeration* enumeration, void* data)
     {
         bool result = false;
         int64_t value = enumeration->getValue(data);
@@ -129,13 +129,13 @@ namespace xxx::editor
         return result;
     }
 
-    static bool StructWidget(const std::string& label, refl::Struct* structure, void* data)
+    static bool StructWidget(const std::string& label, refl::Structure* structure, void* data)
     {
-        if (structure == refl::Reflection::getStruct<osg::Vec2f>())
+        if (structure == refl::Reflection::getStructure<osg::Vec2f>())
             return ImGui::DragFloat2(label.c_str(), (float*)data);
-        else if (structure == refl::Reflection::getStruct<osg::Vec3f>())
+        else if (structure == refl::Reflection::getStructure<osg::Vec3f>())
             return ImGui::DragFloat3(label.c_str(), (float*)data);
-        else if (structure == refl::Reflection::getStruct<osg::Vec4f>())
+        else if (structure == refl::Reflection::getStructure<osg::Vec4f>())
             return ImGui::DragFloat4(label.c_str(), (float*)data);
 
         bool result = false;
@@ -169,9 +169,9 @@ namespace xxx::editor
         case refl::Type::Kind::Fundamental:
             return FundamentalWidget(label, dynamic_cast<refl::Fundamental*>(declaredType), propertyData);
         case refl::Type::Kind::Enumeration:
-            return EnumWidget(label, dynamic_cast<refl::Enum*>(declaredType), propertyData);
+            return EnumWidget(label, dynamic_cast<refl::Enumeration*>(declaredType), propertyData);
         case refl::Type::Kind::Structure:
-            return StructWidget(label, dynamic_cast<refl::Struct*>(declaredType), propertyData);
+            return StructWidget(label, dynamic_cast<refl::Structure*>(declaredType), propertyData);
         case refl::Type::Kind::Class:
             return ClassWidget(label, dynamic_cast<refl::Class*>(declaredType), propertyData);
         default:

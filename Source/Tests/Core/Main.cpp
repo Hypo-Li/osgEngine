@@ -187,12 +187,11 @@ int main()
     engineSetupConfig.glContextVersion = "4.6";
     engineSetupConfig.fullScreen = false;
     engineSetupConfig.runMode = RunMode::Edit;
-    Engine* engine = new Engine(engineSetupConfig);
-    osgViewer::CompositeViewer viewer;
+    osgViewer::Viewer* viewer = new osgViewer::Viewer;
+    Engine* engine = new Engine(viewer, engineSetupConfig);
     //viewer.setRealizeOperation(new editor::EditorRealizeOperation);
-    viewer.setThreadingModel(osgViewer::Viewer::SingleThreaded);
-    viewer.addView(engine->getView());
-    viewer.realize();
+    viewer->setThreadingModel(osgViewer::Viewer::SingleThreaded);
+    viewer->realize();
 
     Context::get().getGraphicsContext()->makeCurrent();
 
@@ -255,12 +254,12 @@ int main()
     osg::ref_ptr<TextureCubemap> texture = new TextureCubemap(image, options, 1);
     am.createAsset(texture, "Engine/Texture/WhiteCubemap")->save();*/
 
-    osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "T_Ceramic_Tile_N.PNG");
+    osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "T_Perlin_Noise_M.PNG");
     TextureImportOptions options;
     options.format = Texture::Format::Compressed_RGB_S3TC_DXT1;
     Texture2D* texture = new Texture2D(image, options);
     texture->setDataCompression(true);
-    am.createAsset(texture, "Engine/Texture/T_Ceramic_Tile_N")->save();
+    am.createAsset(texture, "Engine/Texture/T_Perlin_Noise_M")->save();
 
     /*osg::ref_ptr<Mesh> mesh = new Mesh(TEMP_DIR "suzanne.obj");
     mesh->setDefaultMaterial(0, am.getAsset("Engine/Material/TestMaterial")->getRootObject<Material>());

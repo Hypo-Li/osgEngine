@@ -23,7 +23,7 @@ namespace xxx::refl
 
     class Reflection;
     template <typename T, typename = std::enable_if_t<is_instance_of_v<T, std::tuple>>>
-    class StdTupleInstance : public StdTuple
+    class TStdTuple : public StdTuple
     {
         friend class Reflection;
         static constexpr size_t ElementCount = std::tuple_size_v<T>;
@@ -103,6 +103,6 @@ namespace xxx::refl
             return name;
         }
 
-        StdTupleInstance() : StdTuple(genName(), sizeof(T)) {}
+        TStdTuple() : StdTuple(genName(), sizeof(T)) {}
     };
 }

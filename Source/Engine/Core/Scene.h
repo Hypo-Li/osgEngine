@@ -1,5 +1,5 @@
 #pragma once
-#include "Entity.h"
+#include "Prefab.h"
 #include "Asset.h"
 
 namespace xxx
@@ -8,46 +8,47 @@ namespace xxx
     {
         REFLECT_CLASS(Scene)
     public:
-        Scene() = default;
-
-        virtual void postLoad() override
+        Scene(const std::string& name = "") :
+            mRootEntity(new Entity(name))
         {
-            for (Entity* entity : mEntities)
-                mOsgSceneRoot->addChild(entity->getOsgNode());
+            mRootEntity->setOwner(this);
+        }
+        virtual ~Scene() = default;
+
+        const Entity* getRootEntity() const
+        {
+            return mRootEntity;
         }
 
-        void addEntity(Entity* entity)
+        Entity* addPrefabEntity(Prefab* prefab)
         {
-            entity->setOwner(this);
-            entity->setParent(nullptr);
-            mEntities.emplace_back(entity);
-            mOsgSceneRoot->addChild(entity->getOsgNode());
+            if (!prefab)
+                return nullptr;
+            Entity* entity = prefab->generateEntity();
+            mEntityPrefabMap.emplace(entity, prefab);
+            return entity;
         }
 
-        void removeEntity(Entity* entity)
+        Prefab* getPrefab(Entity* entity)
         {
-            mOsgSceneRoot->removeChild(entity->getOsgNode());
-            auto findResult = std::find(mEntities.begin(), mEntities.end(), entity);
-            if (findResult != mEntities.end())
-            {
-                entity->setOwner(nullptr);
-                mEntities.erase(findResult);
-            }
-
+            auto findResult = mEntityPrefabMap.find(entity);
+            if (findResult != mEntityPrefabMap.end())
+                return findResult->second;
+            return nullptr;
         }
 
     protected:
-        std::vector<osg::ref_ptr<Entity>> mEntities;
-
-        osg::ref_ptr<osg::Group> mOsgSceneRoot;
+        osg::ref_ptr<Entity> mRootEntity;
+        std::unordered_map<osg::ref_ptr<Entity>, osg::ref_ptr<Prefab>> mEntityPrefabMap;
     };
 
     namespace refl
     {
         template <> inline Type* Reflection::createType<Scene>()
         {
-            Class* clazz = new ClassInstance<Scene>("Scene");
-            clazz->addProperty("Entities", &Scene::mEntities);
+            Class* clazz = new TClass<Scene>("Scene");
+            clazz->addProperty("RootEntity", &Scene::mRootEntity);
+            clazz->addProperty("EntityPrefabMap", &Scene::mEntityPrefabMap);
             return clazz;
         }
     }

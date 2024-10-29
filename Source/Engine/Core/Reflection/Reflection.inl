@@ -1,8 +1,8 @@
-#include "Fundamental.h"
-#include "Enum.h"
-#include "Struct.h"
-#include "Class.h"
 #include "Special.h"
+#include "Fundamental.h"
+#include "Enumeration.h"
+#include "Structure.h"
+#include "Class.h"
 #include "Special/StdArray.h"
 #include "Special/StdMap.h"
 #include "Special/StdPair.h"
@@ -35,7 +35,7 @@ namespace xxx::refl
     template <> \
     inline static Type* Reflection::createType<type>() \
     { \
-        return new FundamentalInstance<type>(#type); \
+        return new TFundamental<type>(#type); \
     }
 
     template <typename T>
@@ -45,15 +45,15 @@ namespace xxx::refl
     }
 
     template <typename T>
-    static Enum* Reflection::getEnum()
+    static Enumeration* Reflection::getEnumeration()
     {
-        return dynamic_cast<Enum*>(getType<T>());
+        return dynamic_cast<Enumeration*>(getType<T>());
     }
 
     template <typename T>
-    static Struct* Reflection::getStruct()
+    static Structure* Reflection::getStructure()
     {
-        return dynamic_cast<Struct*>(getType<T>());
+        return dynamic_cast<Structure*>(getType<T>());
     }
 
     template <typename T>
@@ -92,23 +92,23 @@ namespace xxx::refl
         else if constexpr (std::is_same_v<T, std::string>)
             return new StdString;
         else if constexpr (is_std_array_v<T>)
-            return new StdArrayInstance<T>;
+            return new TStdArray<T>;
         else if constexpr (is_instance_of_v<T, std::map>)
-            return new StdMapInstance<T>;
+            return new TStdMap<T>;
         else if constexpr (is_instance_of_v<T, std::pair>)
-            return new StdPairInstance<T>;
+            return new TStdPair<T>;
         else if constexpr (is_instance_of_v<T, std::set>)
-            return new StdSetInstance<T>;
+            return new TStdSet<T>;
         else if constexpr (is_instance_of_v<T, std::tuple>)
-            return new StdTupleInstance<T>;
+            return new TStdTuple<T>;
         else if constexpr (is_instance_of_v<T, std::unordered_map>)
-            return new StdUnorderedMapInstance<T>;
+            return new TStdUnorderedMap<T>;
         else if constexpr (is_instance_of_v<T, std::unordered_set>)
-            return new StdUnorderedSetInstance<T>;
+            return new TStdUnorderedSet<T>;
         else if constexpr (is_instance_of_v<T, std::variant>)
-            return new StdVariantInstance<T>;
+            return new TStdVariant<T>;
         else if constexpr (is_instance_of_v<T, std::vector>)
-            return new StdVectorInstance<T>;
+            return new TStdVector<T>;
         else
             static_assert(false, "T is a unreflectable type.");
     }

@@ -10,7 +10,7 @@ namespace xxx::refl
     template <>
     inline Type* Reflection::createType<osg::Vec2f>()
     {
-        Struct* structure = new StructInstance<osg::Vec2f>("osg::Vec2f");
+        Structure* structure = new TStructure<osg::Vec2f>("osg::Vec2f");
         structure->addProperty<0>("x", &osg::Vec2f::_v);
         structure->addProperty<1>("y", &osg::Vec2f::_v);
         return structure;
@@ -19,7 +19,7 @@ namespace xxx::refl
     template <>
     inline Type* Reflection::createType<osg::Vec3f>()
     {
-        Struct* structure = new StructInstance<osg::Vec3f>("osg::Vec3f");
+        Structure* structure = new TStructure<osg::Vec3f>("osg::Vec3f");
         structure->addProperty<0>("x", &osg::Vec2f::_v);
         structure->addProperty<1>("y", &osg::Vec2f::_v);
         structure->addProperty<2>("z", &osg::Vec2f::_v);
@@ -29,7 +29,7 @@ namespace xxx::refl
     template <>
     inline Type* Reflection::createType<osg::Vec4f>()
     {
-        Struct* structure = new StructInstance<osg::Vec4f>("osg::Vec4f");
+        Structure* structure = new TStructure<osg::Vec4f>("osg::Vec4f");
         structure->addProperty<0>("x", &osg::Vec2f::_v);
         structure->addProperty<1>("y", &osg::Vec2f::_v);
         structure->addProperty<2>("z", &osg::Vec2f::_v);

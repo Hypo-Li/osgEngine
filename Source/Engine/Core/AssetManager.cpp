@@ -19,7 +19,7 @@ namespace xxx
         {
             asset = findResult->second;
         }
-        asset->setRootObject(rootObject);
+        setAssetRootObject(asset, rootObject);
         return asset;
     }
 

@@ -31,29 +31,20 @@ namespace xxx
         uint32_t objectBufferCount;
     };
 
+    class AssetManager;
+
     class Asset : public osg::Referenced
     {
+        friend class AssetManager;
     public:
         Asset(const std::string& path);
 
         virtual ~Asset() = default;
 
-        template <typename T = Object, std::enable_if_t<std::is_base_of_v<Object, T>, int> = 0>
-        T* getRootObject()
-        {
-            if (!isLoaded())
-                load();
-            return dynamic_cast<T*>(mRootObject.get());
-        }
-
         inline bool isLoaded() const
         {
             return mIsLoaded;
         }
-
-        void setRootObject(Object* rootObject);
-
-        void setPath(const std::string& path);
 
         inline const std::string& getPath() const
         {
@@ -65,33 +56,29 @@ namespace xxx
             return mName;
         }
 
-        inline Guid getGuid() const
-        {
-            return mGuid;
-        }
-
         inline refl::Class* getClass() const
         {
             return mClass;
         }
 
+        inline Guid getGuid() const
+        {
+            return mGuid;
+        }
+
+        template <typename T = Object, std::enable_if_t<std::is_base_of_v<Object, T>, int> = 0>
+        T* getRootObject()
+        {
+            if (!isLoaded())
+                load();
+            return dynamic_cast<T*>(mRootObject.get());
+        }
+
         void load();
 
+        bool unload();
+
         void save();
-
-        inline void addImportedObject(Object* object)
-        {
-            if (!object)
-                return;
-            mImportedObjects.insert(object->getGuid());
-        }
-
-        inline void addExportedObject(Object* object)
-        {
-            if (!object)
-                return;
-            mExportedObjects.insert(object);
-        }
 
         static std::string convertFullPathToAssetPath(const std::filesystem::path& fullPath);
 
@@ -103,13 +90,29 @@ namespace xxx
         refl::Class* mClass;
         Guid mGuid;
         bool mIsLoaded = false;
-
         osg::ref_ptr<Object> mRootObject;
+        std::unordered_set<Guid> mImportedObjectGuids;
 
-        // ImportedObjects仅保留其Guid, 并且在Asset初始化时就需要初始化ImportedObjects
-        std::unordered_set<Guid> mImportedObjects;
-        // ExportedObjects保留其序列化生成的Object指针
-        std::unordered_set<osg::ref_ptr<Object>> mExportedObjects;
+        void setRootObject(Object* rootObject)
+        {
+            mRootObject = rootObject;
+            if (mRootObject)
+            {
+                mGuid = rootObject->getGuid();
+                mClass = rootObject->getClass();
+            }
+            else
+            {
+                mGuid = Guid();
+                mClass = nullptr;
+            }
+        }
+
+        void setPath(const std::string& path)
+        {
+            mPath = path;
+            mName = mPath.substr(mPath.find_last_of('/') + 1);
+        }
 
         static void readAssetHeader(std::ifstream& ifs, AssetHeader& header)
         {

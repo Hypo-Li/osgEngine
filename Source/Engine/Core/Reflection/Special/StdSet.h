@@ -31,7 +31,7 @@ namespace xxx::refl
 
     class Reflection;
     template <typename T, typename = std::enable_if_t<is_instance_of_v<T, std::set>>>
-    class StdSetInstance : public StdSet
+    class TStdSet : public StdSet
     {
         friend class Reflection;
         using Element = container_traits_t<T>;
@@ -105,6 +105,6 @@ namespace xxx::refl
             return name;
         }
 
-        StdSetInstance() : StdSet(genName(), sizeof(std::set<Element>)) {}
+        TStdSet() : StdSet(genName(), sizeof(std::set<Element>)) {}
     };
 }
