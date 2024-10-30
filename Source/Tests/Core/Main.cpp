@@ -254,17 +254,19 @@ int main()
     osg::ref_ptr<TextureCubemap> texture = new TextureCubemap(image, options, 1);
     am.createAsset(texture, "Engine/Texture/WhiteCubemap")->save();*/
 
-    osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "T_Perlin_Noise_M.PNG");
+    /*osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "T_Perlin_Noise_M.PNG");
     TextureImportOptions options;
     options.format = Texture::Format::Compressed_RGB_S3TC_DXT1;
     Texture2D* texture = new Texture2D(image, options);
     texture->setDataCompression(true);
-    am.createAsset(texture, "Engine/Texture/T_Perlin_Noise_M")->save();
+    am.createAsset(texture, "Engine/Texture/T_Perlin_Noise_M")->save();*/
 
     /*osg::ref_ptr<Mesh> mesh = new Mesh(TEMP_DIR "suzanne.obj");
     mesh->setDefaultMaterial(0, am.getAsset("Engine/Material/TestMaterial")->getRootObject<Material>());
     mesh->setDataCompression(true);
     am.createAsset(mesh, "Engine/Mesh/Suzanne")->save();*/
+
+    osg::Node* lod = osgDB::readNodeFile(TEMP_DIR "suzanne.obj");
 
     Context::get().getGraphicsContext()->releaseContext();
 

@@ -1,6 +1,8 @@
 #pragma once
 #include "Material.h"
 
+#if 1
+
 namespace xxx
 {
     struct VertexAttributeView
@@ -41,9 +43,20 @@ namespace xxx
 
         virtual void postLoad() override;
 
+        uint32_t getLODCount() const
+        {
+            return mOsgLODSubmeshes.size();
+        }
+
+        using SubmeshGeometries = std::vector<osg::ref_ptr<osg::Geometry>>;
+        const SubmeshGeometries& getSubmesheGeometries(uint32_t LOD) const
+        {
+            return mOsgLODSubmeshes[LOD];
+        }
+
         uint32_t getSubmeshCount() const
         {
-            return mOsgGeometryDatas.size();
+            return mOsgLODSubmeshes[0].size();
         }
 
         void setDefaultMaterial(uint32_t index, Material* material)
@@ -70,23 +83,16 @@ namespace xxx
             return mDataCompression;
         }
 
-        std::vector<osg::ref_ptr<osg::Geometry>> generateGeometries();
-
     protected:
-        bool mDataCompression = false;
+        bool mDataCompression = true;
         std::vector<uint8_t> mData;
-        std::vector<SubmeshView> mSubmeshViews;
+        std::vector<std::vector<SubmeshView>> mLODSubmeshViews;
         std::vector<osg::ref_ptr<Material>> mDefaultMaterials;
 
-        struct OsgGeometryData
-        {
-            std::vector<std::pair<uint32_t, osg::ref_ptr<osg::Array>>> vertexAttributes;
-            osg::ref_ptr<osg::DrawElements> drawElements;
-        };
-        std::vector<OsgGeometryData> mOsgGeometryDatas;
+        std::vector<SubmeshGeometries> mOsgLODSubmeshes;
 
-        static osg::Array* createOsgArrayByVertexAttributeView(VertexAttributeView& vav, uint8_t* data);
-        static osg::DrawElements* createOsgDrawElementsByIndexBufferView(IndexBufferView& ibv, uint8_t* data);
+        osg::Array* createOsgArrayByVertexAttributeView(const VertexAttributeView& vav);
+        osg::DrawElements* createOsgDrawElementsByIndexBufferView(const IndexBufferView& ibv);
 
         void compressData()
         {
@@ -117,3 +123,5 @@ namespace xxx
         template <> Type* Reflection::createType<Mesh>();
     }
 }
+#endif // 0
+
