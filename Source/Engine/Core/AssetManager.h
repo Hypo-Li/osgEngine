@@ -14,7 +14,7 @@ namespace xxx
             const std::filesystem::path& engineAssetPath = Context::get().getEngineAssetPath();
             for (const auto& file : std::filesystem::recursive_directory_iterator(engineAssetPath))
             {
-                if (file.is_regular_file())
+                if (file.is_regular_file() && file.path().extension() == ".xast")
                 {
                     createAsset(nullptr, Asset::convertFullPathToAssetPath(file.path()));
                 }

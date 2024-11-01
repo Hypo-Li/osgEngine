@@ -1,68 +1,53 @@
 #include "Mesh.h"
+#include <cassert>
 
-#include <osg/MatrixTransform>
 #include <osg/Material>
-#include <osgDB/ReadFile>
 #include <osgUtil/Optimizer>
-#include <osgUtil/MeshOptimizers>
 #include <osgUtil/TangentSpaceGenerator>
-
-#include <stack>
-
+#if 1
 namespace xxx
 {
-    class MeshOptimizeVisitor : public osg::NodeVisitor
+    class MeshProcessVisitor : public osg::NodeVisitor
     {
     public:
-        MeshOptimizeVisitor() : NodeVisitor(TRAVERSE_ALL_CHILDREN), _geode(new osg::Geode) {}
+        MeshProcessVisitor() : NodeVisitor(TRAVERSE_ALL_CHILDREN), mGeode(new osg::Geode) {}
 
         virtual void apply(osg::MatrixTransform& matrixTransform)
         {
-            if (_matrixStack.empty())
-                _matrixStack.push(matrixTransform.getMatrix());
+            if (mMatrixStack.empty())
+                mMatrixStack.push(matrixTransform.getMatrix());
             else
-                _matrixStack.push(_matrixStack.top() * matrixTransform.getMatrix());
+                mMatrixStack.push(mMatrixStack.top() * matrixTransform.getMatrix());
             traverse(matrixTransform);
-            _matrixStack.pop();
+            mMatrixStack.pop();
         }
 
         virtual void apply(osg::Geode& geode)
         {
-            osg::ref_ptr<osgUtil::TangentSpaceGenerator> tangentSpaceGenerator = new osgUtil::TangentSpaceGenerator;
-
             for (unsigned int i = 0; i < geode.getNumDrawables(); ++i)
             {
                 osg::Geometry* geom = dynamic_cast<osg::Geometry*>(geode.getDrawable(i));
                 if (geom)
                 {
-                    _geode->addDrawable(geom);
-
-                    tangentSpaceGenerator->generate(geom);
-                    geom->setVertexAttribArray(_tangentVertexAttributeIndex, tangentSpaceGenerator->getTangentArray());
-                    geom->setVertexAttribBinding(_tangentVertexAttributeIndex, osg::Geometry::BIND_PER_VERTEX);
-
+                    mGeode->addDrawable(geom);
                     if (geom->getStateSet())
                     {
                         osg::Material* material = dynamic_cast<osg::Material*>(geom->getStateSet()->getAttribute(osg::StateAttribute::MATERIAL, 0));
                         if (material)
                         {
-                            auto findResult = _materialStateSetMap.find(material);
-                            if (findResult == _materialStateSetMap.end())
-                            {
-                                _materialStateSetMap.emplace(material, geom->getStateSet());
-                            }
+                            auto findResult = mMaterialStateSetMap.find(material);
+                            if (findResult == mMaterialStateSetMap.end())
+                                mMaterialStateSetMap.emplace(material, geom->getStateSet());
                             else
-                            {
                                 geom->setStateSet(findResult->second);
-                            }
                         }
                     }
                 }
             }
 
-            if (!_matrixStack.empty())
+            if (!mMatrixStack.empty())
             {
-                osg::Matrix modelMatrix = _matrixStack.top();
+                osg::Matrix modelMatrix = mMatrixStack.top();
 
                 osg::Matrix m(modelMatrix);
                 m.setTrans(0.0, 0.0, 0.0);
@@ -71,9 +56,9 @@ namespace xxx
                 matrix.invert(m);
 
                 osg::Matrix normalMatrix(matrix(0, 0), matrix(1, 0), matrix(2, 0), 0,
-                                    matrix(0, 1), matrix(1, 1), matrix(2, 1), 0,
-                                    matrix(0, 2), matrix(1, 2), matrix(2, 2), 0,
-                                    0, 0, 0, 1);
+                                        matrix(0, 1), matrix(1, 1), matrix(2, 1), 0,
+                                        matrix(0, 2), matrix(1, 2), matrix(2, 2), 0,
+                                        0, 0, 0, 1);
                 for (unsigned int i = 0; i < geode.getNumDrawables(); ++i)
                 {
                     osg::Geometry* geom = dynamic_cast<osg::Geometry*>(geode.getDrawable(i));
@@ -89,10 +74,14 @@ namespace xxx
 
         osg::Geode* getGeode()
         {
-            return _geode;
+            return mGeode;
         }
 
-    protected:
+    private:
+        osg::ref_ptr<osg::Geode> mGeode;
+        std::stack<osg::Matrix> mMatrixStack;
+        std::map<osg::ref_ptr<osg::Material>, osg::ref_ptr<osg::StateSet>> mMaterialStateSetMap;
+
         static void applyTransform(osg::Geometry* geom, osg::Matrix& modelMatrix, osg::Matrix& normalMatrix)
         {
             osg::Vec3Array* positions = dynamic_cast<osg::Vec3Array*>(geom->getVertexArray());
@@ -109,120 +98,163 @@ namespace xxx
                     nor.normalize();
                 }
             }
-
-            osg::Vec4Array* tangents = dynamic_cast<osg::Vec4Array*>(geom->getVertexAttribArray(_tangentVertexAttributeIndex));
-            if (tangents)
-            {
-                for (osg::Vec4& tan : *tangents)
-                {
-                    osg::Vec3 tanTemp = osg::Vec3(tan.x(), tan.y(), tan.z()) * normalMatrix;
-                    tanTemp.normalize();
-                    tan = osg::Vec4(tanTemp, tan.w());
-                }
-            }
         }
-
-        std::stack<osg::Matrix> _matrixStack;
-        osg::ref_ptr<osg::Geode> _geode;
-
-        std::map<osg::ref_ptr<osg::Material>, osg::ref_ptr<osg::StateSet>> _materialStateSetMap;
-
-        static const uint32_t _tangentVertexAttributeIndex = 6;
     };
+
+    uint32_t getNodeLOD(osg::Node* node)
+    {
+        const std::string& name = node->getName();
+        size_t pos = name.rfind('.');
+        if (pos == std::string::npos)
+            return 0;
+        std::string lodPostfix = name.substr(pos + 1);
+        if (lodPostfix.size() > 3 && std::string(lodPostfix.data(), 3) == "LOD")
+            return std::stoi(lodPostfix.substr(3));
+        return 0;
+    }
 
     Mesh::Mesh(const std::string& meshPath)
     {
-        osg::ref_ptr<osg::Node> node = osgDB::readNodeFile(meshPath);
-        MeshOptimizeVisitor mov;
-        node->accept(mov);
-        osgUtil::Optimizer optimizer;
-        optimizer.optimize(mov.getGeode(),
-            osgUtil::Optimizer::MERGE_GEOMETRY |
-            osgUtil::Optimizer::INDEX_MESH |
-            osgUtil::Optimizer::VERTEX_POSTTRANSFORM |
-            osgUtil::Optimizer::VERTEX_PRETRANSFORM
-        );
-
-        for (uint32_t i = 0; i < mov.getGeode()->getNumDrawables(); ++i)
+        osg::ref_ptr<osg::Node> meshNode = osgDB::readNodeFile(meshPath);
+        osg::Group* group = dynamic_cast<osg::Group*>(meshNode.get());
+        assert(group);
+        uint32_t childrenCount = group->getNumChildren();
+        mOsgLODSubmeshes.resize(childrenCount);
+        for (uint32_t i = 0; i < childrenCount; ++i)
         {
-            osg::Geometry* geom = dynamic_cast<osg::Geometry*>(mov.getGeode()->getDrawable(i));
-            if (geom)
+            osg::Node* lodNode = group->getChild(i);
+            uint32_t lod = getNodeLOD(lodNode);
+            MeshProcessVisitor mpv;
+            lodNode->accept(mpv);
+            osgUtil::Optimizer optimizer;
+            optimizer.optimize(mpv.getGeode(),
+                osgUtil::Optimizer::MERGE_GEOMETRY |
+                osgUtil::Optimizer::INDEX_MESH
+            );
+            uint32_t submeshCount = mpv.getGeode()->getNumDrawables();
+            mOsgLODSubmeshes[lod].resize(submeshCount);
+
+            static constexpr int TangentVertexAttributeIndex = 6;
+            for (uint32_t j = 0; j < submeshCount; ++j)
             {
-                OsgGeometryData osgGeometryData;
-                osgGeometryData.vertexAttributes.emplace_back(0, geom->getVertexArray());
-                if (geom->getNormalArray())
-                    osgGeometryData.vertexAttributes.emplace_back(2, geom->getNormalArray());
-                if (geom->getColorArray())
-                    osgGeometryData.vertexAttributes.emplace_back(3, geom->getColorArray());
-                uint32_t texcoordIndex = 8;
-                for (osg::Array* texcoordArray : geom->getTexCoordArrayList())
+                osg::ref_ptr<osgUtil::TangentSpaceGenerator> tangentSpaceGenerator = new osgUtil::TangentSpaceGenerator;
+                osg::Geometry* geometry = mpv.getGeode()->getDrawable(j)->asGeometry();
+                tangentSpaceGenerator->generate(geometry);
+
+                osg::ref_ptr<osg::Geometry> newGeometry = new osg::Geometry;
+                newGeometry->setVertexArray(geometry->getVertexArray());
+                if (geometry->getColorArray())
                 {
-                    if (texcoordArray)
-                        osgGeometryData.vertexAttributes.emplace_back(texcoordIndex, texcoordArray);
-                    ++texcoordIndex;
+                    newGeometry->setVertexAttribArray(1, geometry->getColorArray());
+                    newGeometry->setVertexAttribBinding(1, geometry->getColorArray()->getNumElements() == 1 ? osg::Geometry::BIND_OVERALL : osg::Geometry::BIND_PER_VERTEX);
                 }
-                uint32_t vertexAttributeIndex = 0;
-                for (osg::Array* vertexAttributeArray : geom->getVertexAttribArrayList())
+                if (geometry->getNormalArray())
                 {
-                    if (vertexAttributeArray)
-                        osgGeometryData.vertexAttributes.emplace_back(vertexAttributeIndex, vertexAttributeArray);
-                    ++vertexAttributeIndex;
+                    newGeometry->setVertexAttribArray(2, geometry->getNormalArray());
+                    newGeometry->setVertexAttribBinding(2, osg::Geometry::BIND_PER_VERTEX);
+                }
+                if (tangentSpaceGenerator->getTangentArray())
+                {
+                    newGeometry->setVertexAttribArray(3, tangentSpaceGenerator->getTangentArray());
+                    newGeometry->setVertexAttribBinding(3, osg::Geometry::BIND_PER_VERTEX);
+                }
+                for (uint32_t indexOffset = 0; indexOffset < geometry->getNumTexCoordArrays(); ++indexOffset)
+                {
+                    newGeometry->setVertexAttribArray(4 + indexOffset, geometry->getTexCoordArray(indexOffset));
+                    newGeometry->setVertexAttribBinding(4 + indexOffset, osg::Geometry::BIND_PER_VERTEX);
                 }
 
-                // fixed only use PrimitiveSet(0), so that we can assign an IndexBufferView to each Geometry
-                osgGeometryData.drawElements = dynamic_cast<osg::DrawElements*>(geom->getPrimitiveSet(0));
-                mOsgGeometryDatas.emplace_back(osgGeometryData);
-
-                mDefaultMaterials.resize(mOsgGeometryDatas.size());
+                newGeometry->addPrimitiveSet(geometry->getPrimitiveSet(0));
+                
+                mOsgLODSubmeshes[lod][j] = newGeometry;
             }
         }
-        return;
+
+        mDefaultMaterials.resize(mOsgLODSubmeshes[0].size());
+        uint32_t lodCount = mOsgLODSubmeshes.size();
+        mLODRanges.resize(lodCount);
+        for (uint32_t i = 0; i < lodCount; ++i)
+            mLODRanges[i] = { i * 10, (i + 1) * 10 };
     }
 
     void Mesh::preSave()
     {
-        mSubmeshViews.resize(mOsgGeometryDatas.size());
+        uint32_t lodCount = mOsgLODSubmeshes.size();
+        uint32_t submeshCount = mOsgLODSubmeshes[0].size();
+        mLODSubmeshViews.resize(lodCount);
+        for (uint32_t i = 0; i < lodCount; ++i)
+            mLODSubmeshViews[i].resize(submeshCount);
 
+        // evaluate data size
         size_t dataSize = 0;
-        for (OsgGeometryData& geomData : mOsgGeometryDatas)
+        for (const OsgGeometries& submeshGeometries : mOsgLODSubmeshes)
         {
-            for (auto& vertexAttribute : geomData.vertexAttributes)
-                dataSize += vertexAttribute.second->getTotalDataSize();
-
-            dataSize += geomData.drawElements->getTotalDataSize();
+            for (const osg::Geometry* geometry : submeshGeometries)
+            {
+                dataSize += geometry->getVertexArray()->getTotalDataSize();
+                for (const auto& vertexAttribArray : geometry->getVertexAttribArrayList())
+                {
+                    if (vertexAttribArray)
+                        dataSize += vertexAttribArray->getTotalDataSize();
+                }
+                osg::Geometry::DrawElementsList drawElementList;
+                geometry->getDrawElementsList(drawElementList);
+                dataSize += drawElementList.at(0)->getTotalDataSize();
+            }
         }
         mData.resize(dataSize);
 
+        // fill data
         size_t dataOffset = 0;
-        for (uint32_t i = 0; i < mOsgGeometryDatas.size(); ++i)
+        for (uint32_t i = 0; i < lodCount; ++i)
         {
-            OsgGeometryData& geomData = mOsgGeometryDatas[i];
-
-            for (auto& vertexAttribute : geomData.vertexAttributes)
+            const OsgGeometries& submeshGeometries = mOsgLODSubmeshes[i];
+            for (uint32_t j = 0; j < submeshCount; ++j)
             {
+                const osg::Geometry* geometry = submeshGeometries[j];
+
+                // positions
+                const osg::Array* positionArray = geometry->getVertexArray();
                 VertexAttributeView vav;
-                osg::Array* vertexAttributeArray = vertexAttribute.second;
-                vav.location = vertexAttribute.first;
-                vav.dimension = vertexAttributeArray->getDataSize();
-                vav.type = vertexAttributeArray->getDataType();
+                vav.location = 0;
+                vav.dimension = positionArray->getDataSize();
+                vav.type = positionArray->getDataType();
                 vav.offset = dataOffset;
-                vav.size = vertexAttributeArray->getTotalDataSize();
-                mSubmeshViews[i].vertexAttributeViews.emplace_back(vav);
+                vav.size = positionArray->getTotalDataSize();
+                mLODSubmeshViews[i][j].vertexAttributeViews.emplace_back(vav);
+                std::memcpy(mData.data() + dataOffset, positionArray->getDataPointer(), positionArray->getTotalDataSize());
+                dataOffset += positionArray->getTotalDataSize();
 
-                std::memcpy(mData.data() + dataOffset, vertexAttributeArray->getDataPointer(), vertexAttributeArray->getTotalDataSize());
-                dataOffset += vertexAttributeArray->getTotalDataSize();
+                // other vertex attributes
+                const osg::Geometry::ArrayList& vertexAttribArrayList = geometry->getVertexAttribArrayList();
+                for (uint32_t k = 0; k < vertexAttribArrayList.size(); ++k)
+                {
+                    if (!vertexAttribArrayList[k])
+                        continue;
+
+                    const osg::Array* vertexAttribArray = vertexAttribArrayList[k];
+                    VertexAttributeView vav;
+                    vav.location = k;
+                    vav.dimension = vertexAttribArray->getDataSize();
+                    vav.type = vertexAttribArray->getDataType();
+                    vav.offset = dataOffset;
+                    vav.size = vertexAttribArray->getTotalDataSize();
+                    mLODSubmeshViews[i][j].vertexAttributeViews.emplace_back(vav);
+                    std::memcpy(mData.data() + dataOffset, vertexAttribArray->getDataPointer(), vertexAttribArray->getTotalDataSize());
+                    dataOffset += vertexAttribArray->getTotalDataSize();
+                }
+
+                osg::Geometry::DrawElementsList drawElementList;
+                geometry->getDrawElementsList(drawElementList);
+                osg::DrawElements* drawElements = drawElementList.at(0);
+                IndexBufferView& ibv = mLODSubmeshViews[i][j].indexBufferView;
+                ibv.type = drawElements->getDataType();
+                ibv.offset = dataOffset;
+                ibv.size = drawElements->getTotalDataSize();
+                std::memcpy(mData.data() + dataOffset, drawElements->getDataPointer(), drawElements->getTotalDataSize());
+                dataOffset += drawElements->getTotalDataSize();
             }
-
-            osg::DrawElements* drawElements = geomData.drawElements;
-            IndexBufferView& ibv = mSubmeshViews[i].indexBufferView;
-            ibv.type = drawElements->getDataType();
-            ibv.offset = dataOffset;
-            ibv.size = drawElements->getTotalDataSize();
-
-            std::memcpy(mData.data() + dataOffset, drawElements->getDataPointer(), drawElements->getTotalDataSize());
-            dataOffset += drawElements->getTotalDataSize();
         }
-
         compressData();
     }
 
@@ -230,74 +262,65 @@ namespace xxx
     {
         mData.clear();
         mData.shrink_to_fit();
-        mSubmeshViews.clear();
-        mSubmeshViews.shrink_to_fit();
+        mLODSubmeshViews.clear();
+        mLODSubmeshViews.shrink_to_fit();
     }
 
     void Mesh::postLoad()
     {
         decompressData();
-        for (SubmeshView& submeshView : mSubmeshViews)
+        uint32_t lodCount = mLODSubmeshViews.size();
+        uint32_t submeshCount = mLODSubmeshViews[0].size();
+        mOsgLODSubmeshes.resize(lodCount);
+        for (uint32_t i = 0; i < lodCount; ++i)
+            mOsgLODSubmeshes[i].resize(submeshCount);
+
+        for (uint32_t i = 0; i < lodCount; ++i)
         {
-            OsgGeometryData geomData;
-
-            for (VertexAttributeView& vav : submeshView.vertexAttributeViews)
+            const std::vector<SubmeshView>& submeshViews = mLODSubmeshViews[i];
+            for (uint32_t j = 0; j < submeshCount; ++j)
             {
-                osg::Array* osgArray = createOsgArrayByVertexAttributeView(vav, mData.data());
-                if (osgArray->getNumElements() == 1)
-                    osgArray->setBinding(osg::Array::BIND_OVERALL);
-                else
-                    osgArray->setBinding(osg::Array::BIND_PER_VERTEX);
-                geomData.vertexAttributes.emplace_back(vav.location, osgArray);
+                const SubmeshView& submeshView = submeshViews[j];
+                osg::Geometry* geometry = new osg::Geometry;
+                for (const VertexAttributeView& vav : submeshView.vertexAttributeViews)
+                {
+                    osg::Array* osgArray = createOsgArrayByVertexAttributeView(vav);
+                    if (osgArray->getNumElements() == 1)
+                        osgArray->setBinding(osg::Array::BIND_OVERALL);
+                    else
+                        osgArray->setBinding(osg::Array::BIND_PER_VERTEX);
+
+                    if (vav.location == 0)
+                        geometry->setVertexArray(osgArray);
+                    else
+                        geometry->setVertexAttribArray(vav.location, osgArray);
+                }
+
+                osg::DrawElements* drawElements = createOsgDrawElementsByIndexBufferView(submeshView.indexBufferView);
+                geometry->addPrimitiveSet(drawElements);
+
+                mOsgLODSubmeshes[i][j] = geometry;
             }
-
-            geomData.drawElements = createOsgDrawElementsByIndexBufferView(submeshView.indexBufferView, mData.data());
-
-            mOsgGeometryDatas.emplace_back(geomData);
         }
         mData.clear();
         mData.shrink_to_fit();
-        mSubmeshViews.clear();
-        mSubmeshViews.shrink_to_fit();
+        mLODSubmeshViews.clear();
+        mLODSubmeshViews.shrink_to_fit();
     }
 
-    std::vector<osg::ref_ptr<osg::Geometry>> Mesh::generateGeometries()
+    osg::Array* Mesh::createOsgArrayByVertexAttributeView(const VertexAttributeView& vav)
     {
-        std::vector<osg::ref_ptr<osg::Geometry>> geometries;
-        for (OsgGeometryData& geomData : mOsgGeometryDatas)
-        {
-            osg::Geometry* geometry = new osg::Geometry;
-            for (auto& vertexAttribute : geomData.vertexAttributes)
-            {
-                if (vertexAttribute.first == 0)
-                    geometry->setVertexArray(vertexAttribute.second);
-                else if (vertexAttribute.first == 2)
-                    geometry->setNormalArray(vertexAttribute.second);
-                else if (vertexAttribute.first == 3)
-                    geometry->setColorArray(vertexAttribute.second);
-                else if (vertexAttribute.first >= 8 && vertexAttribute.first < 12)
-                    geometry->setTexCoordArray(vertexAttribute.first - 8, vertexAttribute.second);
-                else
-                    geometry->setVertexAttribArray(vertexAttribute.first, vertexAttribute.second);
-            }
-            geometry->addPrimitiveSet(geomData.drawElements);
-            geometries.push_back(geometry);
-        }
-        return geometries;
-    }
-
-    osg::Array* Mesh::createOsgArrayByVertexAttributeView(VertexAttributeView& vav, uint8_t* data)
-    {
+        uint8_t* data = mData.data() + vav.offset;
         switch (vav.type)
         {
         case GL_BYTE:
         {
             switch (vav.dimension)
             {
-            case 1: return new osg::ByteArray(vav.size / sizeof(GLbyte), (GLbyte*)(data + vav.offset));
-            case 2: return new osg::Vec2bArray(vav.size / sizeof(osg::Vec2b), (osg::Vec2b*)(data + vav.offset));
-            case 3: return new osg::Vec3bArray(vav.size / sizeof(osg::Vec3b), (osg::Vec3b*)(data + vav.offset));
-            case 4: return new osg::Vec4bArray(vav.size / sizeof(osg::Vec4b), (osg::Vec4b*)(data + vav.offset));
+            case 1: return new osg::ByteArray(vav.size / sizeof(GLbyte), (GLbyte*)(data));
+            case 2: return new osg::Vec2bArray(vav.size / sizeof(osg::Vec2b), (osg::Vec2b*)(data));
+            case 3: return new osg::Vec3bArray(vav.size / sizeof(osg::Vec3b), (osg::Vec3b*)(data));
+            case 4: return new osg::Vec4bArray(vav.size / sizeof(osg::Vec4b), (osg::Vec4b*)(data));
             }
             break;
         }
@@ -305,10 +328,10 @@ namespace xxx
         {
             switch (vav.dimension)
             {
-            case 1: return new osg::UByteArray(vav.size / sizeof(GLubyte), (GLubyte*)(data + vav.offset));
-            case 2: return new osg::Vec2ubArray(vav.size / sizeof(osg::Vec2ub), (osg::Vec2ub*)(data + vav.offset));
-            case 3: return new osg::Vec3ubArray(vav.size / sizeof(osg::Vec3ub), (osg::Vec3ub*)(data + vav.offset));
-            case 4: return new osg::Vec4ubArray(vav.size / sizeof(osg::Vec4ub), (osg::Vec4ub*)(data + vav.offset));
+            case 1: return new osg::UByteArray(vav.size / sizeof(GLubyte), (GLubyte*)(data));
+            case 2: return new osg::Vec2ubArray(vav.size / sizeof(osg::Vec2ub), (osg::Vec2ub*)(data));
+            case 3: return new osg::Vec3ubArray(vav.size / sizeof(osg::Vec3ub), (osg::Vec3ub*)(data));
+            case 4: return new osg::Vec4ubArray(vav.size / sizeof(osg::Vec4ub), (osg::Vec4ub*)(data));
             }
             break;
         }
@@ -316,10 +339,10 @@ namespace xxx
         {
             switch (vav.dimension)
             {
-            case 1: return new osg::ShortArray(vav.size / sizeof(GLshort), (GLshort*)(data + vav.offset));
-            case 2: return new osg::Vec2sArray(vav.size / sizeof(osg::Vec2s), (osg::Vec2s*)(data + vav.offset));
-            case 3: return new osg::Vec3sArray(vav.size / sizeof(osg::Vec3s), (osg::Vec3s*)(data + vav.offset));
-            case 4: return new osg::Vec4sArray(vav.size / sizeof(osg::Vec4s), (osg::Vec4s*)(data + vav.offset));
+            case 1: return new osg::ShortArray(vav.size / sizeof(GLshort), (GLshort*)(data));
+            case 2: return new osg::Vec2sArray(vav.size / sizeof(osg::Vec2s), (osg::Vec2s*)(data));
+            case 3: return new osg::Vec3sArray(vav.size / sizeof(osg::Vec3s), (osg::Vec3s*)(data));
+            case 4: return new osg::Vec4sArray(vav.size / sizeof(osg::Vec4s), (osg::Vec4s*)(data));
             }
             break;
         }
@@ -327,10 +350,10 @@ namespace xxx
         {
             switch (vav.dimension)
             {
-            case 1: return new osg::UShortArray(vav.size / sizeof(GLushort), (GLushort*)(data + vav.offset));
-            case 2: return new osg::Vec2usArray(vav.size / sizeof(osg::Vec2us), (osg::Vec2us*)(data + vav.offset));
-            case 3: return new osg::Vec3usArray(vav.size / sizeof(osg::Vec3us), (osg::Vec3us*)(data + vav.offset));
-            case 4: return new osg::Vec4usArray(vav.size / sizeof(osg::Vec4us), (osg::Vec4us*)(data + vav.offset));
+            case 1: return new osg::UShortArray(vav.size / sizeof(GLushort), (GLushort*)(data));
+            case 2: return new osg::Vec2usArray(vav.size / sizeof(osg::Vec2us), (osg::Vec2us*)(data));
+            case 3: return new osg::Vec3usArray(vav.size / sizeof(osg::Vec3us), (osg::Vec3us*)(data));
+            case 4: return new osg::Vec4usArray(vav.size / sizeof(osg::Vec4us), (osg::Vec4us*)(data));
             }
             break;
         }
@@ -338,10 +361,10 @@ namespace xxx
         {
             switch (vav.dimension)
             {
-            case 1: return new osg::IntArray(vav.size / sizeof(GLint), (GLint*)(data + vav.offset));
-            case 2: return new osg::Vec2iArray(vav.size / sizeof(osg::Vec2i), (osg::Vec2i*)(data + vav.offset));
-            case 3: return new osg::Vec3iArray(vav.size / sizeof(osg::Vec3i), (osg::Vec3i*)(data + vav.offset));
-            case 4: return new osg::Vec4iArray(vav.size / sizeof(osg::Vec4i), (osg::Vec4i*)(data + vav.offset));
+            case 1: return new osg::IntArray(vav.size / sizeof(GLint), (GLint*)(data));
+            case 2: return new osg::Vec2iArray(vav.size / sizeof(osg::Vec2i), (osg::Vec2i*)(data));
+            case 3: return new osg::Vec3iArray(vav.size / sizeof(osg::Vec3i), (osg::Vec3i*)(data));
+            case 4: return new osg::Vec4iArray(vav.size / sizeof(osg::Vec4i), (osg::Vec4i*)(data));
             }
             break;
         }
@@ -349,10 +372,10 @@ namespace xxx
         {
             switch (vav.dimension)
             {
-            case 1: return new osg::UIntArray(vav.size / sizeof(GLuint), (GLuint*)(data + vav.offset));
-            case 2: return new osg::Vec2uiArray(vav.size / sizeof(osg::Vec2ui), (osg::Vec2ui*)(data + vav.offset));
-            case 3: return new osg::Vec3uiArray(vav.size / sizeof(osg::Vec3ui), (osg::Vec3ui*)(data + vav.offset));
-            case 4: return new osg::Vec4uiArray(vav.size / sizeof(osg::Vec4ui), (osg::Vec4ui*)(data + vav.offset));
+            case 1: return new osg::UIntArray(vav.size / sizeof(GLuint), (GLuint*)(data));
+            case 2: return new osg::Vec2uiArray(vav.size / sizeof(osg::Vec2ui), (osg::Vec2ui*)(data));
+            case 3: return new osg::Vec3uiArray(vav.size / sizeof(osg::Vec3ui), (osg::Vec3ui*)(data));
+            case 4: return new osg::Vec4uiArray(vav.size / sizeof(osg::Vec4ui), (osg::Vec4ui*)(data));
             }
             break;
         }
@@ -360,10 +383,10 @@ namespace xxx
         {
             switch (vav.dimension)
             {
-            case 1: return new osg::FloatArray(vav.size / sizeof(GLfloat), (GLfloat*)(data + vav.offset));
-            case 2: return new osg::Vec2Array(vav.size / sizeof(osg::Vec2f), (osg::Vec2f*)(data + vav.offset));
-            case 3: return new osg::Vec3Array(vav.size / sizeof(osg::Vec3f), (osg::Vec3f*)(data + vav.offset));
-            case 4: return new osg::Vec4Array(vav.size / sizeof(osg::Vec4f), (osg::Vec4f*)(data + vav.offset));
+            case 1: return new osg::FloatArray(vav.size / sizeof(GLfloat), (GLfloat*)(data));
+            case 2: return new osg::Vec2Array(vav.size / sizeof(osg::Vec2f), (osg::Vec2f*)(data));
+            case 3: return new osg::Vec3Array(vav.size / sizeof(osg::Vec3f), (osg::Vec3f*)(data));
+            case 4: return new osg::Vec4Array(vav.size / sizeof(osg::Vec4f), (osg::Vec4f*)(data));
             }
             break;
         }
@@ -371,10 +394,10 @@ namespace xxx
         {
             switch (vav.dimension)
             {
-            case 1: return new osg::DoubleArray(vav.size / sizeof(GLdouble), (GLdouble*)(data + vav.offset));
-            case 2: return new osg::Vec2dArray(vav.size / sizeof(osg::Vec2d), (osg::Vec2d*)(data + vav.offset));
-            case 3: return new osg::Vec3dArray(vav.size / sizeof(osg::Vec3d), (osg::Vec3d*)(data + vav.offset));
-            case 4: return new osg::Vec4dArray(vav.size / sizeof(osg::Vec4d), (osg::Vec4d*)(data + vav.offset));
+            case 1: return new osg::DoubleArray(vav.size / sizeof(GLdouble), (GLdouble*)(data));
+            case 2: return new osg::Vec2dArray(vav.size / sizeof(osg::Vec2d), (osg::Vec2d*)(data));
+            case 3: return new osg::Vec3dArray(vav.size / sizeof(osg::Vec3d), (osg::Vec3d*)(data));
+            case 4: return new osg::Vec4dArray(vav.size / sizeof(osg::Vec4d), (osg::Vec4d*)(data));
             }
             break;
         }
@@ -384,13 +407,14 @@ namespace xxx
         return nullptr;
     }
 
-    osg::DrawElements* Mesh::createOsgDrawElementsByIndexBufferView(IndexBufferView& ibv, uint8_t* data)
+    osg::DrawElements* Mesh::createOsgDrawElementsByIndexBufferView(const IndexBufferView& ibv)
     {
+        uint8_t* data = mData.data() + ibv.offset;
         switch (ibv.type)
         {
-        case GL_UNSIGNED_BYTE: return new osg::DrawElementsUByte(GL_TRIANGLES, ibv.size / sizeof(GLubyte), (GLubyte*)(data + ibv.offset));
-        case GL_UNSIGNED_SHORT: return new osg::DrawElementsUShort(GL_TRIANGLES, ibv.size / sizeof(GLushort), (GLushort*)(data + ibv.offset));
-        case GL_UNSIGNED_INT: return new osg::DrawElementsUInt(GL_TRIANGLES, ibv.size / sizeof(GLuint), (GLuint*)(data + ibv.offset));
+        case GL_UNSIGNED_BYTE: return new osg::DrawElementsUByte(GL_TRIANGLES, ibv.size / sizeof(GLubyte), (GLubyte*)(data));
+        case GL_UNSIGNED_SHORT: return new osg::DrawElementsUShort(GL_TRIANGLES, ibv.size / sizeof(GLushort), (GLushort*)(data));
+        case GL_UNSIGNED_INT: return new osg::DrawElementsUInt(GL_TRIANGLES, ibv.size / sizeof(GLuint), (GLuint*)(data));
         default:
             return nullptr;
         }
@@ -430,10 +454,13 @@ namespace xxx
         {
             Class* clazz = new TClass<Mesh>("Mesh");
             clazz->addProperty("Data", &Mesh::mData);
-            clazz->addProperty("SubmeshViews", &Mesh::mSubmeshViews);
+            clazz->addProperty("LODSubmeshViews", &Mesh::mLODSubmeshViews);
+            clazz->addProperty("LODRanges", &Mesh::mLODRanges);
             clazz->addProperty("DefaultMaterials", &Mesh::mDefaultMaterials);
             clazz->addProperty("DataCompression", &Mesh::mDataCompression);
             return clazz;
         }
     }
 }
+#endif // 1
+

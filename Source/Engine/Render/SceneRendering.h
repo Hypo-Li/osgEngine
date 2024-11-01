@@ -61,6 +61,7 @@ namespace xxx
         gbufferPass->attach(BufferType::COLOR_BUFFER5, GL_RGB16F);      // Velocity
         gbufferPass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT, false, osg::Texture::NEAREST, osg::Texture::NEAREST);
         gbufferPass->getCamera()->addPreDrawCallback(new GBufferPassPreDrawCallback(viewDataUBB));
+        gbufferPass->getCamera()->setSmallFeatureCullingPixelSize(4);
 
         osg::Shader* screenQuadShader = osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Common/ScreenQuad.vert.glsl");
 

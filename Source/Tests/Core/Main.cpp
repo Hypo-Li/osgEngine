@@ -266,7 +266,22 @@ int main()
     mesh->setDataCompression(true);
     am.createAsset(mesh, "Engine/Mesh/Suzanne")->save();*/
 
-    osg::Node* lod = osgDB::readNodeFile(TEMP_DIR "suzanne.obj");
+    /*Mesh* mesh = am.getAsset("Engine/Mesh/ZY")->getRootObject<Mesh>();
+    auto geometries = mesh->generateGeometries();
+    osg::Geode* geode = new osg::Geode;
+    for (osg::Geometry* geom : geometries)
+    {
+        geode->addDrawable(geom);
+    }
+    osg::Group* group = new osg::Group;
+    group->addChild(geode);
+    osgDB::writeNodeFile(*group, TEMP_DIR "zy.ive");*/
+
+    Material* material = am.getAsset("Engine/Material/TestMaterial")->getRootObject<Material>();
+    Mesh* mesh = new Mesh(TEMP_DIR "lod.obj");
+    for (uint32_t i = 0; i < mesh->getSubmeshCount(); ++i)
+        mesh->setDefaultMaterial(i, material);
+    am.createAsset(mesh, "Engine/Mesh/Sphere")->save();
 
     Context::get().getGraphicsContext()->releaseContext();
 

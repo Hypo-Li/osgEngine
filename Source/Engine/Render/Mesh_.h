@@ -1,8 +1,6 @@
 #pragma once
 #include "Material.h"
 
-#if 1
-
 namespace xxx
 {
     struct VertexAttributeView
@@ -43,20 +41,9 @@ namespace xxx
 
         virtual void postLoad() override;
 
-        uint32_t getLODCount() const
-        {
-            return mOsgLODSubmeshes.size();
-        }
-
-        using SubmeshGeometries = std::vector<osg::ref_ptr<osg::Geometry>>;
-        const SubmeshGeometries& getSubmesheGeometries(uint32_t LOD) const
-        {
-            return mOsgLODSubmeshes[LOD];
-        }
-
         uint32_t getSubmeshCount() const
         {
-            return mOsgLODSubmeshes[0].size();
+            return mOsgGeometryDatas.size();
         }
 
         void setDefaultMaterial(uint32_t index, Material* material)
@@ -83,23 +70,33 @@ namespace xxx
             return mDataCompression;
         }
 
+        std::vector<osg::ref_ptr<osg::Geometry>> generateGeometries();
+
     protected:
-        bool mDataCompression = true;
+        bool mDataCompression = false;
         std::vector<uint8_t> mData;
-        std::vector<std::vector<SubmeshView>> mLODSubmeshViews;
+        std::vector<SubmeshView> mSubmeshViews;
         std::vector<osg::ref_ptr<Material>> mDefaultMaterials;
 
-        std::vector<SubmeshGeometries> mOsgLODSubmeshes;
+        struct OsgGeometryData
+        {
+            std::vector<std::pair<uint32_t, osg::ref_ptr<osg::Array>>> vertexAttributes;
+            osg::ref_ptr<osg::DrawElements> drawElements;
+        };
+        std::vector<OsgGeometryData> mOsgGeometryDatas;
 
-        osg::Array* createOsgArrayByVertexAttributeView(const VertexAttributeView& vav);
-        osg::DrawElements* createOsgDrawElementsByIndexBufferView(const IndexBufferView& ibv);
+        static osg::Array* createOsgArrayByVertexAttributeView(VertexAttributeView& vav, uint8_t* data);
+        static osg::DrawElements* createOsgDrawElementsByIndexBufferView(IndexBufferView& ibv, uint8_t* data);
 
         void compressData()
         {
             if (!mDataCompression)
                 return;
+            constexpr size_t bytePerMib = 1048576;
+            constexpr int maxThreadCount = 12;
+            int threadCount = std::min(maxThreadCount, int(mData.size() / (100 * bytePerMib)));
             std::vector<uint8_t> compressedData(mData.size());
-            size_t compressedSize = FL2_compress(compressedData.data(), compressedData.size(), mData.data(), mData.size(), 0);
+            size_t compressedSize = FL2_compressMt(compressedData.data(), compressedData.size(), mData.data(), mData.size(), 0, threadCount);
             compressedData.resize(compressedSize);
             mData = compressedData;
         }
@@ -109,8 +106,12 @@ namespace xxx
             if (!mDataCompression)
                 return;
             size_t decompressedSize = FL2_findDecompressedSize(mData.data(), mData.size());
+            constexpr size_t bytePerMib = 1048576;
+            constexpr int maxThreadCount = 12;
+            int threadCount = std::min(maxThreadCount, int(decompressedSize / (100 * bytePerMib)));
+
             std::vector<uint8_t> decompressedData(decompressedSize);
-            FL2_decompress(decompressedData.data(), decompressedSize, mData.data(), mData.size());
+            FL2_decompressMt(decompressedData.data(), decompressedSize, mData.data(), mData.size(), threadCount);
             mData = decompressedData;
         }
     };
@@ -123,5 +124,3 @@ namespace xxx
         template <> Type* Reflection::createType<Mesh>();
     }
 }
-#endif // 0
-

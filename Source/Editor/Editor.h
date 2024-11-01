@@ -12,6 +12,7 @@
 
 #include <osgViewer/CompositeViewer>
 #include <osgViewer/ViewerEventHandlers>
+#include <osgUtil/Optimizer>
 
 #include <thread>
 
@@ -40,6 +41,20 @@ namespace xxx::editor
 
     protected:
         std::array<osg::ref_ptr<osg::Operation>, 2> mOperations;
+    };
+
+    class SetGeometryStateSetVisitor : public osg::NodeVisitor
+    {
+        osg::ref_ptr<osg::StateSet> mStateSet;
+    public:
+        SetGeometryStateSetVisitor(osg::StateSet* stateSet) : NodeVisitor(TRAVERSE_ALL_CHILDREN), mStateSet(stateSet) {}
+
+        virtual void apply(osg::Geometry& geometry) override
+        {
+            geometry.setNodeMask(1);
+            geometry.setStateSet(mStateSet);
+            traverse(geometry);
+        }
     };
 
     class Editor
@@ -83,14 +98,33 @@ namespace xxx::editor
             //engineView->setCameraManipulator(new ControllerManipulator(0.05));
             
             mViewer->addView(engineView);
-
+            mViewer->setKeyEventSetsDone(0);
             mViewer->realize();
 
             Context::get().getGraphicsContext()->makeCurrent();
 
-            Asset* asset = AssetManager::get().getAsset("Engine/Entity/TestEntity");
-            asset->load();
-            engineView->setSceneData(dynamic_cast<Entity*>(asset->getRootObject())->getOsgNode());
+            Entity* entity = AssetManager::get().getAsset("Engine/Entity/TestEntity")->getRootObject<Entity>();
+
+            /*Material* material = AssetManager::get().getAsset("Engine/Material/TestMaterial")->getRootObject<Material>();
+            MeshRenderer* meshRenderer = entity->getComponent<MeshRenderer>();
+            Mesh* mesh = new Mesh(TEMP_DIR "zy.ive");
+            for (size_t i = 0; i < mesh->getSubmeshCount(); ++i)
+                mesh->setDefaultMaterial(i, material);
+            meshRenderer->setMesh(mesh);*/
+
+            /*Material* material = AssetManager::get().getAsset("Engine/Material/TestMaterial")->getRootObject<Material>();
+            osg::ref_ptr<osg::Node> mesh = osgDB::readNodeFile(TEMP_DIR "zy.fbx");
+            osgUtil::Optimizer optimizer;
+            optimizer.optimize(mesh, osgUtil::Optimizer::INDEX_MESH);
+            SetGeometryStateSetVisitor sgsv(material->getOsgStateSet());
+            mesh->accept(sgsv);
+            osgDB::writeNodeFile(*mesh, TEMP_DIR "zy2.ive");*/
+
+            //osg::ref_ptr<osg::Node> mesh = osgDB::readNodeFile(TEMP_DIR "zy2.ive");
+            //engineView->setSceneData(mesh);
+
+            engineView->setSceneData(entity->getOsgNode());
+            
 
             Context::get().getGraphicsContext()->releaseContext();
 

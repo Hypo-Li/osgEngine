@@ -2,6 +2,7 @@
 #include <Engine/Core/Component.h>
 #include <Engine/Render/Mesh.h>
 
+#include <osg/LOD>
 #include <osg/Geode>
 #include <osg/Geometry>
 #include <osgDB/ReadFile>
@@ -17,9 +18,9 @@ namespace xxx
         REFLECT_CLASS(MeshRenderer)
     public:
         MeshRenderer() :
-            mOsgGeode(new osg::Geode)
+            mOsgLOD(new osg::LOD)
         {
-            mOsgComponentGroup->addChild(mOsgGeode);
+            mOsgComponentGroup->addChild(mOsgLOD);
         }
         virtual ~MeshRenderer() = default;
 
@@ -49,7 +50,7 @@ namespace xxx
 
         size_t getSubmeshCount()
         {
-            return mOsgGeometries.size();
+            return mOverlayMaterials.size();
         }
 
         virtual void syncWithMesh()
@@ -57,34 +58,52 @@ namespace xxx
             if (!mMesh)
                 return;
 
-            mOsgGeometries = mMesh->generateGeometries();
-            mOverlayMaterials.resize(mOsgGeometries.size());
-            for (uint32_t i = 0; i < mOverlayMaterials.size(); ++i)
-                mOverlayMaterials[i] = nullptr;
+            uint32_t lodCount = mMesh->getLODCount();
+            uint32_t submeshCount = mMesh->getSubmeshCount();
 
-            mOsgGeode->removeDrawables(0, mOsgGeode->getNumDrawables());
-            for (uint32_t i = 0; i < mOsgGeometries.size(); ++i)
+            mOverlayMaterials.resize(submeshCount);
+            //for (uint32_t i = 0; i < submeshCount; ++i)
+            //    mOverlayMaterials[i] = nullptr;
+
+            mOsgLOD->removeChildren(0, mOsgLOD->getNumChildren());
+            mOsgGeodes.resize(lodCount);
+            for (uint32_t i = 0; i < lodCount; ++i)
             {
-                mOsgGeode->addDrawable(mOsgGeometries[i]);
-                Material* material = getMaterial(i);
-                mOsgGeometries[i]->setStateSet(material->getOsgStateSet());
-                mOsgGeometries[i]->setNodeMask(material->getOsgNodeMask());
+                osg::ref_ptr<osg::Group> group = new osg::Group;
+                const Mesh::OsgGeometries& geometries = mMesh->getOsgGeometries(i);
+                mOsgGeodes[i].resize(submeshCount);
+                for (uint32_t j = 0; j < submeshCount; ++j)
+                {
+                    mOsgGeodes[i][j] = new osg::Geode;
+                    mOsgGeodes[i][j]->addDrawable(geometries[j]);
+                    Material* material = mMesh->getDefaultMaterial(j);
+                    mOsgGeodes[i][j]->setStateSet(material->getOsgStateSet());
+                    mOsgGeodes[i][j]->setNodeMask(material->getOsgNodeMask());
+                    group->addChild(mOsgGeodes[i][j]);
+                }
+                mOsgLOD->addChild(group);
+                std::pair<float, float> lodRange = mMesh->getLODRange(i);
+                mOsgLOD->setRange(i, lodRange.first, lodRange.second);
             }
         }
 
         void setOverlayMaterial(uint32_t index, Material* material)
         {
-            if (index >= mOsgGeometries.size())
+            if (index >= mOverlayMaterials.size())
                 return;
 
             mOverlayMaterials[index] = material;
-            mOsgGeometries[index]->setStateSet(material->getOsgStateSet());
-            mOsgGeometries[index]->setNodeMask(material->getOsgNodeMask());
+            uint32_t lodCount = mMesh->getLODCount();
+            for (uint32_t i = 0; i < lodCount; ++i)
+            {
+                mOsgGeodes[i][index]->setStateSet(material->getOsgStateSet());
+                mOsgGeodes[i][index]->setNodeMask(material->getOsgNodeMask());
+            }
         }
 
         Material* getMaterial(uint32_t index)
         {
-            if (index >= mOsgGeometries.size())
+            if (index >= mOverlayMaterials.size())
                 return nullptr;
             return mOverlayMaterials[index] ? mOverlayMaterials[index] : mMesh->getDefaultMaterial(index);
         }
@@ -93,8 +112,8 @@ namespace xxx
         osg::ref_ptr<Mesh> mMesh;
         std::vector<osg::ref_ptr<Material>> mOverlayMaterials;
 
-        osg::ref_ptr<osg::Geode> mOsgGeode;
-        std::vector<osg::ref_ptr<osg::Geometry>> mOsgGeometries;
+        osg::ref_ptr<osg::LOD> mOsgLOD;
+        std::vector<std::vector<osg::ref_ptr<osg::Geode>>> mOsgGeodes;
     };
 
     namespace refl
