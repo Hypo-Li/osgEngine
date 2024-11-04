@@ -8,7 +8,7 @@
 
 ###### headers ######
 
-SET(OSG_DIR "" CACHE PATH "Set to base OpenSceneGraph install path")
+# SET(OSG_DIR "" CACHE PATH "Set to base OpenSceneGraph install path")
 
 FIND_PATH(OSG_INCLUDE_DIR osg/Node
     PATHS

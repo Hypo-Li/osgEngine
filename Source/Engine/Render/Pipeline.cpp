@@ -26,7 +26,11 @@ namespace xxx
 
             if (textureObject)
             {
+#if USE_OSG_370
+                textureObject->bind(state);
+#else
                 textureObject->bind();
+#endif
             }
             else if ((_textureWidth != 0) && (_textureHeight != 0) && (_numSamples != 0))
             {
@@ -42,7 +46,11 @@ namespace xxx
                 else*/
                 {
                     textureObject = generateAndAssignTextureObject(contextID, getTextureTarget(), 1, _internalFormat, _textureWidth, _textureHeight, 1, _borderWidth);
+#if USE_OSG_370
+                    textureObject->bind(state);
+#else
                     textureObject->bind();
+#endif
 
                     extensions->glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE,
                                                      _numSamples,

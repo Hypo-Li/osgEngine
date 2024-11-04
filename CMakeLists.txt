@@ -21,10 +21,15 @@ endmacro (LINK_WITH_VARIABLES TRGTNAME)
 
 project ("osgEngine")
 
+#set (OSG_DIR "D:/Code/OSG/osg3.7.0")
+
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_SOURCE_DIR}/CMakeModules")
 add_definitions(-DTEMP_DIR="${CMAKE_SOURCE_DIR}/Temp/")
 add_definitions(-DASSET_DIR="${CMAKE_SOURCE_DIR}/Asset/")
 add_definitions(-DSHADER_DIR="${CMAKE_SOURCE_DIR}/Shader/")
+set(USE_OSG_370 0 CACHE STRING "This is a sample variable")
+add_definitions(-DUSE_OSG_370=${USE_OSG_370})
+
 find_package(OSG REQUIRED)
 find_package(OpenGL REQUIRED)
 include_directories(

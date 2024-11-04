@@ -342,6 +342,20 @@ namespace xxx
             mOsgTexture->apply(*state);
         }
 
+        static void bindOsgTexture(osg::Texture* texture)
+        {
+            osg::State* state = Context::get().getGraphicsContext()->getState();
+            osg::Texture::TextureObject* texObj = texture->getTextureObject(state->getContextID());
+            if (texObj)
+            {
+#if USE_OSG_370
+                texObj->bind(*state);
+#else
+                texObj->bind();
+#endif
+            }
+        }
+
     protected:
         Format mFormat = Format::RGBA8;
         PixelFormat mPixelFormat = PixelFormat::RGBA;
@@ -361,24 +375,6 @@ namespace xxx
 
         osg::ref_ptr<osg::Texture> mOsgTexture = nullptr;
 
-        static std::pair<PixelFormat, PixelType> choosePixelFormatAndTypeByFormat(Format format);
-
-        static std::string getImageFormatName(Format format);
-
-        static bool isCompressedFormat(Format format)
-        {
-            switch (format)
-            {
-            case Format::Compressed_RGB_S3TC_DXT1:
-            case Format::Compressed_RGBA_S3TC_DXT1:
-            case Format::Compressed_RGBA_S3TC_DXT3:
-            case Format::Compressed_RGBA_S3TC_DXT5:
-                return true;
-            default:
-                return false;
-            }
-        }
-
         void compressData()
         {
             if (!mDataCompression)
@@ -397,6 +393,24 @@ namespace xxx
             std::vector<uint8_t> decompressedData(decompressedSize);
             FL2_decompress(decompressedData.data(), decompressedSize, mData.data(), mData.size());
             mData = decompressedData;
+        }
+
+        static std::pair<PixelFormat, PixelType> choosePixelFormatAndTypeByFormat(Format format);
+
+        static std::string getImageFormatName(Format format);
+
+        static bool isCompressedFormat(Format format)
+        {
+            switch (format)
+            {
+            case Format::Compressed_RGB_S3TC_DXT1:
+            case Format::Compressed_RGBA_S3TC_DXT1:
+            case Format::Compressed_RGBA_S3TC_DXT3:
+            case Format::Compressed_RGBA_S3TC_DXT5:
+                return true;
+            default:
+                return false;
+            }
         }
     };
 

@@ -36,7 +36,7 @@ namespace xxx
         virtual void preSave() override
         {
             osg::State* state = Context::get().getGraphicsContext()->getState();
-            mOsgTexture->getTextureObject(state->getContextID())->bind();
+            bindOsgTexture(mOsgTexture);
 
             bool saveMipmap = false;
             if (mMinFilter != FilterMode::Linear && mMinFilter != FilterMode::Nearest && !mMipmapGeneration)

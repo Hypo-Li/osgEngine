@@ -4,6 +4,7 @@
 #include <Engine/Render/Shader.h>
 #include <Engine/Render/Material.h>
 #include <Engine/Component/MeshRenderer.h>
+#include <Engine/Component/InstancedMeshRenderer.h>
 #include <Engine/Component/Light.h>
 #include <ThirdParty/imgui/imgui.h>
 #include <ThirdParty/imgui/imgui_stdlib.h>
@@ -205,6 +206,35 @@ namespace xxx::editor
         }
     }
 
+    static void InstnacedMeshRendererWidget(InstancedMeshRenderer* instancedMeshRenderer)
+    {
+        MeshRendererWidget(instancedMeshRenderer);
+        auto& instanceDatas = instancedMeshRenderer->getInstanceDatas();
+        uint32_t paramId = 0;
+        for (auto& instanceData : instanceDatas)
+        {
+            std::string idString = "Instance" + std::to_string(paramId);
+            ImGui::PushID(idString.c_str());
+            if (ImGui::TreeNode(idString.c_str()))
+            {
+                bool changed = false;
+                osg::Vec3f translation = instanceData.translation;
+                changed |= ImGui::DragFloat3("Translation", translation.ptr(), 0.01f);
+                osg::Vec3f rotation = instanceData.rotation;
+                changed |= ImGui::DragFloat3("Rotation", rotation.ptr());
+                osg::Vec3f scale = instanceData.scale;
+                changed |= ImGui::DragFloat3("Scale", scale.ptr(), 0.01f);
+                if (changed)
+                    instancedMeshRenderer->setInstance(paramId, translation, rotation, scale);
+                ImGui::TreePop();
+            }
+            ImGui::PopID();
+            ++paramId;
+        }
+        if (ImGui::Button("Add Instance"))
+            instancedMeshRenderer->addInstance();
+    }
+
     static void DirectionalLightWidget(DirectionalLight* directionalLight)
     {
         float intensity = directionalLight->getIntensity();
@@ -228,6 +258,9 @@ namespace xxx::editor
         {
         case Component::Type::MeshRenderer:
             MeshRendererWidget(dynamic_cast<MeshRenderer*>(component));
+            break;
+        case Component::Type::InstancedMeshRenderer:
+            InstnacedMeshRendererWidget(dynamic_cast<InstancedMeshRenderer*>(component));
             break;
         case Component::Type::DirectionLight:
             DirectionalLightWidget(dynamic_cast<DirectionalLight*>(component));

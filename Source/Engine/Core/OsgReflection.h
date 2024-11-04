@@ -4,6 +4,7 @@
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
+#include <osg/Matrixf>
 
 namespace xxx::refl
 {

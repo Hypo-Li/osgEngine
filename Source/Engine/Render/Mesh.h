@@ -124,6 +124,8 @@ namespace xxx
             FL2_decompress(decompressedData.data(), decompressedSize, mData.data(), mData.size());
             mData = decompressedData;
         }
+
+        void parseOsgNodes(uint32_t lod, const std::vector<osg::ref_ptr<osg::Node>>& nodes);
     };
 
     namespace refl

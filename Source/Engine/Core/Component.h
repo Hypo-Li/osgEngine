@@ -15,6 +15,7 @@ namespace xxx
         enum class Type
         {
             MeshRenderer,
+            InstancedMeshRenderer,
             DirectionLight,
             ImageBasedLight,
             Count,

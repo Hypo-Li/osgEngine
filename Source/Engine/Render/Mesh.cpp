@@ -113,68 +113,85 @@ namespace xxx
         return 0;
     }
 
+    void Mesh::parseOsgNodes(uint32_t lod, const std::vector<osg::ref_ptr<osg::Node>>& nodes)
+    {
+        if (lod >= mOsgLODSubmeshes.size())
+            return;
+
+        osg::ref_ptr<osg::Group> group = new osg::Group;
+        for (osg::Node* node : nodes)
+            group->addChild(node);
+        MeshProcessVisitor mpv;
+        group->accept(mpv);
+        osgUtil::Optimizer optimizer;
+        optimizer.optimize(mpv.getGeode(),
+            osgUtil::Optimizer::MERGE_GEOMETRY |
+            osgUtil::Optimizer::INDEX_MESH
+        );
+        uint32_t submeshCount = mpv.getGeode()->getNumDrawables();
+
+        mOsgLODSubmeshes[lod].resize(submeshCount);
+
+        static constexpr int TangentVertexAttributeIndex = 6;
+        for (uint32_t j = 0; j < submeshCount; ++j)
+        {
+            osg::ref_ptr<osgUtil::TangentSpaceGenerator> tangentSpaceGenerator = new osgUtil::TangentSpaceGenerator;
+            osg::Geometry* geometry = mpv.getGeode()->getDrawable(j)->asGeometry();
+            tangentSpaceGenerator->generate(geometry);
+
+            osg::ref_ptr<osg::Geometry> newGeometry = new osg::Geometry;
+            newGeometry->setVertexArray(geometry->getVertexArray());
+            if (geometry->getColorArray())
+            {
+                newGeometry->setVertexAttribArray(1, geometry->getColorArray());
+                newGeometry->setVertexAttribBinding(1, geometry->getColorArray()->getNumElements() == 1 ? osg::Geometry::BIND_OVERALL : osg::Geometry::BIND_PER_VERTEX);
+            }
+            if (geometry->getNormalArray())
+            {
+                newGeometry->setVertexAttribArray(2, geometry->getNormalArray());
+                newGeometry->setVertexAttribBinding(2, osg::Geometry::BIND_PER_VERTEX);
+            }
+            if (tangentSpaceGenerator->getTangentArray())
+            {
+                newGeometry->setVertexAttribArray(3, tangentSpaceGenerator->getTangentArray());
+                newGeometry->setVertexAttribBinding(3, osg::Geometry::BIND_PER_VERTEX);
+            }
+            for (uint32_t indexOffset = 0; indexOffset < geometry->getNumTexCoordArrays(); ++indexOffset)
+            {
+                newGeometry->setVertexAttribArray(4 + indexOffset, geometry->getTexCoordArray(indexOffset));
+                newGeometry->setVertexAttribBinding(4 + indexOffset, osg::Geometry::BIND_PER_VERTEX);
+            }
+
+            newGeometry->addPrimitiveSet(geometry->getPrimitiveSet(0));
+
+            mOsgLODSubmeshes[lod][j] = newGeometry;
+        }
+    }
+
     Mesh::Mesh(const std::string& meshPath)
     {
         osg::ref_ptr<osg::Node> meshNode = osgDB::readNodeFile(meshPath);
         osg::Group* group = dynamic_cast<osg::Group*>(meshNode.get());
         assert(group);
         uint32_t childrenCount = group->getNumChildren();
-        mOsgLODSubmeshes.resize(childrenCount);
+
+        std::unordered_map<uint32_t, std::vector<osg::ref_ptr<osg::Node>>> lodNodesMap;
         for (uint32_t i = 0; i < childrenCount; ++i)
         {
             osg::Node* lodNode = group->getChild(i);
             uint32_t lod = getNodeLOD(lodNode);
-            MeshProcessVisitor mpv;
-            lodNode->accept(mpv);
-            osgUtil::Optimizer optimizer;
-            optimizer.optimize(mpv.getGeode(),
-                osgUtil::Optimizer::MERGE_GEOMETRY |
-                osgUtil::Optimizer::INDEX_MESH
-            );
-            uint32_t submeshCount = mpv.getGeode()->getNumDrawables();
-            mOsgLODSubmeshes[lod].resize(submeshCount);
-
-            static constexpr int TangentVertexAttributeIndex = 6;
-            for (uint32_t j = 0; j < submeshCount; ++j)
-            {
-                osg::ref_ptr<osgUtil::TangentSpaceGenerator> tangentSpaceGenerator = new osgUtil::TangentSpaceGenerator;
-                osg::Geometry* geometry = mpv.getGeode()->getDrawable(j)->asGeometry();
-                tangentSpaceGenerator->generate(geometry);
-
-                osg::ref_ptr<osg::Geometry> newGeometry = new osg::Geometry;
-                newGeometry->setVertexArray(geometry->getVertexArray());
-                if (geometry->getColorArray())
-                {
-                    newGeometry->setVertexAttribArray(1, geometry->getColorArray());
-                    newGeometry->setVertexAttribBinding(1, geometry->getColorArray()->getNumElements() == 1 ? osg::Geometry::BIND_OVERALL : osg::Geometry::BIND_PER_VERTEX);
-                }
-                if (geometry->getNormalArray())
-                {
-                    newGeometry->setVertexAttribArray(2, geometry->getNormalArray());
-                    newGeometry->setVertexAttribBinding(2, osg::Geometry::BIND_PER_VERTEX);
-                }
-                if (tangentSpaceGenerator->getTangentArray())
-                {
-                    newGeometry->setVertexAttribArray(3, tangentSpaceGenerator->getTangentArray());
-                    newGeometry->setVertexAttribBinding(3, osg::Geometry::BIND_PER_VERTEX);
-                }
-                for (uint32_t indexOffset = 0; indexOffset < geometry->getNumTexCoordArrays(); ++indexOffset)
-                {
-                    newGeometry->setVertexAttribArray(4 + indexOffset, geometry->getTexCoordArray(indexOffset));
-                    newGeometry->setVertexAttribBinding(4 + indexOffset, osg::Geometry::BIND_PER_VERTEX);
-                }
-
-                newGeometry->addPrimitiveSet(geometry->getPrimitiveSet(0));
-                
-                mOsgLODSubmeshes[lod][j] = newGeometry;
-            }
+            auto& nodes = lodNodesMap[lod];
+            nodes.emplace_back(lodNode);
         }
+        mOsgLODSubmeshes.resize(lodNodesMap.size());
+        for (const auto& lodNodes : lodNodesMap)
+            parseOsgNodes(lodNodes.first, lodNodes.second);
 
         mDefaultMaterials.resize(mOsgLODSubmeshes[0].size());
         uint32_t lodCount = mOsgLODSubmeshes.size();
         mLODRanges.resize(lodCount);
         for (uint32_t i = 0; i < lodCount; ++i)
-            mLODRanges[i] = { i * 10, (i + 1) * 10 };
+            mLODRanges[i] = { i * 100000000, (i + 1) * 100000000 };
     }
 
     void Mesh::preSave()
