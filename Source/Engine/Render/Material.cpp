@@ -34,9 +34,6 @@ static const std::string DefaultMaterialShaderSource = R"(
 void calcMaterial(in MaterialInputs mi, inout MaterialOutputs mo) {}
 )";
 
-#define GBUFFER_MASK            1 << 0
-#define TRANSPARENT_MASK        1 << 1
-
 namespace xxx
 {
     void Material::setShader(Shader* shader)
@@ -217,7 +214,7 @@ namespace xxx
         if (mAlphaMode == AlphaMode::Blend)
             return TRANSPARENT_MASK;
         else
-            return GBUFFER_MASK;
+            return GBUFFER_MASK | SHADOW_CAST_MASK;
     }
 
     std::string Material::getParameterTypeString(const Shader::ParameterValue& parameter)

@@ -278,13 +278,17 @@ int main()
     osgDB::writeNodeFile(*group, TEMP_DIR "zy.ive");*/
 
     Material* material = am.getAsset("Engine/Material/TestMaterial")->getRootObject<Material>();
-    /*Material* material2 = new Material;
-    material2->setShader(material->getShader());
-    am.createAsset(material2, "Engine/Material/TestMaterial2")->save();*/
-    Mesh* mesh = new Mesh(TEMP_DIR "zy.fbx");
+    /*for (uint32_t i = 0; i < 9; ++i)
+    {
+        Mesh* mesh = new Mesh(TEMP_DIR "side" + std::to_string(i) + ".fbx");
+        for (uint32_t i = 0; i < mesh->getSubmeshCount(); ++i)
+            mesh->setDefaultMaterial(i, material);
+        am.createAsset(mesh, "Engine/Mesh/Side" + std::to_string(i))->save();
+    }*/
+    Mesh* mesh = new Mesh(TEMP_DIR "main.fbx");
     for (uint32_t i = 0; i < mesh->getSubmeshCount(); ++i)
         mesh->setDefaultMaterial(i, material);
-    am.createAsset(mesh, "Engine/Mesh/ZY")->save();
+    am.createAsset(mesh, "Engine/Mesh/Main")->save();
 
     Context::get().getGraphicsContext()->releaseContext();
 

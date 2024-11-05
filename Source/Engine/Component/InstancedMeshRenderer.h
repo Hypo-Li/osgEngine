@@ -77,19 +77,13 @@ namespace xxx
             {
                 for (osg::Geode* geode : lodGeodes)
                 {
-                    if (geode->getNumDrawables() > 0)
-                    {
-                        osg::Geometry* geometry = dynamic_cast<osg::Geometry*>(geode->getDrawable(0));
-                        if (geometry)
-                        {
-                            osg::Geometry* instancedGeometry = new osg::Geometry(*geometry);
-                            instancedGeometry->setComputeBoundingBoxCallback(new InstancedDrawableComputeBoundingBoxCallback(mInstanceDatas));
-                            osg::DrawElements* instancedDrawElements = dynamic_cast<osg::DrawElements*>(instancedGeometry->getPrimitiveSet(0)->clone(osg::CopyOp::SHALLOW_COPY));
-                            instancedDrawElements->setNumInstances(mInstanceDatas.size());
-                            instancedGeometry->setPrimitiveSet(0, instancedDrawElements);
-                            geode->setDrawable(0, instancedGeometry);
-                        }
-                    }
+                    osg::Geometry* geometry = dynamic_cast<osg::Geometry*>(geode->getDrawable(0));
+                    osg::Geometry* instancedGeometry = new osg::Geometry(*geometry);
+                    instancedGeometry->setComputeBoundingBoxCallback(new InstancedDrawableComputeBoundingBoxCallback(mInstanceDatas));
+                    osg::DrawElements* instancedDrawElements = dynamic_cast<osg::DrawElements*>(instancedGeometry->getPrimitiveSet(0)->clone(osg::CopyOp::SHALLOW_COPY));
+                    instancedDrawElements->setNumInstances(mInstanceDatas.size());
+                    instancedGeometry->setPrimitiveSet(0, instancedDrawElements);
+                    geode->setDrawable(0, instancedGeometry);
                 }
             }
             if (mInstanceDatas.empty())
@@ -99,21 +93,18 @@ namespace xxx
         void addInstance(osg::Vec3f translation = osg::Vec3f(0, 0, 0), osg::Vec3f rotation = osg::Vec3f(0, 0, 0), osg::Vec3f scale = osg::Vec3f(1, 1, 1))
         {
             if (mInstanceDatas.empty())
-                mOsgLOD->setNodeMask(0xFFFFFFFF);
+                mOsgLOD->setNodeMask(~0);
             mInstanceDatas.emplace_back(InstanceData{ translation, rotation, scale });
 
             for (const auto& lodGeodes : mOsgGeodes)
             {
                 for (osg::Geode* geode : lodGeodes)
                 {
-                    if (geode->getNumDrawables() > 0)
-                    {
-                        osg::Geometry* geometry = dynamic_cast<osg::Geometry*>(geode->getDrawable(0));
-                        osg::DrawElements* instancedDrawElements = dynamic_cast<osg::DrawElements*>(geometry->getPrimitiveSet(0));
-                        instancedDrawElements->setNumInstances(mInstanceDatas.size());
+                    osg::Geometry* geometry = dynamic_cast<osg::Geometry*>(geode->getDrawable(0));
+                    osg::DrawElements* instancedDrawElements = dynamic_cast<osg::DrawElements*>(geometry->getPrimitiveSet(0));
+                    instancedDrawElements->setNumInstances(mInstanceDatas.size());
 
-                        geometry->dirtyBound();
-                    }
+                    geometry->dirtyBound();
                 }
             }
 
@@ -130,15 +121,8 @@ namespace xxx
             mInstanceDatas[index].scale = scale;
 
             for (const auto& lodGeodes : mOsgGeodes)
-            {
                 for (osg::Geode* geode : lodGeodes)
-                {
-                    if (geode->getNumDrawables() > 0)
-                    {
-                        geode->getDrawable(0)->dirtyBound();
-                    }
-                }
-            }
+                    geode->getDrawable(0)->dirtyBound();
 
             mOsgLOD->dirtyBound();
             updateInstanceData(index);

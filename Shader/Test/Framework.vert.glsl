@@ -1,5 +1,5 @@
 #version 430 core
-#pragma import_defines(INSTANCED)
+#pragma import_defines(INSTANCED, SHADOW_CAST)
 // in vec4 osg_Vertex;
 // in vec3 osg_Normal;
 // in vec4 osg_Color;
@@ -15,6 +15,10 @@ layout(location = 5) in vec4 iTexcoord1;
 
 #ifndef INSTANCED
 #define INSTANCED 0
+#endif
+
+#ifndef SHADOW_CAST
+#define SHADOW_CAST 0
 #endif
 
 #if INSTANCED

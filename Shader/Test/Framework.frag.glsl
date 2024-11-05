@@ -1,6 +1,10 @@
 #version 430 core
 // TODO: add ALPHA_MASK_THRESHOLD
-#pragma import_defines(SHADING_MODEL, ALPHA_MODE)
+#pragma import_defines(SHADING_MODEL, ALPHA_MODE, SHADOW_CAST)
+
+#ifndef SHADOW_CAST
+#define SHADOW_CAST 0
+#endif
 
 #define SHADING_MODEL_UNLIT 0
 #define SHADING_MODEL_STANDARD 1

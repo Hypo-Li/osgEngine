@@ -109,8 +109,11 @@ namespace xxx
         {
             if (!mDataCompression)
                 return;
+            constexpr size_t bytePerMib = 1048576;
+            constexpr int maxThreadCount = 12;
+            int threadCount = std::min(maxThreadCount, int(mData.size() / (100 * bytePerMib)));
             std::vector<uint8_t> compressedData(mData.size());
-            size_t compressedSize = FL2_compress(compressedData.data(), compressedData.size(), mData.data(), mData.size(), 0);
+            size_t compressedSize = FL2_compressMt(compressedData.data(), compressedData.size(), mData.data(), mData.size(), 0, threadCount);
             compressedData.resize(compressedSize);
             mData = compressedData;
         }
@@ -120,8 +123,12 @@ namespace xxx
             if (!mDataCompression)
                 return;
             size_t decompressedSize = FL2_findDecompressedSize(mData.data(), mData.size());
+            constexpr size_t bytePerMib = 1048576;
+            constexpr int maxThreadCount = 12;
+            int threadCount = std::min(maxThreadCount, int(decompressedSize / (100 * bytePerMib)));
+
             std::vector<uint8_t> decompressedData(decompressedSize);
-            FL2_decompress(decompressedData.data(), decompressedSize, mData.data(), mData.size());
+            FL2_decompressMt(decompressedData.data(), decompressedSize, mData.data(), mData.size(), threadCount);
             mData = decompressedData;
         }
 

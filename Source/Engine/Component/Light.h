@@ -44,6 +44,8 @@ namespace xxx
                 directionalLightCountUniform = new osg::Uniform("uDirectionalLightCount", 1);
                 lightingPass->applyUniform(directionalLightCountUniform);
             }
+
+            setEnableCastShadows(true);
         }
 
         virtual void onDisable() override
@@ -69,9 +71,9 @@ namespace xxx
         {
             mCastShadows = enable;
             if (mCastShadows)
-                addShadowPass(mLightIndex);
+                addShadowPasses();
             else
-                removeShadowPass(mLightIndex);
+                removeShadowPasses();
         }
 
         float getIntensity() const
@@ -119,26 +121,135 @@ namespace xxx
         osg::ref_ptr<osg::Uniform> mColorUniform;
         osg::ref_ptr<osg::Uniform> mDirectionUniform;
 
-        static void addShadowPass(uint32_t lightIndex)
+        class ShadowCamerasUpdateCallback : public osg::Camera::DrawCallback
+        {
+            std::vector<osg::ref_ptr<osg::Camera>> mShadowCameras;
+            DirectionalLight* mDirectionalLight;
+        public:
+            ShadowCamerasUpdateCallback(const std::vector<osg::ref_ptr<osg::Camera>>& shadowCameras, DirectionalLight* directionalLight) :
+                mShadowCameras(shadowCameras), mDirectionalLight(directionalLight) {}
+
+            virtual void operator () (const osg::Camera& camera) const
+            {
+                const osg::Matrixd& viewMatrix = camera.getViewMatrix();
+                const osg::Matrixd& projMatrix = camera.getProjectionMatrix();
+                osg::Matrixd inverseViewProjMatrix = osg::Matrixd::inverse(viewMatrix * projMatrix);
+                const uint32_t cascadeCount = mShadowCameras.size();
+
+                constexpr float distributionExponent = 3.0f;
+                constexpr float shadowCastDistance = 1000.0f;
+                constexpr float lightFrustumNearOffset = 800.0f;
+
+                float weightSum = (1.0 - std::pow(distributionExponent, float(cascadeCount))) / (1.0 - distributionExponent); // exp: 1 + 3 + 9 + 27 = 40
+                double col3z = projMatrix(2, 2), col4z = projMatrix(3, 2);
+                double zNear = std::max(col4z / (col3z - 1.0), 0.01);
+                float cascadeNear = zNear;
+
+                float currentWeight = 0.0f;
+                for (uint32_t i = 0; i < cascadeCount; ++i)
+                {
+                    currentWeight += std::pow(distributionExponent, float(i));
+                    float cascadeFar = zNear + (currentWeight / weightSum) * shadowCastDistance;
+                    double ndcNear = (-cascadeNear * projMatrix(2, 2) + projMatrix(3, 2)) / (-cascadeNear * projMatrix(2, 3) + projMatrix(3, 3));
+                    double ndcFar = (-cascadeFar * projMatrix(2, 2) + projMatrix(3, 2)) / (-cascadeFar * projMatrix(2, 3) + projMatrix(3, 3));
+
+                    osg::Vec3d worldSpace[8] = {
+                        osg::Vec3d(-1.0, -1.0, ndcNear) * inverseViewProjMatrix,
+                        osg::Vec3d(-1.0, -1.0, ndcFar) * inverseViewProjMatrix,
+                        osg::Vec3d(-1.0, 1.0, ndcNear) * inverseViewProjMatrix,
+                        osg::Vec3d(-1.0, 1.0, ndcFar) * inverseViewProjMatrix,
+                        osg::Vec3d(1.0, -1.0, ndcNear) * inverseViewProjMatrix,
+                        osg::Vec3d(1.0, -1.0, ndcFar) * inverseViewProjMatrix,
+                        osg::Vec3d(1.0, 1.0, ndcNear) * inverseViewProjMatrix,
+                        osg::Vec3d(1.0, 1.0, ndcFar) * inverseViewProjMatrix,
+                    };
+                    osg::Vec3d center(0.0, 0.0, 0.0);
+                    for (uint32_t j = 0; j < 8; ++j)
+                        center += worldSpace[j];
+                    center *= 0.125;
+
+                    double boundsSphereRadius = 0.0;
+                    for (uint32_t j = 0; j < 8; ++j)
+                        boundsSphereRadius = std::max(boundsSphereRadius, (center - worldSpace[j]).length());
+
+                    osg::Vec3d eye = center + mDirectionalLight->getDirection() * lightFrustumNearOffset;
+                    osg::Matrixd lightViewMatrix = osg::Matrixd::lookAt(eye, center, osg::Vec3d(0.0, 0.0, 1.0));
+
+                    double minX = std::numeric_limits<double>::max();
+                    double maxX = std::numeric_limits<double>::lowest();
+                    double minY = std::numeric_limits<double>::max();
+                    double maxY = std::numeric_limits<double>::lowest();
+                    double minZ = std::numeric_limits<double>::max();
+                    double maxZ = std::numeric_limits<double>::lowest();
+                    for (uint32_t j = 0; j < 8; j++)
+                    {
+                        osg::Vec3d viewSpace = worldSpace[j] * lightViewMatrix;
+                        minX = std::min(minX, viewSpace.x());
+                        maxX = std::max(maxX, viewSpace.x());
+                        minY = std::min(minY, viewSpace.y());
+                        maxY = std::max(maxY, viewSpace.y());
+                        minZ = std::min(minZ, viewSpace.z());
+                        maxZ = std::max(maxZ, viewSpace.z());
+                    }
+
+                    double halfWidth = std::max(-minX, maxX);
+                    double halfHeight = std::max(-minY, maxY);
+                    double halfSize = std::max(halfWidth, halfHeight);
+
+                    osg::Matrixd lightProjMatrix = osg::Matrixd::ortho(-halfSize, halfSize, -halfSize, halfSize, -maxZ, -minZ);
+                    mShadowCameras[i]->setViewMatrix(lightViewMatrix);
+                    mShadowCameras[i]->setProjectionMatrix(lightProjMatrix);
+
+                    //float prevFrameDepth;
+                    //{
+                    //    double left, right, bottom, top, zNear, zFar;
+                    //    mShadowCameras[i]->getProjectionMatrixAsOrtho(left, right, bottom, top, zNear, zFar);
+                    //    // 用上一帧的zFar - zNear充当这一帧的光锥体深度
+                    //    prevFrameDepth = zFar - zNear;
+                    //}
+
+                    cascadeNear = cascadeFar;
+                }
+            }
+        };
+
+        void addShadowPasses()
         {
             Pipeline* pipeline = Context::get().getEngine()->getPipeline();
-            std::string namePrefix = std::string(sClass->getName()) + std::to_string(lightIndex);
-            uint32_t lightingPassIndex = pipeline->getPassIndex(namePrefix);
+            std::string namePrefix = std::string(sClass->getName()) + std::to_string(mLightIndex);
+            Pipeline::Pass* gbufferPass = pipeline->getPass("GBuffer");
+            uint32_t lightingPassIndex = pipeline->getPassIndex("Lighting");
 
-            //Pipeline::Pass* shadowCastPass = pipeline->insertInputPass(lightingPassIndex, namePrefix + " ShadowCast");
-            //Pipeline::Pass* shadowMaskPass = pipeline->insertWorkPass(lightingPassIndex + 1, namePrefix + " ShadowMask");
+            osg::ref_ptr<osg::Texture2DArray> shadowMapTextureArray = new osg::Texture2DArray;
+            shadowMapTextureArray->setTextureSize(2048, 2048, 4);
+            shadowMapTextureArray->setInternalFormat(GL_DEPTH_COMPONENT24);
+            shadowMapTextureArray->setSourceFormat(GL_DEPTH_COMPONENT);
+            shadowMapTextureArray->setFilter(osg::Texture::MIN_FILTER, osg::Texture::NEAREST);
+            shadowMapTextureArray->setFilter(osg::Texture::MAG_FILTER, osg::Texture::NEAREST);
+
+            using BufferType = Pipeline::Pass::BufferType;
+            std::vector<osg::ref_ptr<osg::Camera>> shadowCameras;
+            for (uint32_t i = 0; i < 4; ++i)
+            {
+                Pipeline::Pass* shadowCastPass = pipeline->insertInputPass(lightingPassIndex + i, namePrefix + " ShadowCast" + std::to_string(i), SHADOW_CAST_MASK, GL_DEPTH_BUFFER_BIT, true, osg::Vec2(2048, 2048));
+                shadowCastPass->attach(BufferType::DEPTH_BUFFER, shadowMapTextureArray, 0, i);
+                shadowCastPass->getCamera()->getOrCreateStateSet()->setDefine("SHADOW_CAST", "1");
+                shadowCastPass->getCamera()->setSmallFeatureCullingPixelSize(20);
+                shadowCameras.emplace_back(shadowCastPass->getCamera());
+            }
+            gbufferPass->getCamera()->addPreDrawCallback(new ShadowCamerasUpdateCallback(shadowCameras, this));
         }
 
-        static void removeShadowPass(uint32_t lightIndex)
+        void removeShadowPasses()
         {
-            Pipeline* pipeline = Context::get().getEngine()->getPipeline();
-            std::string namePrefix = std::string(sClass->getName()) + std::to_string(lightIndex);
+            /*Pipeline* pipeline = Context::get().getEngine()->getPipeline();
+            std::string namePrefix = std::string(sClass->getName()) + std::to_string(mLightIndex);
             uint32_t lightingPassIndex = pipeline->getPassIndex(namePrefix);
 
             Pipeline::Pass* shadowCastPass = pipeline->getPass(lightingPassIndex - 2);
             Pipeline::Pass* shadowMaskPass = pipeline->getPass(lightingPassIndex - 1);
             pipeline->removePass(shadowCastPass);
-            pipeline->removePass(shadowMaskPass);
+            pipeline->removePass(shadowMaskPass);*/
             // replace shadow mask texture
         }
     };

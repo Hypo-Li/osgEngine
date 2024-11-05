@@ -9,6 +9,7 @@
 #include <ThirdParty/imgui/imgui.h>
 #include <ThirdParty/imgui/imgui_stdlib.h>
 #include <ThirdParty/imgui/imgui_internal.h>
+#include <ThirdParty/nlohmann/json.hpp>
 
 namespace xxx::editor
 {
@@ -189,15 +190,19 @@ namespace xxx::editor
             meshAsset = mesh->getAsset();
         bool meshChanged = AssetCombo<Mesh>("Mesh", &meshAsset);
 
-        for (uint32_t i = 0; i < submeshesCount; ++i)
+        if (ImGui::TreeNode("Materials"))
         {
-            Material* material = meshRenderer->getMaterial(i);
-            Asset* materialAsset = material->getAsset();
-            std::string materialLabel = "Material" + std::to_string(i);
-            if (AssetCombo<Material>(materialLabel.c_str(), &materialAsset))
+            for (uint32_t i = 0; i < submeshesCount; ++i)
             {
-                meshRenderer->setOverlayMaterial(i, materialAsset->getRootObject<Material>());
+                Material* material = meshRenderer->getMaterial(i);
+                Asset* materialAsset = material->getAsset();
+                std::string materialLabel = "Material" + std::to_string(i);
+                if (AssetCombo<Material>(materialLabel.c_str(), &materialAsset))
+                {
+                    meshRenderer->setOverlayMaterial(i, materialAsset->getRootObject<Material>());
+                }
             }
+            ImGui::TreePop();
         }
 
         if (meshChanged)
@@ -211,28 +216,55 @@ namespace xxx::editor
         MeshRendererWidget(instancedMeshRenderer);
         auto& instanceDatas = instancedMeshRenderer->getInstanceDatas();
         uint32_t paramId = 0;
-        for (auto& instanceData : instanceDatas)
+        if (ImGui::TreeNode("Instances"))
         {
-            std::string idString = "Instance" + std::to_string(paramId);
-            ImGui::PushID(idString.c_str());
-            if (ImGui::TreeNode(idString.c_str()))
+            for (auto& instanceData : instanceDatas)
             {
-                bool changed = false;
-                osg::Vec3f translation = instanceData.translation;
-                changed |= ImGui::DragFloat3("Translation", translation.ptr(), 0.01f);
-                osg::Vec3f rotation = instanceData.rotation;
-                changed |= ImGui::DragFloat3("Rotation", rotation.ptr());
-                osg::Vec3f scale = instanceData.scale;
-                changed |= ImGui::DragFloat3("Scale", scale.ptr(), 0.01f);
-                if (changed)
-                    instancedMeshRenderer->setInstance(paramId, translation, rotation, scale);
-                ImGui::TreePop();
+                std::string idString = "Instance" + std::to_string(paramId);
+                ImGui::PushID(idString.c_str());
+                if (ImGui::TreeNode(idString.c_str()))
+                {
+                    bool changed = false;
+                    osg::Vec3f translation = instanceData.translation;
+                    changed |= ImGui::DragFloat3("Translation", translation.ptr(), 0.01f);
+                    osg::Vec3f rotation = instanceData.rotation;
+                    changed |= ImGui::DragFloat3("Rotation", rotation.ptr());
+                    osg::Vec3f scale = instanceData.scale;
+                    changed |= ImGui::DragFloat3("Scale", scale.ptr(), 0.01f);
+                    if (changed)
+                        instancedMeshRenderer->setInstance(paramId, translation, rotation, scale);
+                    ImGui::TreePop();
+                }
+                ImGui::PopID();
+                ++paramId;
             }
-            ImGui::PopID();
-            ++paramId;
+            if (ImGui::Button("Add Instance"))
+                instancedMeshRenderer->addInstance();
+            ImGui::TreePop();
         }
-        if (ImGui::Button("Add Instance"))
-            instancedMeshRenderer->addInstance();
+
+        if (ImGui::TreeNode("Advanced"))
+        {
+            static std::string transformJsonStr;
+            ImGui::InputTextMultiline("##Transform", &transformJsonStr, ImVec2(ImGui::GetContentRegionAvail().x, 0));
+            if (ImGui::Button("Add Multi Instances"))
+            {
+                using Json = nlohmann::json;
+                Json rootJson = Json::parse(transformJsonStr);
+                Json& transformsJson = rootJson["transforms"];
+                for (const Json& transformJson : transformsJson)
+                {
+                    const Json& translationJson = transformJson["translation"];
+                    const Json& rotationJson = transformJson["rotation"];
+                    const Json& scaleJson = transformJson["scale"];
+                    osg::Vec3f translation(translationJson[0], translationJson[1], translationJson[2]);
+                    osg::Vec3f rotation(rotationJson[0], rotationJson[1], rotationJson[2]);
+                    osg::Vec3f scale(scaleJson[0], scaleJson[1], scaleJson[2]);
+                    instancedMeshRenderer->addInstance(translation, rotation, scale);
+                }
+            }
+            ImGui::TreePop();
+        }
     }
 
     static void DirectionalLightWidget(DirectionalLight* directionalLight)

@@ -191,7 +191,8 @@ namespace xxx
         uint32_t lodCount = mOsgLODSubmeshes.size();
         mLODRanges.resize(lodCount);
         for (uint32_t i = 0; i < lodCount; ++i)
-            mLODRanges[i] = { i * 100000000, (i + 1) * 100000000 };
+            mLODRanges[i] = { std::pow(0.5f, float(i + 1)), std::pow(0.5f, float(i))};
+        mLODRanges[lodCount - 1].first = 0.008;
     }
 
     void Mesh::preSave()

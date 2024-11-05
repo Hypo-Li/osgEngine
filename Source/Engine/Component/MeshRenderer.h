@@ -8,20 +8,13 @@
 #include <osgDB/ReadFile>
 #include <osgUtil/CullVisitor>
 
-#define GBUFFER_MASK        0x00000001
-#define SHADOW_CAST_MASK    0x00000002
-
 namespace xxx
 {
     class MeshRenderer : public Component
     {
         REFLECT_CLASS(MeshRenderer)
     public:
-        MeshRenderer() :
-            mOsgLOD(new osg::LOD)
-        {
-            mOsgComponentGroup->addChild(mOsgLOD);
-        }
+        MeshRenderer();
         virtual ~MeshRenderer() = default;
 
         virtual void onEnable() override
