@@ -31,7 +31,7 @@ namespace xxx
                         float boundSphereArea = boundSphereR * boundSphereR * osg::PIf;
                         osg::Viewport* viewport = cullStack->getViewport();
                         float screenPixelCount = viewport->width() * viewport->height();
-                        float pixelRatio = boundSphereArea / screenPixelCount;
+                        float pixelRatio = std::sqrt(boundSphereArea / screenPixelCount);
                         required_range = std::min(pixelRatio, 0.9999999f);
                     }
                     else

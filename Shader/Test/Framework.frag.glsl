@@ -40,12 +40,15 @@ in V2F
     vec4 color;
     vec4 texcoord0;
     vec4 texcoord1;
+#if (ALPHA_MODE == ALPHA_MODE_BLEND)
+    float gbufferNdcZ;
+#endif
 } v2f;
 
 #if (RENDERING_PATH == RENDERING_PATH_DEFERRED)
 out vec4 fragData[5];
 #else
-out vec4 fragData;
+out vec4 fragData[2];
 #endif
 
 struct MaterialInputs
@@ -169,6 +172,10 @@ void main()
 
     calcNormal(mi, mo);
 
+#if (ALPHA_MODE == ALPHA_MODE_BLEND)
+    gl_FragDepth = clamp(v2f.gbufferNdcZ * 0.5 + 0.5, 0.0000001, 0.9999999);
+#endif
+
 #if (RENDERING_PATH == RENDERING_PATH_DEFERRED)
     fragData[0] = vec4(mo.emissive, 1.0);
     fragData[1] = vec4(mo.normal * 0.5 + 0.5, 1.0);
@@ -176,6 +183,7 @@ void main()
     fragData[3] = vec4(mo.baseColor, mo.occlusion);
     fragData[4] = vec4(0);
 #else
-    fragData = vec4(/*evaluateLighting(mo)*/mo.baseColor, mo.opacity);
+    fragData[0] = vec4(/*evaluateLighting(mo)*/mo.baseColor, mo.opacity);
+    fragData[1] = vec4(1.0, 1.0, 1.0, mo.opacity);
 #endif
 }

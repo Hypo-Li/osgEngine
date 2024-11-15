@@ -65,10 +65,7 @@ namespace xxx::editor
                     mMaterial->setDoubleSided(doubleSided);
 
                 Asset* shaderAsset = mMaterial->getShader()->getAsset();
-                if (AssetCombo<Shader>("Shader", &shaderAsset))
-                {
-                    mMaterial->setShader(shaderAsset->getRootObject<Shader>());
-                }
+                bool wantChangeShader = AssetCombo<Shader>("Shader", &shaderAsset);
 
                 int paramId = 0;
                 const Material::Parameters& materialParameters = mMaterial->getParameters();
@@ -178,6 +175,11 @@ namespace xxx::editor
                         ImGui::EndDisabled();
 
                     ++paramId;
+                }
+
+                if (wantChangeShader)
+                {
+                    mMaterial->setShader(shaderAsset->getRootObject<Shader>());
                 }
 
                 if (ImGui::Button("Save"))

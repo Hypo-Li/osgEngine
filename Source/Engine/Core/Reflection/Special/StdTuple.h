@@ -15,6 +15,7 @@ namespace xxx::refl
 
         virtual std::vector<Type*> getTypes() const = 0;
         virtual size_t getElementCount() const = 0;
+        virtual void setElementValue(void* instance, size_t index, void* data) const = 0;
         virtual std::vector<void*> getElementPtrs(void* instance) const = 0;
 
     protected:
@@ -32,6 +33,19 @@ namespace xxx::refl
         static std::vector<Type*> getTypesImpl(std::index_sequence<Is...>)
         {
             return { Reflection::getType<std::tuple_element_t<Is, T>>()... };
+        }
+
+        template <std::size_t Index>
+        static void setElementValueImpl(T* instance, size_t index, void* data)
+        {
+            if (Index == index)
+            {
+                std::get<Index>(*instance) = *(std::tuple_element_t<Index, T>*)(data);
+                return;
+            }
+
+            if constexpr (Index + 1 < std::tuple_size_v<T>)
+                setElementValueImpl<Index + 1>(instance, index, data);
         }
 
         template <std::size_t... Is>
@@ -75,6 +89,11 @@ namespace xxx::refl
         virtual size_t getElementCount() const override
         {
             return ElementCount;
+        }
+
+        virtual void setElementValue(void* instance, size_t index, void* data) const
+        {
+            setElementValueImpl<0>(static_cast<T*>(instance), index, data);
         }
 
         virtual std::vector<void*> getElementPtrs(void* instance) const override

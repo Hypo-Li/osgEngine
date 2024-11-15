@@ -4,6 +4,7 @@
 #include <Engine/Core/Context.h>
 #include <Engine/Render/Texture2D.h>
 #include <Engine/Render/TextureCubemap.h>
+#include <osg/CullFace>
 
 namespace xxx
 {
@@ -137,7 +138,7 @@ namespace xxx
                 const uint32_t cascadeCount = mShadowCameras.size();
 
                 constexpr float distributionExponent = 3.0f;
-                constexpr float shadowCastDistance = 1000.0f;
+                constexpr float shadowCastDistance = 1500.0f;
                 constexpr float lightFrustumNearOffset = 800.0f;
 
                 float weightSum = (1.0 - std::pow(distributionExponent, float(cascadeCount))) / (1.0 - distributionExponent); // exp: 1 + 3 + 9 + 27 = 40
@@ -172,7 +173,7 @@ namespace xxx
                     for (uint32_t j = 0; j < 8; ++j)
                         boundsSphereRadius = std::max(boundsSphereRadius, (center - worldSpace[j]).length());
 
-                    osg::Vec3d eye = center + mDirectionalLight->getDirection() * lightFrustumNearOffset;
+                    osg::Vec3d eye = center - mDirectionalLight->getDirection() * lightFrustumNearOffset;
                     osg::Matrixd lightViewMatrix = osg::Matrixd::lookAt(eye, center, osg::Vec3d(0.0, 0.0, 1.0));
 
                     double minX = std::numeric_limits<double>::max();
@@ -213,6 +214,21 @@ namespace xxx
             }
         };
 
+        inline osg::StateSet* getShadowStateSet()
+        {
+            static osg::ref_ptr<osg::StateSet> stateSet = nullptr;
+            if (stateSet)
+                return stateSet;
+            stateSet = new osg::StateSet;
+            osg::Program* program = new osg::Program;
+            program->addShader(osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Test/ShadowMap.vert.glsl"));
+            program->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Test/ShadowMap.frag.glsl"));
+            stateSet->setAttribute(program, osg::StateAttribute::ON);
+            stateSet->setDefine("SHADOW_CAST", "1");
+            stateSet->setMode(GL_CULL_FACE, osg::StateAttribute::ON);
+            return stateSet;
+        }
+
         void addShadowPasses()
         {
             Pipeline* pipeline = Context::get().getEngine()->getPipeline();
@@ -228,16 +244,41 @@ namespace xxx
             shadowMapTextureArray->setFilter(osg::Texture::MAG_FILTER, osg::Texture::NEAREST);
 
             using BufferType = Pipeline::Pass::BufferType;
-            std::vector<osg::ref_ptr<osg::Camera>> shadowCameras;
-            for (uint32_t i = 0; i < 4; ++i)
+
+            uint32_t shadowCastPassCount = 0;
+            if (true)
             {
-                Pipeline::Pass* shadowCastPass = pipeline->insertInputPass(lightingPassIndex + i, namePrefix + " ShadowCast" + std::to_string(i), SHADOW_CAST_MASK, GL_DEPTH_BUFFER_BIT, true, osg::Vec2(2048, 2048));
-                shadowCastPass->attach(BufferType::DEPTH_BUFFER, shadowMapTextureArray, 0, i);
-                shadowCastPass->getCamera()->getOrCreateStateSet()->setDefine("SHADOW_CAST", "1");
-                shadowCastPass->getCamera()->setSmallFeatureCullingPixelSize(20);
-                shadowCameras.emplace_back(shadowCastPass->getCamera());
+                shadowCastPassCount = 4;
+                std::vector<osg::ref_ptr<osg::Camera>> shadowCameras;
+                for (uint32_t i = 0; i < 4; ++i)
+                {
+                    Pipeline::Pass* shadowCastPass = pipeline->insertInputPass(lightingPassIndex + i, namePrefix + " ShadowCast" + std::to_string(i), SHADOW_CAST_MASK, GL_DEPTH_BUFFER_BIT, true, osg::Vec2(2048, 2048));
+                    shadowCastPass->attach(BufferType::DEPTH_BUFFER, shadowMapTextureArray, 0, i);
+                    shadowCastPass->getCamera()->setStateSet(getShadowStateSet());
+                    shadowCastPass->getCamera()->setSmallFeatureCullingPixelSize(20);
+                    shadowCameras.emplace_back(shadowCastPass->getCamera());
+                }
+                gbufferPass->getCamera()->addPreDrawCallback(new ShadowCamerasUpdateCallback(shadowCameras, this));
             }
-            gbufferPass->getCamera()->addPreDrawCallback(new ShadowCamerasUpdateCallback(shadowCameras, this));
+            else
+            {
+                shadowCastPassCount = 1;
+                Pipeline::Pass* shadowCastPass = pipeline->insertInputPass(lightingPassIndex, namePrefix + " ShadowCast", SHADOW_CAST_MASK, GL_DEPTH_BUFFER_BIT, true, osg::Vec2(2048, 2048));
+                shadowCastPass->attach(BufferType::DEPTH_BUFFER, shadowMapTextureArray, 0, osg::Camera::FACE_CONTROLLED_BY_GEOMETRY_SHADER);
+                shadowCastPass->getCamera()->setStateSet(getShadowStateSet());
+
+            }
+
+            osg::Program* shadowMaskProgram = new osg::Program;
+            osg::Shader* screenQuadShader = osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Common/ScreenQuad.vert.glsl");
+            osg::Shader* shadowMaskShader = osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Test/ShadowMask.frag.glsl");
+            shadowMaskProgram->addShader(screenQuadShader);
+            shadowMaskProgram->addShader(shadowMaskShader);
+            Pipeline::Pass* shadowMaskPass = pipeline->insertWorkPass(lightingPassIndex + shadowCastPassCount, namePrefix + "ShadowMask", shadowMaskProgram, GL_COLOR_BUFFER_BIT);
+            shadowMaskPass->attach(BufferType::COLOR_BUFFER0, GL_RGB8);
+            shadowMaskPass->applyTexture(gbufferPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uSceneDepthTexture", 0);
+            shadowMaskPass->applyTexture(shadowMapTextureArray, "uShadowMapTextureArray", 1);
+            shadowMaskPass->applyUniform(new osg::Uniform("uCascadeFar", osg::Vec4f(37.5, 112.5, 337.5, 1012.5)));
         }
 
         void removeShadowPasses()

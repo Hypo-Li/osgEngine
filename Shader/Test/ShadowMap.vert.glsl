@@ -1,5 +1,5 @@
 #version 430 core
-#pragma import_defines(INSTANCED, SHADOW_CAST, ALPHA_MODE)
+#pragma import_defines(INSTANCED, SHADOW_CAST)
 // in vec4 osg_Vertex;
 // in vec3 osg_Normal;
 // in vec4 osg_Color;
@@ -25,27 +25,20 @@ layout(location = 5) in vec4 iTexcoord1;
 #define ALPHA_MODE_MASK 1
 #define ALPHA_MODE_BLEND 2
 
-#ifndef ALPHA_MODE
-    #define ALPHA_MODE ALPHA_MODE_OPAQUE
-#endif
-
 #if INSTANCED
 uniform samplerBuffer uInstancedDataBuffer;
 uniform usamplerBuffer uInstancedRemapBuffer;
 #endif
 
-out V2F
-{
-    vec3 fragPosVS;
-    vec3 normalVS;
-    vec4 tangentVS;
-    vec4 color;
-    vec4 texcoord0;
-    vec4 texcoord1;
-#if (ALPHA_MODE == ALPHA_MODE_BLEND)
-    float gbufferNdcZ;
-#endif
-} v2f;
+// out V2F
+// {
+//     vec3 fragPosVS;
+//     vec3 normalVS;
+//     vec4 tangentVS;
+//     vec4 color;
+//     vec4 texcoord0;
+//     vec4 texcoord1;
+// } v2f;
 
 uniform mat4 osg_ModelViewMatrix;
 uniform mat4 osg_ProjectionMatrix;
@@ -76,14 +69,10 @@ void main()
 #endif
     
     gl_Position = osg_ProjectionMatrix * viewSpace;
-    v2f.fragPosVS = viewSpace.xyz;
-    v2f.normalVS = osg_NormalMatrix * iNormal;
-    v2f.tangentVS = vec4(osg_NormalMatrix * iTangent.xyz, iTangent.w);
-    v2f.color = iColor;
-    v2f.texcoord0 = iTexcoord0;
-    v2f.texcoord1 = iTexcoord1;
-
-#if (ALPHA_MODE == ALPHA_MODE_BLEND)
-    v2f.gbufferNdcZ = -uNearFar.z - uNearFar.w / viewSpace.z;
-#endif
+    // v2f.fragPosVS = viewSpace.xyz;
+    // v2f.normalVS = osg_NormalMatrix * iNormal;
+    // v2f.tangentVS = vec4(osg_NormalMatrix * iTangent.xyz, iTangent.w);
+    // v2f.color = iColor;
+    // v2f.texcoord0 = iTexcoord0;
+    // v2f.texcoord1 = iTexcoord1;
 }

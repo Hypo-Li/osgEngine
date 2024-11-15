@@ -21,6 +21,7 @@
 #include <osgGA/TrackballManipulator>
 
 #include <iostream>
+#include <random>
 
 using namespace xxx;
 using namespace xxx::refl;
@@ -37,36 +38,36 @@ void calcMaterial(in MaterialInputs mi, inout MaterialOutputs mo)
 }
 )";
 
-void createTestAssets()
-{
-    AssetManager& am = AssetManager::get();
-
-    osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "awesomeface.png");
-    osg::ref_ptr<Texture2D> texture = new Texture2D(image, TextureImportOptions());
-    am.createAsset(texture, "Engine/Texture/AwesomeFace")->save();
-
-    osg::ref_ptr<Shader> shader = new Shader;
-    shader->addParameter("BaseColorTexture", texture.get());
-    shader->addParameter("BaseColorFactor", osg::Vec3f(1, 1, 1));
-    shader->addParameter("Emissive", osg::Vec3f(0, 0, 0));
-    shader->addParameter("Metallic", 0.0f);
-    shader->addParameter("Roughness", 0.5f);
-    shader->setSource(testShaderSource);
-    am.createAsset(shader, "Engine/Shader/TestShader")->save();
-
-    osg::ref_ptr<Material> material = new Material;
-    material->setShader(shader);
-    am.createAsset(material, "Engine/Material/TestMaterial")->save();
-
-    osg::ref_ptr<Mesh> mesh = new Mesh(TEMP_DIR "cube.obj");
-    mesh->setDefaultMaterial(0, material);
-    am.createAsset(mesh, "Engine/Mesh/Cube")->save();
-
-    osg::ref_ptr<Entity> entity = new Entity("TestEntity");
-    MeshRenderer* meshRenderer = entity->addComponent<MeshRenderer>();
-    meshRenderer->setMesh(mesh);
-    am.createAsset(entity, "Engine/Entity/TestEntity")->save();
-}
+//void createTestAssets()
+//{
+//    AssetManager& am = AssetManager::get();
+//
+//    osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "awesomeface.png");
+//    osg::ref_ptr<Texture2D> texture = new Texture2D(image, TextureImportOptions());
+//    am.createAsset(texture, "Engine/Texture/AwesomeFace")->save();
+//
+//    osg::ref_ptr<Shader> shader = new Shader;
+//    shader->addParameter("BaseColorTexture", texture.get());
+//    shader->addParameter("BaseColorFactor", osg::Vec3f(1, 1, 1));
+//    shader->addParameter("Emissive", osg::Vec3f(0, 0, 0));
+//    shader->addParameter("Metallic", 0.0f);
+//    shader->addParameter("Roughness", 0.5f);
+//    shader->setSource(testShaderSource);
+//    am.createAsset(shader, "Engine/Shader/TestShader")->save();
+//
+//    osg::ref_ptr<Material> material = new Material;
+//    material->setShader(shader);
+//    am.createAsset(material, "Engine/Material/TestMaterial")->save();
+//
+//    osg::ref_ptr<Mesh> mesh = new Mesh(TEMP_DIR "cube.obj");
+//    mesh->setDefaultMaterial(0, 0, material);
+//    am.createAsset(mesh, "Engine/Mesh/Cube")->save();
+//
+//    osg::ref_ptr<Entity> entity = new Entity("TestEntity");
+//    MeshRenderer* meshRenderer = entity->addComponent<MeshRenderer>();
+//    meshRenderer->setMesh(mesh);
+//    am.createAsset(entity, "Engine/Entity/TestEntity")->save();
+//}
 
 TextureCubemap* generateSpecularCubemap(TextureCubemap* imageCubemap)
 {
@@ -177,6 +178,18 @@ Texture2D* generateBRDFLut()
     return new Texture2D(brdfLutTexture);
 }
 
+osg::Image* create1x1Image(osg::Vec4f color)
+{
+    osg::Image* image = new osg::Image;
+    image->allocateImage(1, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+    uint8_t* rgba = (uint8_t*)(image->data());
+    rgba[0] = color.r() * 255;
+    rgba[1] = color.g() * 255;
+    rgba[2] = color.b() * 255;
+    rgba[3] = color.a() * 255;
+    return image;
+}
+
 int main()
 {
     AssetManager& am = AssetManager::get();
@@ -254,42 +267,62 @@ int main()
     osg::ref_ptr<TextureCubemap> texture = new TextureCubemap(image, options, 1);
     am.createAsset(texture, "Engine/Texture/WhiteCubemap")->save();*/
 
-    /*osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "T_Perlin_Noise_M.PNG");
+    /*osg::ref_ptr<Shader> shader = new Shader;
+    am.createAsset(shader, "Engine/Shader/TestShader2")->save();*/
+
+    /*osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "T_Chair_N.PNG");
     TextureImportOptions options;
-    options.format = Texture::Format::Compressed_RGB_S3TC_DXT1;
+    options.format = Texture::Format::RGB8;
     Texture2D* texture = new Texture2D(image, options);
     texture->setDataCompression(true);
-    am.createAsset(texture, "Engine/Texture/T_Perlin_Noise_M")->save();*/
+    am.createAsset(texture, "Engine/Texture/T_Chair_N")->save();*/
 
-    /*osg::ref_ptr<Mesh> mesh = new Mesh(TEMP_DIR "suzanne.obj");
-    mesh->setDefaultMaterial(0, am.getAsset("Engine/Material/TestMaterial")->getRootObject<Material>());
-    mesh->setDataCompression(true);
-    am.createAsset(mesh, "Engine/Mesh/Suzanne")->save();*/
-
-    /*Mesh* mesh = am.getAsset("Engine/Mesh/ZY")->getRootObject<Mesh>();
-    auto geometries = mesh->generateGeometries();
-    osg::Geode* geode = new osg::Geode;
-    for (osg::Geometry* geom : geometries)
+    /*std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<uint32_t> dis(0, 1023);
+    for (uint32_t i = 0; i < 17; ++i)
     {
-        geode->addDrawable(geom);
-    }
-    osg::Group* group = new osg::Group;
-    group->addChild(geode);
-    osgDB::writeNodeFile(*group, TEMP_DIR "zy.ive");*/
-
-    Material* material = am.getAsset("Engine/Material/TestMaterial")->getRootObject<Material>();
-    /*for (uint32_t i = 0; i < 9; ++i)
-    {
-        Mesh* mesh = new Mesh(TEMP_DIR "side" + std::to_string(i) + ".fbx");
-        for (uint32_t i = 0; i < mesh->getSubmeshCount(); ++i)
-            mesh->setDefaultMaterial(i, material);
-        am.createAsset(mesh, "Engine/Mesh/Side" + std::to_string(i))->save();
+        Mesh* mesh = new Mesh(TEMP_DIR "main" + std::to_string(i) + ".fbx");
+        size_t materialCount = mesh->getMaterialCount();
+        for (size_t i = 0; i < materialCount; ++i)
+        {
+            mesh->setMaterial(i, am.getAsset("Engine/Material/MyMaterial" + std::to_string(dis(gen)))->getRootObject<Material>());
+        }
+        am.createAsset(mesh, "Engine/Mesh/Main" + std::to_string(i))->save();
     }*/
-    Mesh* mesh = new Mesh(TEMP_DIR "main.fbx");
-    for (uint32_t i = 0; i < mesh->getSubmeshCount(); ++i)
-        mesh->setDefaultMaterial(i, material);
-    am.createAsset(mesh, "Engine/Mesh/Main")->save();
 
+    Mesh* mesh = new Mesh(TEMP_DIR "tree.fbx");
+    am.createAsset(mesh, "Engine/Mesh/Tree")->save();
+
+    /*Shader* shader = new Shader;
+    am.createAsset(shader, "Engine/Shader/TestShader3")->save();*/
+
+    /*std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> dis(0.0f, 1.0f);
+    Shader* shader = am.getAsset("Engine/Shader/TestShader3")->getRootObject<Shader>();
+    for (uint32_t i = 0; i < 1024; ++i)
+    {
+        osg::ref_ptr<Material> material = new Material;
+        material->setShader(shader);
+        material->setParameter("MetallicFactor", dis(gen));
+        material->enableParameter("MetallicFactor", true);
+        material->setParameter("RoughnessFactor", dis(gen));
+        material->enableParameter("RoughnessFactor", true);
+        am.createAsset(material, "Engine/Material/MyMaterial" + std::to_string(i))->save();
+    }*/
+
+    //Mesh* mesh = new Mesh(TEMP_DIR "zy.fbx");
+    /*size_t materialCount = mesh->getMaterialCount();
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<uint32_t> dis(0, 1023);
+    for (size_t i = 0; i < materialCount; ++i)
+    {
+        mesh->setMaterial(i, am.getAsset("Engine/Material/MyMaterial" + std::to_string(dis(gen)))->getRootObject<Material>());
+    }*/
+    //am.createAsset(mesh, "Engine/Mesh/ZY2")->save();
+    
     Context::get().getGraphicsContext()->releaseContext();
 
     return 0;

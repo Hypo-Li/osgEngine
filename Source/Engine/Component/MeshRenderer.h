@@ -7,9 +7,53 @@
 #include <osg/Geometry>
 #include <osgDB/ReadFile>
 #include <osgUtil/CullVisitor>
+#include <osgUtil/Optimizer>
 
 namespace xxx
 {
+    class ShadowGroup : public osg::Group
+    {
+        std::vector<osg::ref_ptr<osg::StateSet>> mChildrenStateSets;
+    public:
+        virtual void traverse(osg::NodeVisitor& nv) override
+        {
+            if (nv.getVisitorType() == osg::NodeVisitor::CULL_VISITOR)
+            {
+                if (mChildrenStateSets.size() != _children.size())
+                {
+                    mChildrenStateSets.resize(_children.size());
+                    for (uint32_t i = 0; i < _children.size(); ++i)
+                        mChildrenStateSets[i] = _children[i]->getStateSet();
+                }
+
+                uint32_t cullMask = nv.asCullVisitor()->getCurrentCamera()->getCullMask();
+                if (cullMask == SHADOW_CAST_MASK)
+                {
+                    for (uint32_t i = 0; i < _children.size(); ++i)
+                    {
+                        if (_children[i]->getStateSet() != nullptr)
+                        {
+                            mChildrenStateSets[i] = _children[i]->getStateSet();
+                            _children[i]->setStateSet(nullptr);
+                        }
+                    }
+                }
+                else
+                {
+                    for (uint32_t i = 0; i < _children.size(); ++i)
+                    {
+                        if (_children[i]->getStateSet() == nullptr)
+                            _children[i]->setStateSet(mChildrenStateSets[i]);
+                        else
+                            mChildrenStateSets[i] = _children[i]->getStateSet();
+                    }
+                }
+            }
+
+            Group::traverse(nv);
+        }
+    };
+
     class MeshRenderer : public Component
     {
         REFLECT_CLASS(MeshRenderer)
@@ -29,7 +73,7 @@ namespace xxx
 
         void setMesh(Mesh* mesh)
         {
-            if (!mesh)
+            if (!mesh || mMesh == mesh)
                 return;
 
             mMesh = mesh;
@@ -41,9 +85,11 @@ namespace xxx
             return mMesh;
         }
 
-        size_t getSubmeshCount()
+        size_t getSubmeshCount(uint32_t lod = 0)
         {
-            return mOverlayMaterials.size();
+            if (mMesh)
+                return mMesh->getSubmeshCount(lod);
+            return 0;
         }
 
         virtual void syncWithMesh()
@@ -51,54 +97,69 @@ namespace xxx
             if (!mMesh)
                 return;
 
-            uint32_t lodCount = mMesh->getLODCount();
-            uint32_t submeshCount = mMesh->getSubmeshCount();
-
-            mOverlayMaterials.resize(submeshCount);
-            //for (uint32_t i = 0; i < submeshCount; ++i)
-            //    mOverlayMaterials[i] = nullptr;
-
             mOsgLOD->removeChildren(0, mOsgLOD->getNumChildren());
+
+            mOverlayMaterials.resize(mMesh->getMaterialCount());
+
+            uint32_t lodCount = mMesh->getLODCount();
             mOsgGeodes.resize(lodCount);
-            for (uint32_t i = 0; i < lodCount; ++i)
+            for (uint32_t lod = 0; lod < lodCount; ++lod)
             {
-                osg::ref_ptr<osg::Group> group = new osg::Group;
-                const Mesh::OsgGeometries& geometries = mMesh->getOsgGeometries(i);
-                mOsgGeodes[i].resize(submeshCount);
-                for (uint32_t j = 0; j < submeshCount; ++j)
+                uint32_t submeshCount = mMesh->getSubmeshCount(lod);
+                osg::ref_ptr<osg::Group> group = new ShadowGroup;
+                const Mesh::OsgGeometries& geometries = mMesh->getOsgGeometries(lod);
+                mOsgGeodes[lod].resize(submeshCount);
+                for (uint32_t submesh = 0; submesh < submeshCount; ++submesh)
                 {
-                    mOsgGeodes[i][j] = new osg::Geode;
-                    mOsgGeodes[i][j]->addDrawable(geometries[j]);
-                    Material* material = mMesh->getDefaultMaterial(j);
-                    mOsgGeodes[i][j]->setStateSet(material->getOsgStateSet());
-                    mOsgGeodes[i][j]->setNodeMask(material->getOsgNodeMask());
-                    group->addChild(mOsgGeodes[i][j]);
+                    Material* material = mMesh->getMaterial(lod, submesh);
+
+                    osg::Geode* geode = new osg::Geode;
+                    geode->addDrawable(geometries[submesh]);
+                    geode->setStateSet(material->getOsgStateSet());
+                    geode->setNodeMask(material->getOsgNodeMask());
+                    group->addChild(geode);
+                    geode->computeBound();
+                    mOsgGeodes[lod][submesh] = geode;
                 }
+
                 mOsgLOD->addChild(group);
-                std::pair<float, float> lodRange = mMesh->getLODRange(i);
-                mOsgLOD->setRange(i, lodRange.first, lodRange.second);
+                std::pair<float, float> lodRange = mMesh->getLODRange(lod);
+                mOsgLOD->setRange(lod, lodRange.first, lodRange.second);
             }
         }
 
         void setOverlayMaterial(uint32_t index, Material* material)
         {
-            if (index >= mOverlayMaterials.size())
+            if (index >= mOverlayMaterials.size() || !mMesh)
                 return;
 
             mOverlayMaterials[index] = material;
             uint32_t lodCount = mMesh->getLODCount();
-            for (uint32_t i = 0; i < lodCount; ++i)
+            for (uint32_t lod = 0; lod < lodCount; ++lod)
             {
-                mOsgGeodes[i][index]->setStateSet(material->getOsgStateSet());
-                mOsgGeodes[i][index]->setNodeMask(material->getOsgNodeMask());
+                uint32_t submeshCount = mMesh->getSubmeshCount(lod);
+                for (uint32_t submesh = 0; submesh < submeshCount; ++submesh)
+                {
+                    uint32_t materialIndex = mMesh->getMaterialIndex(lod, submesh);
+                    if (materialIndex == index)
+                    {
+                        mOsgGeodes[lod][submesh]->setStateSet(material->getOsgStateSet());
+                        mOsgGeodes[lod][submesh]->setNodeMask(material->getOsgNodeMask());
+                    }
+                }
             }
         }
 
-        Material* getMaterial(uint32_t index)
+        Material* getMaterial(uint32_t index) const
         {
             if (index >= mOverlayMaterials.size())
                 return nullptr;
-            return mOverlayMaterials[index] ? mOverlayMaterials[index] : mMesh->getDefaultMaterial(index);
+            return mOverlayMaterials[index] ? mOverlayMaterials[index] : mMesh->getMaterial(index);
+        }
+
+        uint32_t getMaterialCount() const
+        {
+            return mOverlayMaterials.size();
         }
 
     protected:

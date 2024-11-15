@@ -174,10 +174,6 @@ namespace xxx
         virtual void serializeStructure(refl::Structure* structure, void* data, size_t count = 1) override;
         virtual void serializeSpecial(refl::Special* special, void* data, size_t count = 1) override;
 
-        virtual void serializeStdArray(refl::StdArray* stdArray, void* data, size_t count = 1) override;
-        virtual void serializeStdPair(refl::StdPair* stdPair, void* data, size_t count = 1) override;
-        virtual void serializeStdTuple(refl::StdTuple* stdTuple, void* data, size_t count = 1) override;
-
     private:
         Asset* mAsset;
 
@@ -187,7 +183,7 @@ namespace xxx
 
         std::vector<ExportItem> mExportTable;
 
-        std::unordered_map<uint32_t, osg::ref_ptr<Object>> mTempObjects;
+        std::unordered_map<uint32_t, Object*> mTempObjects;
 
         std::vector<ObjectBuffer> mObjectBufferTable;
 

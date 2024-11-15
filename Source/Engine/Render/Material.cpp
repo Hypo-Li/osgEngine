@@ -171,6 +171,7 @@ namespace xxx
         mShadingModel = shadingModel;
         mOsgStateSet->setDefine("SHADING_MODEL", std::to_string(int(mShadingModel)));
 
+        // TODO: apply material modify in MeshRenderer
         uint32_t osgNodeMask = getOsgNodeMask();
         for (osg::Node* geom : mOsgStateSet->getParents())
             geom->setNodeMask(osgNodeMask);
@@ -214,7 +215,12 @@ namespace xxx
         if (mAlphaMode == AlphaMode::Blend)
             return TRANSPARENT_MASK;
         else
-            return GBUFFER_MASK | SHADOW_CAST_MASK;
+        {
+            if (mShadingModel == ShadingModel::Unlit)
+                return GBUFFER_MASK;
+            else
+                return GBUFFER_MASK | SHADOW_CAST_MASK;
+        }
     }
 
     std::string Material::getParameterTypeString(const Shader::ParameterValue& parameter)

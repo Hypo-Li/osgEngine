@@ -30,6 +30,7 @@ layout(std140, binding = 0) uniform ViewData
     mat4 uInverseViewMatrix;
     mat4 uProjectionMatrix;
     mat4 uInverseProjectionMatrix;
+    vec4 uNearFar;
 };
 
 struct PixelParameters
@@ -73,14 +74,12 @@ void calcPixelParameters(vec4 gbufferA, vec4 gbufferB, vec4 gbufferC, vec4 gbuff
 
 vec3 F_Schlick(float VoH, vec3 F0)
 {
-    // 1.0 - vdh maybe equal to -0.0, pow will return nan
-    return F0 + (1.0 - F0) * pow(abs(1.0 - VoH), 5.0);
+    return F0 + (1.0 - F0) * pow(1.0 - VoH, 5.0);
 }
 
-vec3 F_Schlick(float VoH, vec3 F0, float F90)
+vec3 F_Schlick(float VoH, vec3 F0, vec3 F90)
 {
-    // 1.0 - vdh maybe equal to -0.0, pow will return nan
-    return F0 + (F90 - F0) * pow(abs(1.0 - VoH), 5.0);
+    return F0 + (F90 - F0) * pow(1.0 - VoH, 5.0);
 }
 
 float D_GGX(float NoH, float roughness)
@@ -163,20 +162,16 @@ vec3 evaluateLighs(in PixelParameters pp)
 void main()
 {
     ivec2 iTexcoord = ivec2(gl_FragCoord.xy);
+    float fragDepth = texelFetch(uDepthTexture, iTexcoord, 0).r;
+    if (fragDepth == 1.0)
+        discard;
     vec4 gbufferA = texelFetch(uGBufferATexture, iTexcoord, 0);
     vec4 gbufferB = texelFetch(uGBufferBTexture, iTexcoord, 0);
     vec4 gbufferC = texelFetch(uGBufferCTexture, iTexcoord, 0);
     vec4 gbufferD = texelFetch(uGBufferDTexture, iTexcoord, 0);
-    float fragDepth = texelFetch(uDepthTexture, iTexcoord, 0).r;
 
     PixelParameters pp;
     calcPixelParameters(gbufferA, gbufferB, gbufferC, gbufferD, fragDepth, pp);
-
-    if (pp.fragDepth == 1.0)
-    {
-        fragData = vec4(1);
-        return;
-    }
 
     vec3 color = evaluateLighs(pp);
 

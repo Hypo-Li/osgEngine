@@ -65,7 +65,6 @@ namespace xxx
         return mObjectBufferTable.size() - 1;
     }
 
-    // TODO: don't add imported and exported object by Asset's method, Asset get them from mImportTable and TempObjects
     int32_t AssetSerializer::getIndexOfObject(Object* object)
     {
         int32_t index = 0;
@@ -86,7 +85,6 @@ namespace xxx
                 // if no saved
                 mImportTable.push_back({ object->getGuid(), addString(object->getAsset()->getPath()) });
                 index = mImportTable.size() - 1;
-                //mAsset->addImportedObject(object);
             }
             else
             {
@@ -113,7 +111,6 @@ namespace xxx
                 std::string className(object->getClass()->getName());
                 mExportTable.push_back({ object->getGuid(), addString(className) });
                 mTempObjects[index] = object;
-                //mAsset->addExportedObject(object);
 
                 pushObjectBufferIndex(createNewObjectBuffer());
                 serializeObject(object);
@@ -318,39 +315,6 @@ namespace xxx
         }
         default:
             break;
-        }
-    }
-
-    void AssetSerializer::serializeStdArray(StdArray* stdArray, void* data, size_t count)
-    {
-        const size_t stdArraySize = stdArray->getSize();
-        for (uint32_t i = 0; i < count; ++i)
-        {
-            void* stdArrayData = static_cast<uint8_t*>(data) + stdArraySize * i;
-            serializeType(stdArray->getElementType(), stdArray->getElementPtrByIndex(stdArrayData, 0), stdArray->getElementCount());
-        }
-    }
-
-    void AssetSerializer::serializeStdPair(StdPair* stdPair, void* data, size_t count)
-    {
-        for (uint32_t i = 0; i < count; ++i)
-        {
-            void* stdPairData = static_cast<uint8_t*>(data) + stdPair->getSize() * i;
-            serializeType(stdPair->getFirstType(), stdPair->getFirstPtr(stdPairData));
-            serializeType(stdPair->getSecondType(), stdPair->getSecondPtr(stdPairData));
-        }
-    }
-
-    void AssetSerializer::serializeStdTuple(StdTuple* stdTuple, void* data, size_t count)
-    {
-        for (uint32_t i = 0; i < count; ++i)
-        {
-            void* stdTupleData = static_cast<uint8_t*>(data) + stdTuple->getSize() * i;
-            std::vector<Type*> tupleTypes = stdTuple->getTypes();
-            std::vector<void*> tupleElementPtrs = stdTuple->getElementPtrs(stdTupleData);
-            size_t tupleElementCount = stdTuple->getElementCount();
-            for (size_t i = 0; i < tupleElementCount; ++i)
-                serializeType(tupleTypes[i], tupleElementPtrs[i]);
         }
     }
 }

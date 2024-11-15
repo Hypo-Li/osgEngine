@@ -104,28 +104,7 @@ namespace xxx::editor
             Context::get().getGraphicsContext()->makeCurrent();
 
             Entity* entity = AssetManager::get().getAsset("Engine/Entity/TestEntity")->getRootObject<Entity>();
-
-            /*Material* material = AssetManager::get().getAsset("Engine/Material/TestMaterial")->getRootObject<Material>();
-            MeshRenderer* meshRenderer = entity->getComponent<MeshRenderer>();
-            Mesh* mesh = new Mesh(TEMP_DIR "zy.ive");
-            for (size_t i = 0; i < mesh->getSubmeshCount(); ++i)
-                mesh->setDefaultMaterial(i, material);
-            meshRenderer->setMesh(mesh);*/
-
-            /*Material* material = AssetManager::get().getAsset("Engine/Material/TestMaterial")->getRootObject<Material>();
-            osg::ref_ptr<osg::Node> mesh = osgDB::readNodeFile(TEMP_DIR "zy.fbx");
-            osgUtil::Optimizer optimizer;
-            optimizer.optimize(mesh, osgUtil::Optimizer::INDEX_MESH);
-            SetGeometryStateSetVisitor sgsv(material->getOsgStateSet());
-            mesh->accept(sgsv);
-            osgDB::writeNodeFile(*mesh, TEMP_DIR "zy2.ive");*/
-
-            //osg::ref_ptr<osg::Node> mesh = osgDB::readNodeFile(TEMP_DIR "zy2.ive");
-            //engineView->setSceneData(mesh);
-
             engineView->setSceneData(entity->getOsgNode());
-            
-
             Context::get().getGraphicsContext()->releaseContext();
 
             

@@ -14,6 +14,7 @@ namespace xxx
         osg::Matrixf inverseViewMatrix;
         osg::Matrixf projectionMatrix;
         osg::Matrixf inverseProjectionMatrix;
+        osg::Vec4f nearFar;
     };
 
     class GBufferPassPreDrawCallback : public osg::Camera::DrawCallback
@@ -32,6 +33,9 @@ namespace xxx
             viewData.inverseViewMatrix = renderInfo.getCurrentCamera()->getInverseViewMatrix();
             viewData.projectionMatrix = renderInfo.getCurrentCamera()->getProjectionMatrix();
             viewData.inverseProjectionMatrix = osg::Matrixf::inverse(viewData.projectionMatrix);
+            float A = viewData.projectionMatrix(2, 2), B = viewData.projectionMatrix(3, 2);
+            float zNear = B / (A - 1.0), zFar = B / (A + 1.0);
+            viewData.nearFar = osg::Vec4f(zNear, zFar, A, B);
 
             buffer->assign((float*)&viewData, (float*)(&viewData + 1));
             buffer->dirty();
@@ -87,10 +91,12 @@ namespace xxx
 
         Pipeline::Pass* transparentPass = pipeline->addInputPass("Transparent", 0x00000002, GL_COLOR_BUFFER_BIT);
         transparentPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F, true);
+        transparentPass->attach(BufferType::COLOR_BUFFER1, GL_R16F, true);  // mark color grading percent
         transparentPass->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT24, true);
         transparentPass->setAttribute(new osg::Depth(osg::Depth::LESS, 0.0, 1.0, false));
         transparentPass->setMode(GL_BLEND);
         transparentPass->setAttribute(new osg::BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE_MINUS_SRC_ALPHA));
+        transparentPass->setAttribute(viewDataUBB);
         transparentPass->getCamera()->setClearColor(osg::Vec4(0, 0, 0, 1));
 
         pipeline->addBlitFramebufferCommand(gbufferPass, transparentPass, GL_DEPTH_BUFFER_BIT, GL_NEAREST);

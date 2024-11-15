@@ -2,6 +2,8 @@
 #include "MeshRenderer.h"
 
 #include <osg/TextureBuffer>
+#include <osg/BufferObject>
+#include <osg/BufferIndexBinding>
 
 namespace xxx
 {
@@ -9,7 +11,7 @@ namespace xxx
     {
         REFLECT_CLASS(InstancedMeshRenderer)
     public:
-        struct InstanceData
+        struct InstancedData
         {
             osg::Vec3f translation;
             osg::Vec3f rotation;
@@ -18,10 +20,10 @@ namespace xxx
 
         struct InstancedDrawableComputeBoundingBoxCallback : public osg::Drawable::ComputeBoundingBoxCallback
         {
-            const std::vector<InstanceData>& mInstanceDatas;
+            const std::vector<InstancedData>& mInstancedDatas;
             mutable osg::BoundingBox mNativeBoundingBox;
 
-            InstancedDrawableComputeBoundingBoxCallback(const std::vector<InstanceData>& instanceDatas) : mInstanceDatas(instanceDatas) {}
+            InstancedDrawableComputeBoundingBoxCallback(const std::vector<InstancedData>& instancedDatas) : mInstancedDatas(instancedDatas) {}
 
             virtual osg::BoundingBox computeBound(const osg::Drawable& drawable) const
             {
@@ -29,14 +31,14 @@ namespace xxx
                 if (!mNativeBoundingBox.valid())
                     mNativeBoundingBox = drawable.computeBoundingBox();
 
-                for (const auto& instanceData : mInstanceDatas)
+                for (const auto& instancedData : mInstancedDatas)
                 {
                     osg::Quat quat(
-                        osg::DegreesToRadians(instanceData.rotation.x()), osg::X_AXIS,
-                        osg::DegreesToRadians(instanceData.rotation.y()), osg::Y_AXIS,
-                        osg::DegreesToRadians(instanceData.rotation.z()), osg::Z_AXIS
+                        osg::DegreesToRadians(instancedData.rotation.x()), osg::X_AXIS,
+                        osg::DegreesToRadians(instancedData.rotation.y()), osg::Y_AXIS,
+                        osg::DegreesToRadians(instancedData.rotation.z()), osg::Z_AXIS
                     );
-                    osg::Matrixf relativeMatrix = osg::Matrixf::scale(instanceData.scale) * osg::Matrixf::rotate(quat) * osg::Matrixf::translate(instanceData.translation);
+                    osg::Matrixf relativeMatrix = osg::Matrixf::scale(instancedData.scale) * osg::Matrixf::rotate(quat) * osg::Matrixf::translate(instancedData.translation);
 
                     for (int i = 0; i < 8; ++i)
                     {
@@ -61,7 +63,7 @@ namespace xxx
 
         virtual void onEnable() override
         {
-            createInstanceDatasTBO();
+            createInstancedDatasTBO();
             syncWithMesh();
         }
 
@@ -73,28 +75,36 @@ namespace xxx
         virtual void syncWithMesh() override
         {
             MeshRenderer::syncWithMesh();
+            if (mOsgLOD->getNumChildren() > 0)
+            {
+                mNativeBoundingSphere = mOsgLOD->getChild(0)->getBound();
+            }
+
+            auto geometryDrawCallback = new InstancedGeometryDrawCallback(mDrawnInstanceCount);
+
             for (const auto& lodGeodes : mOsgGeodes)
             {
                 for (osg::Geode* geode : lodGeodes)
                 {
                     osg::Geometry* geometry = dynamic_cast<osg::Geometry*>(geode->getDrawable(0));
                     osg::Geometry* instancedGeometry = new osg::Geometry(*geometry);
-                    instancedGeometry->setComputeBoundingBoxCallback(new InstancedDrawableComputeBoundingBoxCallback(mInstanceDatas));
+                    instancedGeometry->setDrawCallback(geometryDrawCallback);
+                    instancedGeometry->setComputeBoundingBoxCallback(new InstancedDrawableComputeBoundingBoxCallback(mInstancedDatas));
                     osg::DrawElements* instancedDrawElements = dynamic_cast<osg::DrawElements*>(instancedGeometry->getPrimitiveSet(0)->clone(osg::CopyOp::SHALLOW_COPY));
-                    instancedDrawElements->setNumInstances(mInstanceDatas.size());
+                    instancedDrawElements->setNumInstances(mInstancedDatas.size());
                     instancedGeometry->setPrimitiveSet(0, instancedDrawElements);
                     geode->setDrawable(0, instancedGeometry);
                 }
             }
-            if (mInstanceDatas.empty())
+            if (mInstancedDatas.empty())
                 mOsgLOD->setNodeMask(0);
         }
 
         void addInstance(osg::Vec3f translation = osg::Vec3f(0, 0, 0), osg::Vec3f rotation = osg::Vec3f(0, 0, 0), osg::Vec3f scale = osg::Vec3f(1, 1, 1))
         {
-            if (mInstanceDatas.empty())
+            if (mInstancedDatas.empty())
                 mOsgLOD->setNodeMask(~0);
-            mInstanceDatas.emplace_back(InstanceData{ translation, rotation, scale });
+            mInstancedDatas.emplace_back(InstancedData{ translation, rotation, scale });
 
             for (const auto& lodGeodes : mOsgGeodes)
             {
@@ -102,100 +112,215 @@ namespace xxx
                 {
                     osg::Geometry* geometry = dynamic_cast<osg::Geometry*>(geode->getDrawable(0));
                     osg::DrawElements* instancedDrawElements = dynamic_cast<osg::DrawElements*>(geometry->getPrimitiveSet(0));
-                    instancedDrawElements->setNumInstances(mInstanceDatas.size());
+                    instancedDrawElements->setNumInstances(mInstancedDatas.size());
 
                     geometry->dirtyBound();
                 }
             }
 
             mOsgLOD->dirtyBound();
-            updateInstanceDatasTBO();
+            updateInstancedDatasTBO();
         }
 
         void setInstance(size_t index, osg::Vec3f translation = osg::Vec3f(0, 0, 0), osg::Vec3f rotation = osg::Vec3f(0, 0, 0), osg::Vec3f scale = osg::Vec3f(1, 1, 1))
         {
-            if (index >= mInstanceDatas.size())
+            if (index >= mInstancedDatas.size())
                 return;
-            mInstanceDatas[index].translation = translation;
-            mInstanceDatas[index].rotation = rotation;
-            mInstanceDatas[index].scale = scale;
+            mInstancedDatas[index].translation = translation;
+            mInstancedDatas[index].rotation = rotation;
+            mInstancedDatas[index].scale = scale;
 
             for (const auto& lodGeodes : mOsgGeodes)
                 for (osg::Geode* geode : lodGeodes)
                     geode->getDrawable(0)->dirtyBound();
 
             mOsgLOD->dirtyBound();
-            updateInstanceData(index);
+            updateInstancedData(index);
         }
 
-        const std::vector<InstanceData>& getInstanceDatas() const
+        const std::vector<InstancedData>& getInstancedDatas() const
         {
-            return mInstanceDatas;
+            return mInstancedDatas;
         }
 
     protected:
-        std::vector<InstanceData> mInstanceDatas;
+        std::vector<InstancedData> mInstancedDatas;
 
-        osg::ref_ptr<osg::TextureBuffer> mInstanceDatasTBO;
+        osg::ref_ptr<osg::TextureBuffer> mInstancedDatasTBO;
+        osg::ref_ptr<osg::TextureBuffer> mInstancedRemapTBO;
+        osg::ref_ptr<osg::ShaderStorageBufferObject> mRemapCountSSBO;
+        uint32_t mDrawnInstanceCount;
+        osg::ref_ptr<osg::DispatchCompute> mCullingDispatch;
+        osg::ref_ptr<osg::Uniform> mBoundingSphereRadiusUniform;
+        osg::ref_ptr<osg::Uniform> mInstanceCountUniform;
+        osg::BoundingSphere mNativeBoundingSphere;
 
-        void createInstanceDatasTBO()
+        class BoundingSphereRadiusUniformCallback : public osg::UniformCallback
         {
-            mInstanceDatasTBO = new osg::TextureBuffer;
-            mInstanceDatasTBO->setInternalFormat(GL_RGBA32F);
-            mInstanceDatasTBO->setSourceFormat(GL_RGBA);
-            mInstanceDatasTBO->setSourceType(GL_FLOAT);
+            const osg::BoundingSphere& mBoundingSphere;
+        public:
+            BoundingSphereRadiusUniformCallback(const osg::BoundingSphere& boundingSphere) : mBoundingSphere(boundingSphere) {}
+
+            virtual void operator () (osg::Uniform* uniform, osg::NodeVisitor* nv)
+            {
+                uniform->set(float(mBoundingSphere.radius()));
+            }
+        };
+
+        class InstanceCountUniformCallback : public osg::UniformCallback
+        {
+            const std::vector<InstancedData>& mInstancedDatas;
+        public:
+            InstanceCountUniformCallback(const std::vector<InstancedData>& instancedDatas) : mInstancedDatas(instancedDatas) {}
+
+            virtual void operator () (osg::Uniform* uniform, osg::NodeVisitor* nv)
+            {
+                uniform->set(uint32_t(mInstancedDatas.size()));
+            }
+        };
+
+        class CullingDispatchDrawCallback : public osg::Drawable::DrawCallback
+        {
+            osg::ref_ptr<osg::ShaderStorageBufferObject> mRemapCountSSBO;
+            uint32_t& mDrawnInstanceCount;
+        public:
+            CullingDispatchDrawCallback(osg::ShaderStorageBufferObject* remapCountSSBO, uint32_t& drawnInstanceCount) : mRemapCountSSBO(remapCountSSBO), mDrawnInstanceCount(drawnInstanceCount) {}
+
+            virtual void drawImplementation(osg::RenderInfo& renderInfo, const osg::Drawable* drawable) const
+            {
+                drawable->drawImplementation(renderInfo);
+                osg::State* state = renderInfo.getState();
+                osg::GLExtensions* extensions = state->get<osg::GLExtensions>();
+                extensions->glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+                mRemapCountSSBO->getGLBufferObject(state->getContextID())->bindBuffer();
+                extensions->glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(uint32_t), &mDrawnInstanceCount);
+            }
+        };
+
+        class InstancedGeometryDrawCallback : public osg::Drawable::DrawCallback
+        {
+            const uint32_t& mDrawnInstanceCount;
+        public:
+            InstancedGeometryDrawCallback(const uint32_t& drawnInstanceCount) : mDrawnInstanceCount(drawnInstanceCount) {}
+
+            virtual void drawImplementation(osg::RenderInfo& renderInfo, const osg::Drawable* drawable) const
+            {
+                osg::DrawElements* drawElement = const_cast<osg::DrawElements*>(dynamic_cast<const osg::DrawElements*>(drawable->asGeometry()->getPrimitiveSet(0)));
+                if (mDrawnInstanceCount != 0)
+                {
+                    drawElement->setNumInstances(mDrawnInstanceCount);
+                    drawable->drawImplementation(renderInfo);
+                }
+            }
+        };
+
+        void createInstancedDatasTBO()
+        {
+            constexpr size_t initInstanceCount = 32;
+
+            mInstancedDatasTBO = new osg::TextureBuffer;
+            mInstancedDatasTBO->setInternalFormat(GL_RGBA32F);
+            mInstancedDatasTBO->setSourceFormat(GL_RGBA);
+            mInstancedDatasTBO->setSourceType(GL_FLOAT);
             osg::Image* image = new osg::Image;
             image->setPixelFormat(GL_RGBA);
             image->setDataType(GL_FLOAT);
-            mInstanceDatasTBO->setImage(image);
+            image->allocateImage(initInstanceCount * 4, 1, 1, GL_RGBA, GL_FLOAT); // 4 pixels per matrix
+            mInstancedDatasTBO->setImage(image);
+
+            mInstancedRemapTBO = new osg::TextureBuffer;
+            mInstancedRemapTBO->setInternalFormat(GL_R32UI);
+            mInstancedRemapTBO->setSourceFormat(GL_RED);
+            mInstancedRemapTBO->setSourceType(GL_UNSIGNED_INT);
+            osg::Image* remapImage = new osg::Image;
+            remapImage->setPixelFormat(GL_RED);
+            remapImage->setDataType(GL_UNSIGNED_INT);
+            remapImage->allocateImage(initInstanceCount, 1, 1, GL_RED, GL_UNSIGNED_INT);
+            mInstancedRemapTBO->setImage(remapImage);
 
             osg::StateSet* stateSet = mOsgLOD->getOrCreateStateSet();
             stateSet->setDefine("INSTANCED", "1");
-            stateSet->setTextureAttribute(15, mInstanceDatasTBO, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
-            stateSet->addUniform(new osg::Uniform("uInstancedData", 15));
+            stateSet->addUniform(new osg::Uniform("uInstancedRemapBuffer", 14));
+            stateSet->addUniform(new osg::Uniform("uInstancedDataBuffer", 15));
+            stateSet->setTextureAttribute(14, mInstancedRemapTBO, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+            stateSet->setTextureAttribute(15, mInstancedDatasTBO, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
 
-            updateInstanceDatasTBO();
+            osg::ref_ptr<osg::UIntArray> remapCountBuffer = new osg::UIntArray(1);
+            mRemapCountSSBO = new osg::ShaderStorageBufferObject;
+            remapCountBuffer->setBufferObject(mRemapCountSSBO);
+
+            mCullingDispatch = new osg::DispatchCompute(1, 1, 1);
+            mCullingDispatch->setDrawCallback(new CullingDispatchDrawCallback(mRemapCountSSBO, mDrawnInstanceCount));
+            mOsgComponentGroup->insertChild(0, mCullingDispatch);
+            osg::Program* program = new osg::Program;
+            program->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "Test/InstancedCulling.comp.glsl"));
+            osg::StateSet* dispatchStateSet = mCullingDispatch->getOrCreateStateSet();
+            dispatchStateSet->setAttribute(program, osg::StateAttribute::ON);
+            dispatchStateSet->setAttribute(new osg::BindImageTexture(0, mInstancedDatasTBO, osg::BindImageTexture::READ_ONLY, GL_RGBA32F), osg::StateAttribute::ON);
+            dispatchStateSet->setAttribute(new osg::BindImageTexture(1, mInstancedRemapTBO, osg::BindImageTexture::WRITE_ONLY, GL_R32UI), osg::StateAttribute::ON);
+            dispatchStateSet->setAttribute(new osg::ShaderStorageBufferBinding(2, remapCountBuffer, 0, sizeof(uint32_t)), osg::StateAttribute::ON);
+            mBoundingSphereRadiusUniform = new osg::Uniform("uBoundingSphereRadius", -1.0f);
+            mBoundingSphereRadiusUniform->setUpdateCallback(new BoundingSphereRadiusUniformCallback(mNativeBoundingSphere));
+            mInstanceCountUniform = new osg::Uniform("uInstanceCount", 0u);
+            mInstanceCountUniform->setUpdateCallback(new InstanceCountUniformCallback(mInstancedDatas));
+            dispatchStateSet->addUniform(mBoundingSphereRadiusUniform);
+            dispatchStateSet->addUniform(mInstanceCountUniform);
+
+            mCullingDispatch->setCullingActive(false);
+            mCullingDispatch->setNodeMask(GBUFFER_MASK | SHADOW_CAST_MASK);
+
+            updateInstancedDatasTBO();
         }
 
-        void updateInstanceDatasTBO()
+        void updateInstancedDatasTBO()
         {
-            if (mInstanceDatas.empty())
+            if (mInstancedDatas.empty())
                 return;
-            osg::Image* image = mInstanceDatasTBO->getImage();
-            std::vector<osg::Matrixf> relativeMatrices(mInstanceDatas.size());
+            osg::Image* image = mInstancedDatasTBO->getImage();
+            std::vector<osg::Matrixf> relativeMatrices(mInstancedDatas.size());
             for (size_t i = 0; i < relativeMatrices.size(); ++i)
             {
-                const InstanceData& instanceData = mInstanceDatas[i];
+                const InstancedData& instancedData = mInstancedDatas[i];
                 osg::Quat quat(
-                    osg::DegreesToRadians(instanceData.rotation.x()), osg::X_AXIS,
-                    osg::DegreesToRadians(instanceData.rotation.y()), osg::Y_AXIS,
-                    osg::DegreesToRadians(instanceData.rotation.z()), osg::Z_AXIS
+                    osg::DegreesToRadians(instancedData.rotation.x()), osg::X_AXIS,
+                    osg::DegreesToRadians(instancedData.rotation.y()), osg::Y_AXIS,
+                    osg::DegreesToRadians(instancedData.rotation.z()), osg::Z_AXIS
                 );
-                relativeMatrices[i] = osg::Matrixf::scale(instanceData.scale) * osg::Matrixf::rotate(quat) * osg::Matrixf::translate(instanceData.translation);
+                relativeMatrices[i] = osg::Matrixf::scale(instancedData.scale) * osg::Matrixf::rotate(quat) * osg::Matrixf::translate(instancedData.translation);
             }
 
             size_t imageDataSize = image->getTotalSizeInBytes();
-            if (mInstanceDatas.size() * sizeof(osg::Matrixf) > imageDataSize)
+            if (mInstancedDatas.size() * sizeof(osg::Matrixf) > imageDataSize)
             {
-                size_t extendedCapacity = mInstanceDatas.capacity();
+                size_t extendedCapacity = mInstancedDatas.capacity();
                 size_t extendedPixelCount = extendedCapacity * sizeof(osg::Matrixf) / (4 * sizeof(float));
                 image->allocateImage(extendedPixelCount, 1, 1, GL_RGBA, GL_FLOAT);
             }
 
             std::memcpy(image->data(), relativeMatrices.data(), relativeMatrices.size() * sizeof(osg::Matrixf));
-            mInstanceDatasTBO->dirtyTextureObject();
+            image->dirty();
+            mInstancedDatasTBO->dirtyTextureObject();
+
+            osg::Image* remapImage = mInstancedRemapTBO->getImage();
+            if (mInstancedDatas.size() > remapImage->s())
+            {
+                size_t extendedCapacity = mInstancedDatas.capacity();
+                remapImage->allocateImage(extendedCapacity, 1, 1, GL_RED, GL_UNSIGNED_INT);
+                mInstancedRemapTBO->dirtyTextureObject();
+            }
         }
 
-        void updateInstanceData(size_t index)
+        void updateInstancedData(size_t index)
         {
-            osg::Image* image = mInstanceDatasTBO->getImage();
-            const InstanceData& instanceData = mInstanceDatas[index];
+            osg::Image* image = mInstancedDatasTBO->getImage();
+            const InstancedData& instancedData = mInstancedDatas[index];
             osg::Quat quat(
-                    osg::DegreesToRadians(instanceData.rotation.x()), osg::X_AXIS,
-                    osg::DegreesToRadians(instanceData.rotation.y()), osg::Y_AXIS,
-                    osg::DegreesToRadians(instanceData.rotation.z()), osg::Z_AXIS
+                    osg::DegreesToRadians(instancedData.rotation.x()), osg::X_AXIS,
+                    osg::DegreesToRadians(instancedData.rotation.y()), osg::Y_AXIS,
+                    osg::DegreesToRadians(instancedData.rotation.z()), osg::Z_AXIS
             );
-            osg::Matrixf relativeMatrix = osg::Matrixf::scale(instanceData.scale) * osg::Matrixf::rotate(quat) * osg::Matrixf::translate(instanceData.translation);
+            osg::Matrixf relativeMatrix = osg::Matrixf::scale(instancedData.scale) * osg::Matrixf::rotate(quat) * osg::Matrixf::translate(instancedData.translation);
             std::memcpy(image->data() + index * sizeof(osg::Matrixf), relativeMatrix.ptr(), sizeof(osg::Matrixf));
             image->dirty();
         }
@@ -203,19 +328,19 @@ namespace xxx
 
     namespace refl
     {
-        template <> inline Type* Reflection::createType<InstancedMeshRenderer::InstanceData>()
+        template <> inline Type* Reflection::createType<InstancedMeshRenderer::InstancedData>()
         {
-            Structure* structure = new TStructure<InstancedMeshRenderer::InstanceData>("InstancedMeshRenderer::InstanceData");
-            structure->addProperty("Translation", &InstancedMeshRenderer::InstanceData::translation);
-            structure->addProperty("Rotation", &InstancedMeshRenderer::InstanceData::rotation);
-            structure->addProperty("Scale", &InstancedMeshRenderer::InstanceData::scale);
+            Structure* structure = new TStructure<InstancedMeshRenderer::InstancedData>("InstancedMeshRenderer::InstancedData");
+            structure->addProperty("Translation", &InstancedMeshRenderer::InstancedData::translation);
+            structure->addProperty("Rotation", &InstancedMeshRenderer::InstancedData::rotation);
+            structure->addProperty("Scale", &InstancedMeshRenderer::InstancedData::scale);
             return structure;
         }
 
         template <> inline Type* Reflection::createType<InstancedMeshRenderer>()
         {
             Class* clazz = new TClass<InstancedMeshRenderer, MeshRenderer>("InstancedMeshRenderer");
-            clazz->addProperty("InstanceDatas", &InstancedMeshRenderer::mInstanceDatas);
+            clazz->addProperty("InstancedDatas", &InstancedMeshRenderer::mInstancedDatas);
             return clazz;
         }
     }

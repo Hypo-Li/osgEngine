@@ -36,12 +36,21 @@ namespace xxx
             );
             if (findResult != properties.end())
             {
-                // found, serialize this property
+                // found and serialize this property
                 Property* prop = *findResult;
                 properties.erase(findResult);
 
-                void* valuePtr = prop->getValuePtr(object);
-                serializeType(prop->getDeclaredType(), valuePtr);
+                Type* declaredType = prop->getDeclaredType();
+                if (declaredType->getKind() == Type::Kind::Class)
+                {
+                    Object* propObject;
+                    serializeType(declaredType, &propObject);
+                    prop->setValue(object, &propObject);
+                }
+                else
+                {
+                    serializeType(declaredType, prop->getValuePtr(object));
+                }
             }
             else
             {
@@ -69,7 +78,7 @@ namespace xxx
 
     void AssetLoader::serializeClass(Object** data, size_t count)
     {
-        for (uint32_t i = 0; i < count; ++i)
+        for (size_t i = 0; i < count; ++i)
         {
             Object*& object = data[i];
             int32_t index;
@@ -85,9 +94,32 @@ namespace xxx
     {
         std::vector<uint32_t> stringIndices(count);
         serializeArithmetic(stringIndices.data(), count);
-        for (uint32_t i = 0; i < count; ++i)
+        for (size_t i = 0; i < count; ++i)
         {
             data[i] = getStringTable().at(stringIndices[i]);
+        }
+    }
+
+    void AssetLoader::serializeStdArray(StdArray* stdArray, void* data, size_t count)
+    {
+        const size_t stdArraySize = stdArray->getSize();
+        for (size_t i = 0; i < count; ++i)
+        {
+            void* stdArrayData = static_cast<uint8_t*>(data) + stdArraySize * i;
+            Type* elementType = stdArray->getElementType();
+            size_t elementCount = stdArray->getElementCount();
+            if (elementType->getKind() == Type::Kind::Class)
+            {
+                Object** objects = new Object*[elementCount];
+                serializeType(stdArray->getElementType(), objects, elementCount);
+                for (size_t j = 0; j < elementCount; ++j)
+                    stdArray->setElementValue(stdArrayData, j, &objects[j]);
+                delete[] objects;
+            }
+            else
+            {
+                serializeType(elementType, stdArray->getElementPtrByIndex(stdArrayData, 0), elementCount);
+            }
         }
     }
 
@@ -95,7 +127,7 @@ namespace xxx
     {
         Type* keyType = stdMap->getKeyType();
         Type* valueType = stdMap->getValueType();
-        for (uint32_t i = 0; i < count; ++i)
+        for (size_t i = 0; i < count; ++i)
         {
             void* stdMapData = static_cast<uint8_t*>(data) + stdMap->getSize() * i;
             size_t keyValuePairCount;
@@ -132,10 +164,41 @@ namespace xxx
         }
     }
 
+    void AssetLoader::serializeStdPair(StdPair* stdPair, void* data, size_t count)
+    {
+        for (size_t i = 0; i < count; ++i)
+        {
+            void* stdPairData = static_cast<uint8_t*>(data) + stdPair->getSize() * i;
+            Type* firstType = stdPair->getFirstType();
+            if (firstType->getKind() == Type::Kind::Class)
+            {
+                Object* object;
+                serializeType(firstType, &object);
+                stdPair->setFirstValue(stdPairData, &object);
+            }
+            else
+            {
+                serializeType(firstType, stdPair->getFirstPtr(stdPairData));
+            }
+
+            Type* secondType = stdPair->getSecondType();
+            if (secondType->getKind() == Type::Kind::Class)
+            {
+                Object* object;
+                serializeType(secondType, &object);
+                stdPair->setSecondValue(stdPairData, &object);
+            }
+            else
+            {
+                serializeType(secondType, stdPair->getSecondPtr(stdPairData));
+            }
+        }
+    }
+
     void AssetLoader::serializeStdSet(StdSet* stdSet, void* data, size_t count)
     {
         Type* elementType = stdSet->getElementType();
-        for (uint32_t i = 0; i < count; ++i)
+        for (size_t i = 0; i < count; ++i)
         {
             void* stdSetData = static_cast<uint8_t*>(data) + stdSet->getSize() * i;
             size_t elementCount;
@@ -161,11 +224,35 @@ namespace xxx
         }
     }
 
+    void AssetLoader::serializeStdTuple(StdTuple* stdTuple, void* data, size_t count)
+    {
+        for (size_t i = 0; i < count; ++i)
+        {
+            void* stdTupleData = static_cast<uint8_t*>(data) + stdTuple->getSize() * i;
+            std::vector<Type*> tupleTypes = stdTuple->getTypes();
+            std::vector<void*> tupleElementPtrs = stdTuple->getElementPtrs(stdTupleData);
+            size_t tupleElementCount = stdTuple->getElementCount();
+            for (size_t j = 0; j < tupleElementCount; ++j)
+            {
+                if (tupleTypes[j]->getKind() == Type::Kind::Class)
+                {
+                    Object* object;
+                    serializeType(tupleTypes[j], &object);
+                    stdTuple->setElementValue(stdTupleData, j, &object);
+                }
+                else
+                {
+                    serializeType(tupleTypes[j], tupleElementPtrs[j]);
+                }
+            }
+        }
+    }
+
     void AssetLoader::serializeStdUnorderedMap(refl::StdUnorderedMap* stdUnorderedMap, void* data, size_t count)
     {
         Type* keyType = stdUnorderedMap->getKeyType();
         Type* valueType = stdUnorderedMap->getValueType();
-        for (uint32_t i = 0; i < count; ++i)
+        for (size_t i = 0; i < count; ++i)
         {
             void* stdUnorderedMapData = static_cast<uint8_t*>(data) + stdUnorderedMap->getSize() * i;
             size_t keyValuePairCount;
@@ -205,7 +292,7 @@ namespace xxx
     void AssetLoader::serializeStdUnorderedSet(refl::StdUnorderedSet* stdUnorderedSet, void* data, size_t count)
     {
         Type* elementType = stdUnorderedSet->getElementType();
-        for (uint32_t i = 0; i < count; ++i)
+        for (size_t i = 0; i < count; ++i)
         {
             void* stdUnorderedSetData = static_cast<uint8_t*>(data) + stdUnorderedSet->getSize() * i;
             size_t elementCount;
@@ -233,7 +320,7 @@ namespace xxx
 
     void AssetLoader::serializeStdVariant(StdVariant* stdVariant, void* data, size_t count)
     {
-        for (uint32_t i = 0; i < count; ++i)
+        for (size_t i = 0; i < count; ++i)
         {
             void* stdVariantData = static_cast<uint8_t*>(data) + stdVariant->getSize() * i;
             uint32_t typeIndex;
@@ -258,7 +345,7 @@ namespace xxx
     void AssetLoader::serializeStdVector(StdVector* stdVector, void* data, size_t count)
     {
         Type* elementType = stdVector->getElementType();
-        for (uint32_t i = 0; i < count; ++i)
+        for (size_t i = 0; i < count; ++i)
         {
             void* stdVectorData = static_cast<uint8_t*>(data) + stdVector->getSize() * i;
             size_t elementCount;
@@ -266,7 +353,18 @@ namespace xxx
             if (elementCount > 0)
             {
                 stdVector->resize(stdVectorData, elementCount);
-                serializeType(elementType, stdVector->getElementPtrByIndex(stdVectorData, 0), elementCount);
+                if (elementType->getKind() == Type::Kind::Class)
+                {
+                    Object** objects = new Object * [elementCount];
+                    serializeType(elementType, objects, elementCount);
+                    for (size_t j = 0; j < elementCount; ++j)
+                        stdVector->setElementValue(stdVectorData, j, &objects[j]);
+                    delete[] objects;
+                }
+                else
+                {
+                    serializeType(elementType, stdVector->getElementPtrByIndex(stdVectorData, 0), elementCount);
+                }
             }
         }
     }

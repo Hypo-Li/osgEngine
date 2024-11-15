@@ -25,10 +25,7 @@ namespace xxx
         REFLECT_CLASS(Material)
     public:
         Material() :
-            mOsgStateSet(new osg::StateSet)
-        {
-
-        }
+            mOsgStateSet(new osg::StateSet) {}
 
         virtual void postLoad() override
         {

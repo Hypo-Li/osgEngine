@@ -6,6 +6,7 @@
 namespace xxx
 {
     class Engine;
+    class Material;
 
     enum class EngineMode
     {
@@ -81,6 +82,8 @@ namespace xxx
         {
             return mEngine;
         }
+
+        Material* getDefaultMaterial() const;
 
         /*void appendEntity(Entity* entity, Entity* parent = nullptr)
         {

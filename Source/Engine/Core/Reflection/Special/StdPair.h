@@ -19,6 +19,8 @@ namespace xxx::refl
             return SpecialType::Std_Pair;
         }
 
+        virtual void setFirstValue(void* instance, void* value) const = 0;
+        virtual void setSecondValue(void* instance, void* value) const = 0;
         virtual Type* getFirstType() const = 0;
         virtual Type* getSecondType() const = 0;
         virtual void* getFirstPtr(void* instance) const = 0;
@@ -65,6 +67,16 @@ namespace xxx::refl
             const void* second1 = &(static_cast<const std::pair<First, Second>*>(instance1)->second);
             const void* second2 = &(static_cast<const std::pair<First, Second>*>(instance2)->second);
             return Reflection::getType<First>()->compare(first1, first2) && Reflection::getType<Second>()->compare(second1, second2);
+        }
+
+        virtual void setFirstValue(void* instance, void* value) const
+        {
+            static_cast<std::pair<First, Second>*>(instance)->first = *(First*)(value);
+        }
+
+        virtual void setSecondValue(void* instance, void* value) const
+        {
+            static_cast<std::pair<First, Second>*>(instance)->second = *(Second*)(value);
         }
 
         virtual Type* getFirstType() const override

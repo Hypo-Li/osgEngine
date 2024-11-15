@@ -18,11 +18,6 @@ namespace xxx
         virtual ~Serializer() = default;
 
         virtual void serialize(Object** object) = 0;
-
-        virtual bool isLoader() const = 0;
-
-        virtual bool isSaver() const = 0;
-
     protected:
         virtual void serializeType(refl::Type* type, void* data, size_t count = 1) = 0;
         virtual void serializeFundamental(refl::Fundamental* fundamental, void* data, size_t count = 1) = 0;

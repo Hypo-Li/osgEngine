@@ -49,10 +49,13 @@ namespace xxx::refl
         static void setValueByTypeIndexImpl(T* variant, uint32_t typeIndex, void* value)
         {
             if (I == typeIndex)
+            {
                 variant->emplace<I>(*(std::variant_alternative_t<I, T>*)(value));
+                return;
+            }
 
             if constexpr (I + 1 < std::variant_size_v<T>)
-                return setValueByTypeIndexImpl<I + 1>(variant, typeIndex, value);
+                setValueByTypeIndexImpl<I + 1>(variant, typeIndex, value);
         }
     public:
         virtual void* newInstance() const override

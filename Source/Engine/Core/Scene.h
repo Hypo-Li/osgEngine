@@ -15,7 +15,7 @@ namespace xxx
         }
         virtual ~Scene() = default;
 
-        const Entity* getRootEntity() const
+        Entity* getRootEntity() const
         {
             return mRootEntity;
         }

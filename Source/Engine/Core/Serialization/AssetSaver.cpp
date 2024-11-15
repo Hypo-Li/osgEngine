@@ -64,7 +64,7 @@ namespace xxx
 
     void AssetSaver::serializeClass(Object** data, size_t count)
     {
-        for (uint32_t i = 0; i < count; ++i)
+        for (size_t i = 0; i < count; ++i)
         {
             Object* object = data[i];
 
@@ -80,18 +80,28 @@ namespace xxx
     void AssetSaver::serializeStdString(std::string* data, size_t count)
     {
         std::vector<uint32_t> stringIndices(count);
-        for (uint32_t i = 0; i < count; ++i)
+        for (size_t i = 0; i < count; ++i)
         {
             stringIndices[i] = addString(data[i]);
         }
         serializeArithmetic(stringIndices.data(), count);
     }
 
+    void AssetSaver::serializeStdArray(StdArray* stdArray, void* data, size_t count)
+    {
+        const size_t stdArraySize = stdArray->getSize();
+        for (size_t i = 0; i < count; ++i)
+        {
+            void* stdArrayData = static_cast<uint8_t*>(data) + stdArraySize * i;
+            serializeType(stdArray->getElementType(), stdArray->getElementPtrByIndex(stdArrayData, 0), stdArray->getElementCount());
+        }
+    }
+
     void AssetSaver::serializeStdMap(StdMap* stdMap, void* data, size_t count)
     {
         Type* keyType = stdMap->getKeyType();
         Type* valueType = stdMap->getValueType();
-        for (uint32_t i = 0; i < count; ++i)
+        for (size_t i = 0; i < count; ++i)
         {
             void* stdMapData = static_cast<uint8_t*>(data) + stdMap->getSize() * i;
             std::vector<std::pair<const void*, void*>> keyValuePtrs = stdMap->getKeyValuePtrs(stdMapData);
@@ -104,10 +114,20 @@ namespace xxx
         }
     }
 
+    void AssetSaver::serializeStdPair(StdPair* stdPair, void* data, size_t count)
+    {
+        for (size_t i = 0; i < count; ++i)
+        {
+            void* stdPairData = static_cast<uint8_t*>(data) + stdPair->getSize() * i;
+            serializeType(stdPair->getFirstType(), stdPair->getFirstPtr(stdPairData));
+            serializeType(stdPair->getSecondType(), stdPair->getSecondPtr(stdPairData));
+        }
+    }
+
     void AssetSaver::serializeStdSet(StdSet* stdSet, void* data, size_t count)
     {
         Type* elementType = stdSet->getElementType();
-        for (uint32_t i = 0; i < count; ++i)
+        for (size_t i = 0; i < count; ++i)
         {
             void* stdSetData = static_cast<uint8_t*>(data) + stdSet->getSize() * i;
             std::vector<const void*> elementPtrs = stdSet->getElementPtrs(stdSetData);
@@ -118,11 +138,24 @@ namespace xxx
         }
     }
 
+    void AssetSaver::serializeStdTuple(StdTuple* stdTuple, void* data, size_t count)
+    {
+        for (size_t i = 0; i < count; ++i)
+        {
+            void* stdTupleData = static_cast<uint8_t*>(data) + stdTuple->getSize() * i;
+            std::vector<Type*> tupleTypes = stdTuple->getTypes();
+            std::vector<void*> tupleElementPtrs = stdTuple->getElementPtrs(stdTupleData);
+            size_t tupleElementCount = stdTuple->getElementCount();
+            for (size_t i = 0; i < tupleElementCount; ++i)
+                serializeType(tupleTypes[i], tupleElementPtrs[i]);
+        }
+    }
+
     void AssetSaver::serializeStdUnorderedMap(refl::StdUnorderedMap* stdUnorderedMap, void* data, size_t count)
     {
         Type* keyType = stdUnorderedMap->getKeyType();
         Type* valueType = stdUnorderedMap->getValueType();
-        for (uint32_t i = 0; i < count; ++i)
+        for (size_t i = 0; i < count; ++i)
         {
             void* stdUnorderedMapData = static_cast<uint8_t*>(data) + stdUnorderedMap->getSize() * i;
             std::vector<std::pair<const void*, void*>> keyValuePtrs = stdUnorderedMap->getKeyValuePtrs(stdUnorderedMapData);
@@ -138,7 +171,7 @@ namespace xxx
     void AssetSaver::serializeStdUnorderedSet(refl::StdUnorderedSet* stdUnorderedSet, void* data, size_t count)
     {
         Type* elementType = stdUnorderedSet->getElementType();
-        for (uint32_t i = 0; i < count; ++i)
+        for (size_t i = 0; i < count; ++i)
         {
             void* stdSetData = static_cast<uint8_t*>(data) + stdUnorderedSet->getSize() * i;
             std::vector<const void*> elementPtrs = stdUnorderedSet->getElementPtrs(stdSetData);
@@ -151,7 +184,7 @@ namespace xxx
 
     void AssetSaver::serializeStdVariant(StdVariant* stdVariant, void* data, size_t count)
     {
-        for (uint32_t i = 0; i < count; ++i)
+        for (size_t i = 0; i < count; ++i)
         {
             void* stdVariantData = static_cast<uint8_t*>(data) + stdVariant->getSize() * i;
             uint32_t typeIndex = stdVariant->getTypeIndex(stdVariantData);
@@ -165,7 +198,7 @@ namespace xxx
     void AssetSaver::serializeStdVector(StdVector* stdVector, void* data, size_t count)
     {
         Type* elementType = stdVector->getElementType();
-        for (uint32_t i = 0; i < count; ++i)
+        for (size_t i = 0; i < count; ++i)
         {
             void* stdVectorData = static_cast<uint8_t*>(data) + stdVector->getSize() * i;
             size_t elementCount = stdVector->getElementCount(stdVectorData);

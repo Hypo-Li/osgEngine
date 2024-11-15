@@ -18,9 +18,10 @@ namespace xxx::refl
         {
             return SpecialType::Std_Array;
         }
+        virtual void setElementValue(void* instance, size_t index, void* data) const = 0;
         virtual Type* getElementType() const = 0;
         virtual size_t getElementCount() const = 0;
-        virtual void* getElementPtrByIndex(void* array, uint32_t index) const = 0;
+        virtual void* getElementPtrByIndex(void* instance, size_t index) const = 0;
 
     protected:
         StdArray(std::string_view name, size_t size) : Special(name, size) {}
@@ -59,6 +60,11 @@ namespace xxx::refl
             return false;
         }
 
+        virtual void setElementValue(void* instance, size_t index, void* data) const override
+        {
+            static_cast<std::array<Element, Count>*>(instance)->at(index) = *(Element*)(data);
+        }
+
         virtual Type* getElementType() const override
         {
             return Reflection::getType<Element>();
@@ -69,9 +75,9 @@ namespace xxx::refl
             return Count;
         }
 
-        virtual void* getElementPtrByIndex(void* array, uint32_t index) const override
+        virtual void* getElementPtrByIndex(void* instance, size_t index) const override
         {
-            return &(static_cast<std::array<Element, Count>*>(array)->at(index));
+            return &(static_cast<std::array<Element, Count>*>(instance)->at(index));
         }
 
     protected:

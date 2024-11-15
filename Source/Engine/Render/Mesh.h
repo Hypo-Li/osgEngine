@@ -28,6 +28,13 @@ namespace xxx
         IndexBufferView indexBufferView;
     };
 
+    struct LODInfo
+    {
+        std::vector<SubmeshView> submeshViews;
+        std::vector<uint32_t> materialIndices;
+        std::pair<float, float> range;
+    };
+
     class MeshRenderer;
     class Mesh : public Object
     {
@@ -45,42 +52,76 @@ namespace xxx
 
         uint32_t getLODCount() const
         {
-            return mOsgLODSubmeshes.size();
+            return mLODInfos.size();
+        }
+
+        uint32_t getSubmeshCount(uint32_t lod) const
+        {
+            if (lod < mLODInfos.size())
+                return mLODInfos[lod].submeshViews.size();
+            return 0;
+        }
+
+        uint32_t getMaterialCount() const
+        {
+            return mMaterials.size();
         }
 
         using OsgGeometries = std::vector<osg::ref_ptr<osg::Geometry>>;
-        const OsgGeometries& getOsgGeometries(uint32_t LOD) const
+        const OsgGeometries& getOsgGeometries(uint32_t lod) const
         {
-            return mOsgLODSubmeshes[LOD];
+            return mOsgLODGeometries[lod];
         }
 
-        uint32_t getSubmeshCount() const
+        void setMaterial(uint32_t index, Material* material)
         {
-            return mOsgLODSubmeshes[0].size();
+            if (index < mMaterials.size())
+                mMaterials[index] = material;
         }
 
-        void setDefaultMaterial(uint32_t index, Material* material)
+        void setMaterialIndex(uint32_t lod, uint32_t submesh, uint32_t index)
         {
-            if (index >= mDefaultMaterials.size())
-                return;
-            mDefaultMaterials[index] = material;
+            if (lod < mLODInfos.size() && submesh < mLODInfos[lod].materialIndices.size() && index < mMaterials.size())
+                mLODInfos[lod].materialIndices[submesh] = index;
         }
 
-        Material* getDefaultMaterial(uint32_t index)
+        Material* getMaterial(uint32_t index) const
         {
-            if (index >= mDefaultMaterials.size())
-                return nullptr;
-            return mDefaultMaterials[index];
+            if (index < mMaterials.size())
+                return mMaterials[index];
+            return nullptr;
+        }
+
+        Material* getMaterial(uint32_t lod, uint32_t submesh) const
+        {
+            if (lod < mLODInfos.size() && submesh < mLODInfos[lod].materialIndices.size())
+            {
+                uint32_t materialIndex = mLODInfos[lod].materialIndices[submesh];
+                return mMaterials[materialIndex];
+            }
+            return nullptr;
+        }
+
+        uint32_t getMaterialIndex(uint32_t lod, uint32_t submesh) const
+        {
+            if (lod < mLODInfos.size() && submesh < mLODInfos[lod].materialIndices.size())
+            {
+                return mLODInfos[lod].materialIndices[submesh];
+            }
+            return uint32_t(-1);
         }
 
         void setLODRange(uint32_t lod, float min, float max)
         {
-            mLODRanges[lod] = { min, max };
+            if (lod < mLODInfos.size())
+                mLODInfos[lod].range = { min, max };
         }
 
         std::pair<float, float> getLODRange(uint32_t lod) const
         {
-            return mLODRanges[lod];
+            if (lod < mLODInfos.size())
+                return mLODInfos[lod].range;
+            return { 0.0f, 0.0f };
         }
 
         void setDataCompression(bool compression)
@@ -96,11 +137,10 @@ namespace xxx
     protected:
         bool mDataCompression = true;
         std::vector<uint8_t> mData;
-        std::vector<std::vector<SubmeshView>> mLODSubmeshViews;
-        std::vector<std::pair<float, float>> mLODRanges;
-        std::vector<osg::ref_ptr<Material>> mDefaultMaterials;
+        std::vector<LODInfo> mLODInfos;
+        std::vector<osg::ref_ptr<Material>> mMaterials;
 
-        std::vector<OsgGeometries> mOsgLODSubmeshes;
+        std::vector<OsgGeometries> mOsgLODGeometries;
 
         osg::Array* createOsgArrayByVertexAttributeView(const VertexAttributeView& vav);
         osg::DrawElements* createOsgDrawElementsByIndexBufferView(const IndexBufferView& ibv);
@@ -140,6 +180,7 @@ namespace xxx
         template <> Type* Reflection::createType<VertexAttributeView>();
         template <> Type* Reflection::createType<IndexBufferView>();
         template <> Type* Reflection::createType<SubmeshView>();
+        template <> Type* Reflection::createType<LODInfo>();
         template <> Type* Reflection::createType<Mesh>();
     }
 }

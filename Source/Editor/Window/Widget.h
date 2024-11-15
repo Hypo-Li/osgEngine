@@ -192,7 +192,8 @@ namespace xxx::editor
 
         if (ImGui::TreeNode("Materials"))
         {
-            for (uint32_t i = 0; i < submeshesCount; ++i)
+            uint32_t materialCount = meshRenderer->getMaterialCount();
+            for (uint32_t i = 0; i < materialCount; ++i)
             {
                 Material* material = meshRenderer->getMaterial(i);
                 Asset* materialAsset = material->getAsset();
@@ -200,6 +201,29 @@ namespace xxx::editor
                 if (AssetCombo<Material>(materialLabel.c_str(), &materialAsset))
                 {
                     meshRenderer->setOverlayMaterial(i, materialAsset->getRootObject<Material>());
+                }
+            }
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("LODs"))
+        {
+            Mesh* mesh = meshRenderer->getMesh();
+            if (mesh)
+            {
+                uint32_t lodCount = mesh->getLODCount();
+                for (uint32_t lod = 0; lod < lodCount; ++lod)
+                {
+                    if (ImGui::TreeNode(("LOD" + std::to_string(lod)).c_str()))
+                    {
+                        uint32_t submeshCount = mesh->getSubmeshCount(lod);
+                        for (uint32_t submesh = 0; submesh < submeshCount; ++submesh)
+                        {
+                            // Material Index Combo
+                            ImGui::Text(("MaterialIndex" + std::to_string(submesh) + ": " + std::to_string(mesh->getMaterialIndex(lod, submesh))).c_str());
+                        }
+                        ImGui::TreePop();
+                    }
                 }
             }
             ImGui::TreePop();
@@ -214,22 +238,22 @@ namespace xxx::editor
     static void InstnacedMeshRendererWidget(InstancedMeshRenderer* instancedMeshRenderer)
     {
         MeshRendererWidget(instancedMeshRenderer);
-        auto& instanceDatas = instancedMeshRenderer->getInstanceDatas();
+        auto& instancedDatas = instancedMeshRenderer->getInstancedDatas();
         uint32_t paramId = 0;
         if (ImGui::TreeNode("Instances"))
         {
-            for (auto& instanceData : instanceDatas)
+            for (auto& instancedData : instancedDatas)
             {
                 std::string idString = "Instance" + std::to_string(paramId);
                 ImGui::PushID(idString.c_str());
                 if (ImGui::TreeNode(idString.c_str()))
                 {
                     bool changed = false;
-                    osg::Vec3f translation = instanceData.translation;
+                    osg::Vec3f translation = instancedData.translation;
                     changed |= ImGui::DragFloat3("Translation", translation.ptr(), 0.01f);
-                    osg::Vec3f rotation = instanceData.rotation;
+                    osg::Vec3f rotation = instancedData.rotation;
                     changed |= ImGui::DragFloat3("Rotation", rotation.ptr());
-                    osg::Vec3f scale = instanceData.scale;
+                    osg::Vec3f scale = instancedData.scale;
                     changed |= ImGui::DragFloat3("Scale", scale.ptr(), 0.01f);
                     if (changed)
                         instancedMeshRenderer->setInstance(paramId, translation, rotation, scale);

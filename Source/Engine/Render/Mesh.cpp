@@ -7,6 +7,29 @@
 #if 1
 namespace xxx
 {
+    class MaterialCollectVisitor : public osg::NodeVisitor
+    {
+        std::map<osg::ref_ptr<osg::Material>, osg::ref_ptr<osg::StateSet>> mMaterialStateSetMap;
+    public:
+        MaterialCollectVisitor() : NodeVisitor(TRAVERSE_ALL_CHILDREN) {}
+
+        virtual void apply(osg::Geometry& geometry) override
+        {
+            if (geometry.getStateSet())
+            {
+                osg::Material* material = dynamic_cast<osg::Material*>(geometry.getStateSet()->getAttribute(osg::StateAttribute::MATERIAL, 0));
+                if (material)
+                {
+                    auto findResult = mMaterialStateSetMap.find(material);
+                    if (findResult == mMaterialStateSetMap.end())
+                        mMaterialStateSetMap.emplace(material, geometry.getStateSet());
+                    else
+                        geometry.setStateSet(findResult->second);
+                }
+            }
+        }
+    };
+
     class MeshProcessVisitor : public osg::NodeVisitor
     {
     public:
@@ -24,27 +47,6 @@ namespace xxx
 
         virtual void apply(osg::Geode& geode)
         {
-            for (unsigned int i = 0; i < geode.getNumDrawables(); ++i)
-            {
-                osg::Geometry* geom = dynamic_cast<osg::Geometry*>(geode.getDrawable(i));
-                if (geom)
-                {
-                    mGeode->addDrawable(geom);
-                    if (geom->getStateSet())
-                    {
-                        osg::Material* material = dynamic_cast<osg::Material*>(geom->getStateSet()->getAttribute(osg::StateAttribute::MATERIAL, 0));
-                        if (material)
-                        {
-                            auto findResult = mMaterialStateSetMap.find(material);
-                            if (findResult == mMaterialStateSetMap.end())
-                                mMaterialStateSetMap.emplace(material, geom->getStateSet());
-                            else
-                                geom->setStateSet(findResult->second);
-                        }
-                    }
-                }
-            }
-
             if (!mMatrixStack.empty())
             {
                 osg::Matrix modelMatrix = mMatrixStack.top();
@@ -67,6 +69,12 @@ namespace xxx
                 }
             }
 
+            for (unsigned int i = 0; i < geode.getNumDrawables(); ++i)
+            {
+                osg::Geometry* geom = dynamic_cast<osg::Geometry*>(geode.getDrawable(i));
+                mGeode->addDrawable(geom);
+            }
+
             // 不再继续遍历Geometry
             // traverse(geode);
             geode.removeDrawables(0, geode.getNumDrawables());
@@ -80,7 +88,6 @@ namespace xxx
     private:
         osg::ref_ptr<osg::Geode> mGeode;
         std::stack<osg::Matrix> mMatrixStack;
-        std::map<osg::ref_ptr<osg::Material>, osg::ref_ptr<osg::StateSet>> mMaterialStateSetMap;
 
         static void applyTransform(osg::Geometry* geom, osg::Matrix& modelMatrix, osg::Matrix& normalMatrix)
         {
@@ -101,23 +108,17 @@ namespace xxx
         }
     };
 
-    uint32_t getNodeLOD(osg::Node* node)
+    static std::string getPostfix(const std::string& name)
     {
-        const std::string& name = node->getName();
         size_t pos = name.rfind('.');
         if (pos == std::string::npos)
-            return 0;
-        std::string lodPostfix = name.substr(pos + 1);
-        if (lodPostfix.size() > 3 && std::string(lodPostfix.data(), 3) == "LOD")
-            return std::stoi(lodPostfix.substr(3));
-        return 0;
+            return "";
+        return name.substr(pos + 1);
     }
 
-    void Mesh::parseOsgNodes(uint32_t lod, const std::vector<osg::ref_ptr<osg::Node>>& nodes)
+    std::vector<osg::ref_ptr<osg::Geometry>> processNodesToGeometries(const std::vector<osg::ref_ptr<osg::Node>>& nodes)
     {
-        if (lod >= mOsgLODSubmeshes.size())
-            return;
-
+        std::vector<osg::ref_ptr<osg::Geometry>> result;
         osg::ref_ptr<osg::Group> group = new osg::Group;
         for (osg::Node* node : nodes)
             group->addChild(node);
@@ -130,16 +131,14 @@ namespace xxx
         );
         uint32_t submeshCount = mpv.getGeode()->getNumDrawables();
 
-        mOsgLODSubmeshes[lod].resize(submeshCount);
-
-        static constexpr int TangentVertexAttributeIndex = 6;
-        for (uint32_t j = 0; j < submeshCount; ++j)
+        for (uint32_t i = 0; i < submeshCount; ++i)
         {
             osg::ref_ptr<osgUtil::TangentSpaceGenerator> tangentSpaceGenerator = new osgUtil::TangentSpaceGenerator;
-            osg::Geometry* geometry = mpv.getGeode()->getDrawable(j)->asGeometry();
+            osg::Geometry* geometry = mpv.getGeode()->getDrawable(i)->asGeometry();
             tangentSpaceGenerator->generate(geometry);
 
             osg::ref_ptr<osg::Geometry> newGeometry = new osg::Geometry;
+            newGeometry->setStateSet(geometry->getStateSet());
             newGeometry->setVertexArray(geometry->getVertexArray());
             if (geometry->getColorArray())
             {
@@ -164,8 +163,9 @@ namespace xxx
 
             newGeometry->addPrimitiveSet(geometry->getPrimitiveSet(0));
 
-            mOsgLODSubmeshes[lod][j] = newGeometry;
+            result.emplace_back(newGeometry);
         }
+        return result;
     }
 
     Mesh::Mesh(const std::string& meshPath)
@@ -175,46 +175,91 @@ namespace xxx
         assert(group);
         uint32_t childrenCount = group->getNumChildren();
 
+        MaterialCollectVisitor mcv;
+        group->accept(mcv);
+
         std::unordered_map<uint32_t, std::vector<osg::ref_ptr<osg::Node>>> lodNodesMap;
         for (uint32_t i = 0; i < childrenCount; ++i)
         {
-            osg::Node* lodNode = group->getChild(i);
-            uint32_t lod = getNodeLOD(lodNode);
-            auto& nodes = lodNodesMap[lod];
-            nodes.emplace_back(lodNode);
+            osg::Node* subNode = group->getChild(i);
+            std::string postfix = getPostfix(subNode->getName());
+            if (postfix.empty())
+                lodNodesMap[0].emplace_back(subNode);
+            else
+            {
+                if (postfix.size() > 3 && std::string(postfix.data(), 3) == "LOD")
+                    lodNodesMap[std::stoi(postfix.substr(3))].emplace_back(subNode);
+            }
         }
-        mOsgLODSubmeshes.resize(lodNodesMap.size());
+        uint32_t lodCount = lodNodesMap.size();
+        mOsgLODGeometries.resize(lodCount);
         for (const auto& lodNodes : lodNodesMap)
-            parseOsgNodes(lodNodes.first, lodNodes.second);
+            mOsgLODGeometries[lodNodes.first] = processNodesToGeometries(lodNodes.second);
 
-        mDefaultMaterials.resize(mOsgLODSubmeshes[0].size());
-        uint32_t lodCount = mOsgLODSubmeshes.size();
-        mLODRanges.resize(lodCount);
-        for (uint32_t i = 0; i < lodCount; ++i)
-            mLODRanges[i] = { std::pow(0.5f, float(i + 1)), std::pow(0.5f, float(i))};
-        mLODRanges[lodCount - 1].first = 0.008;
+        mLODInfos.resize(lodCount);
+        float rangeMax = 1.0f, rangeMin = 0.3f;
+        for (uint32_t lod = 0; lod < lodCount; ++lod)
+        {
+            mLODInfos[lod].range = { rangeMin, rangeMax };
+            rangeMax = rangeMin;
+            rangeMin *= 0.5;
+        }
+        mLODInfos[lodCount - 1].range.first = 0.001;
+
+        std::vector<osg::StateSet*> stateSets;
+        for (uint32_t lod = 0; lod < lodCount; ++lod)
+        {
+            uint32_t submeshCount = mOsgLODGeometries[lod].size();
+            mLODInfos[lod].materialIndices.resize(submeshCount);
+            for (uint32_t submesh = 0; submesh < submeshCount; ++submesh)
+            {
+                osg::Geometry* geometry = mOsgLODGeometries[lod][submesh];
+
+                auto findResult = std::find(stateSets.begin(), stateSets.end(), geometry->getStateSet());
+                uint32_t materialIndex = 0;
+                if (findResult == stateSets.end())
+                {
+                    materialIndex = stateSets.size();
+                    stateSets.push_back(geometry->getStateSet());
+                }
+                else
+                {
+                    materialIndex = findResult - stateSets.begin();
+                }
+                mLODInfos[lod].materialIndices[submesh] = materialIndex;
+
+                geometry->setStateSet(nullptr);
+            }
+        }
+        mMaterials.resize(stateSets.size());
+        uint32_t materialCount = mMaterials.size();
+        Material* defaultMaterial = Context::get().getDefaultMaterial();
+        for (uint32_t i = 0; i < materialCount; ++i)
+            mMaterials[i] = defaultMaterial;
     }
 
     void Mesh::preSave()
     {
-        uint32_t lodCount = mOsgLODSubmeshes.size();
-        uint32_t submeshCount = mOsgLODSubmeshes[0].size();
-        mLODSubmeshViews.resize(lodCount);
+        uint32_t lodCount = mOsgLODGeometries.size();
         for (uint32_t i = 0; i < lodCount; ++i)
-            mLODSubmeshViews[i].resize(submeshCount);
+            mLODInfos[i].submeshViews.resize(mOsgLODGeometries[i].size());
 
-        // evaluate data size
+        // calculate data size
         size_t dataSize = 0;
-        for (const OsgGeometries& submeshGeometries : mOsgLODSubmeshes)
+        for (const OsgGeometries& submeshGeometries : mOsgLODGeometries)
         {
             for (const osg::Geometry* geometry : submeshGeometries)
             {
                 dataSize += geometry->getVertexArray()->getTotalDataSize();
-                for (const auto& vertexAttribArray : geometry->getVertexAttribArrayList())
-                {
-                    if (vertexAttribArray)
-                        dataSize += vertexAttribArray->getTotalDataSize();
-                }
+                /*dataSize += geometry->getColorArray() ? geometry->getColorArray()->getTotalDataSize() : 0;
+                dataSize += geometry->getNormalArray() ? geometry->getNormalArray()->getTotalDataSize() : 0;
+
+                for (osg::Array* texcoordArray : geometry->getTexCoordArrayList())
+                    dataSize += texcoordArray ? texcoordArray->getTotalDataSize() : 0;*/
+
+                for (osg::Array* vertexAttribArray : geometry->getVertexAttribArrayList())
+                    dataSize += vertexAttribArray ? vertexAttribArray->getTotalDataSize() : 0;
+
                 osg::Geometry::DrawElementsList drawElementList;
                 geometry->getDrawElementsList(drawElementList);
                 dataSize += drawElementList.at(0)->getTotalDataSize();
@@ -222,14 +267,16 @@ namespace xxx
         }
         mData.resize(dataSize);
 
-        // fill data
+        // fill submeshviews and data
         size_t dataOffset = 0;
-        for (uint32_t i = 0; i < lodCount; ++i)
+        for (uint32_t lod = 0; lod < lodCount; ++lod)
         {
-            const OsgGeometries& submeshGeometries = mOsgLODSubmeshes[i];
-            for (uint32_t j = 0; j < submeshCount; ++j)
+            const OsgGeometries& submeshGeometries = mOsgLODGeometries[lod];
+            uint32_t submeshCount = submeshGeometries.size();
+            for (uint32_t submesh = 0; submesh < submeshCount; ++submesh)
             {
-                const osg::Geometry* geometry = submeshGeometries[j];
+                mLODInfos[lod].submeshViews[submesh].vertexAttributeViews.clear();
+                const osg::Geometry* geometry = submeshGeometries[submesh];
 
                 // positions
                 const osg::Array* positionArray = geometry->getVertexArray();
@@ -239,7 +286,7 @@ namespace xxx
                 vav.type = positionArray->getDataType();
                 vav.offset = dataOffset;
                 vav.size = positionArray->getTotalDataSize();
-                mLODSubmeshViews[i][j].vertexAttributeViews.emplace_back(vav);
+                mLODInfos[lod].submeshViews[submesh].vertexAttributeViews.emplace_back(vav);
                 std::memcpy(mData.data() + dataOffset, positionArray->getDataPointer(), positionArray->getTotalDataSize());
                 dataOffset += positionArray->getTotalDataSize();
 
@@ -257,7 +304,7 @@ namespace xxx
                     vav.type = vertexAttribArray->getDataType();
                     vav.offset = dataOffset;
                     vav.size = vertexAttribArray->getTotalDataSize();
-                    mLODSubmeshViews[i][j].vertexAttributeViews.emplace_back(vav);
+                    mLODInfos[lod].submeshViews[submesh].vertexAttributeViews.emplace_back(vav);
                     std::memcpy(mData.data() + dataOffset, vertexAttribArray->getDataPointer(), vertexAttribArray->getTotalDataSize());
                     dataOffset += vertexAttribArray->getTotalDataSize();
                 }
@@ -265,7 +312,7 @@ namespace xxx
                 osg::Geometry::DrawElementsList drawElementList;
                 geometry->getDrawElementsList(drawElementList);
                 osg::DrawElements* drawElements = drawElementList.at(0);
-                IndexBufferView& ibv = mLODSubmeshViews[i][j].indexBufferView;
+                IndexBufferView& ibv = mLODInfos[lod].submeshViews[submesh].indexBufferView;
                 ibv.type = drawElements->getDataType();
                 ibv.offset = dataOffset;
                 ibv.size = drawElements->getTotalDataSize();
@@ -280,25 +327,22 @@ namespace xxx
     {
         mData.clear();
         mData.shrink_to_fit();
-        mLODSubmeshViews.clear();
-        mLODSubmeshViews.shrink_to_fit();
     }
 
     void Mesh::postLoad()
     {
         decompressData();
-        uint32_t lodCount = mLODSubmeshViews.size();
-        uint32_t submeshCount = mLODSubmeshViews[0].size();
-        mOsgLODSubmeshes.resize(lodCount);
-        for (uint32_t i = 0; i < lodCount; ++i)
-            mOsgLODSubmeshes[i].resize(submeshCount);
+        uint32_t lodCount = mLODInfos.size();
+        mOsgLODGeometries.resize(lodCount);
 
-        for (uint32_t i = 0; i < lodCount; ++i)
+        for (uint32_t lod = 0; lod < lodCount; ++lod)
         {
-            const std::vector<SubmeshView>& submeshViews = mLODSubmeshViews[i];
-            for (uint32_t j = 0; j < submeshCount; ++j)
+            const std::vector<SubmeshView>& submeshViews = mLODInfos[lod].submeshViews;
+            uint32_t submeshCount = submeshViews.size();
+            mOsgLODGeometries[lod].resize(submeshCount);
+            for (uint32_t submesh = 0; submesh < submeshCount; ++submesh)
             {
-                const SubmeshView& submeshView = submeshViews[j];
+                const SubmeshView& submeshView = submeshViews[submesh];
                 osg::Geometry* geometry = new osg::Geometry;
                 for (const VertexAttributeView& vav : submeshView.vertexAttributeViews)
                 {
@@ -317,13 +361,11 @@ namespace xxx
                 osg::DrawElements* drawElements = createOsgDrawElementsByIndexBufferView(submeshView.indexBufferView);
                 geometry->addPrimitiveSet(drawElements);
 
-                mOsgLODSubmeshes[i][j] = geometry;
+                mOsgLODGeometries[lod][submesh] = geometry;
             }
         }
         mData.clear();
         mData.shrink_to_fit();
-        mLODSubmeshViews.clear();
-        mLODSubmeshViews.shrink_to_fit();
     }
 
     osg::Array* Mesh::createOsgArrayByVertexAttributeView(const VertexAttributeView& vav)
@@ -468,13 +510,21 @@ namespace xxx
             return structure;
         }
 
+        template <> Type* Reflection::createType<LODInfo>()
+        {
+            Structure* structure = new TStructure<LODInfo>("LODInfo");
+            structure->addProperty("SubmeshViews", &LODInfo::submeshViews);
+            structure->addProperty("MaterialIndices", &LODInfo::materialIndices);
+            structure->addProperty("Range", &LODInfo::range);
+            return structure;
+        }
+
         template <> Type* Reflection::createType<Mesh>()
         {
             Class* clazz = new TClass<Mesh>("Mesh");
             clazz->addProperty("Data", &Mesh::mData);
-            clazz->addProperty("LODSubmeshViews", &Mesh::mLODSubmeshViews);
-            clazz->addProperty("LODRanges", &Mesh::mLODRanges);
-            clazz->addProperty("DefaultMaterials", &Mesh::mDefaultMaterials);
+            clazz->addProperty("LODInfos", &Mesh::mLODInfos);
+            clazz->addProperty("Materials", &Mesh::mMaterials);
             clazz->addProperty("DataCompression", &Mesh::mDataCompression);
             return clazz;
         }
