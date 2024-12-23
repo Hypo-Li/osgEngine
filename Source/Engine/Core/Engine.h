@@ -103,6 +103,9 @@ namespace xxx
             camera->setProjectionMatrixAsPerspective(75.0, double(setupConfig.width) / double(setupConfig.height), 0.1, 400.0);
 
             mPipeline = createSceneRenderingPipeline(mView, true);
+            RenderCommandsCallback* renderCommandCallback = new RenderCommandsCallback;
+            Context::get().setRenderCommandsCallback(renderCommandCallback);
+            mPipeline->getPass(0)->getCamera()->addPreDrawCallback(renderCommandCallback);
             Context::get().getGraphicsContext()->setResizedCallback(new ResizedCallback(mPipeline, true));
 
             

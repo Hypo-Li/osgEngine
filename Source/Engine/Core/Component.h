@@ -36,16 +36,6 @@ namespace xxx
             onEnable();
         }
 
-        virtual void hide()
-        {
-            mOsgComponentGroup->setNodeMask(0);
-        }
-
-        virtual void show()
-        {
-            mOsgComponentGroup->setNodeMask(0xFFFFFFFF);
-        }
-
         inline Entity* getEntity() const
         {
             return mEntity;

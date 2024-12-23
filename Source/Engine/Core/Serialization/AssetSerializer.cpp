@@ -184,40 +184,6 @@ namespace xxx
         return object;
     }
 
-    void AssetSerializer::serializeType(refl::Type* type, void* data, size_t count)
-    {
-        switch (type->getKind())
-        {
-        case refl::Type::Kind::Fundamental:
-        {
-            serializeFundamental(dynamic_cast<Fundamental*>(type), data, count);
-            break;
-        }
-        case refl::Type::Kind::Enumeration:
-        {
-            serializeEnumeration(dynamic_cast<Enumeration*>(type), data, count);
-            break;
-        }
-        case refl::Type::Kind::Structure:
-        {
-            serializeStructure(dynamic_cast<Structure*>(type), data, count);
-            break;
-        }
-        case refl::Type::Kind::Class:
-        {
-            serializeClass(static_cast<Object**>(data), count);
-            break;
-        }
-        case refl::Type::Kind::Special:
-        {
-            serializeSpecial(dynamic_cast<Special*>(type), data, count);
-            break;
-        }
-        default:
-            break;
-        }
-    }
-
     void AssetSerializer::serializeFundamental(refl::Fundamental* fundamental, void* data, size_t count)
     {
         if (fundamental == Reflection::BoolType)
@@ -257,64 +223,5 @@ namespace xxx
                 serializeType(prop->getDeclaredType(), prop->getValuePtr(structData));
         }
             
-    }
-
-    void AssetSerializer::serializeSpecial(Special* special, void* data, size_t count)
-    {
-        switch (special->getSpecialType())
-        {
-        case SpecialType::Std_String:
-        {
-            serializeStdString(static_cast<std::string*>(data), count);
-            break;
-        }
-        case SpecialType::Std_Array:
-        {
-            serializeStdArray(dynamic_cast<StdArray*>(special), data, count);
-            break;
-        }
-        case SpecialType::Std_Map:
-        {
-            serializeStdMap(dynamic_cast<StdMap*>(special), data, count);
-            break;
-        }
-        case SpecialType::Std_Pair:
-        {
-            serializeStdPair(dynamic_cast<StdPair*>(special), data, count);
-            break;
-        }
-        case SpecialType::Std_Set:
-        {
-            serializeStdSet(dynamic_cast<StdSet*>(special), data, count);
-            break;
-        }
-        case SpecialType::Std_Tuple:
-        {
-            serializeStdTuple(dynamic_cast<StdTuple*>(special), data, count);
-            break;
-        }
-        case SpecialType::Std_Unordered_Map:
-        {
-            serializeStdUnorderedMap(dynamic_cast<StdUnorderedMap*>(special), data, count);
-            break;
-        }
-        case SpecialType::Std_Unordered_Set:
-        {
-            serializeStdUnorderedSet(dynamic_cast<StdUnorderedSet*>(special), data, count);
-            break;
-        }
-        case SpecialType::Std_Variant:
-        {
-            serializeStdVariant(dynamic_cast<StdVariant*>(special), data, count);
-            break;
-        }
-        case SpecialType::Std_Vector:
-        {
-            serializeStdVector(dynamic_cast<StdVector*>(special), data, count);
-            break;
-        }
-        default:
-            break;
-        }
     }
 }

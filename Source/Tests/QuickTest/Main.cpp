@@ -184,9 +184,28 @@ osg::Node* createRainParticleNode()
     return group;
 }
 
+class ColorArrayVisitor : public osg::NodeVisitor
+{
+public:
+    ColorArrayVisitor() : NodeVisitor(TRAVERSE_ALL_CHILDREN) {}
+
+    virtual void apply(osg::Geometry& geometry) override
+    {
+        osg::Vec4Array* colorArray = new osg::Vec4Array;
+        colorArray->push_back(osg::Vec4(1, 1, 1, 1));
+        geometry.setColorArray(colorArray);
+        geometry.setColorBinding(osg::Geometry::BIND_OVERALL);
+        traverse(geometry);
+    }
+};
+
 int main()
 {
-    const int width = 1024, height = 768;
+    osg::Node* node = osgDB::readNodeFile(R"(C:\Users\admin\Downloads\HGLJX(1).ive)");
+    ColorArrayVisitor cav;
+    node->accept(cav);
+    osgDB::writeNodeFile(*node, R"(C:\Users\admin\Downloads\HGLJX(1)2.ive)");
+    /*const int width = 1024, height = 768;
     osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits();
     traits->width = width; traits->height = height;
     traits->windowDecoration = true;
@@ -216,6 +235,21 @@ int main()
     inputPass1->attach(BufferType::DEPTH_BUFFER, GL_DEPTH_COMPONENT24);
 
     osg::Shader* screenQuadShader = osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Common/ScreenQuad.vert.glsl");
+
+    osg::Program* colorGradingLutProgram = new osg::Program;
+    colorGradingLutProgram->addShader(screenQuadShader);
+    colorGradingLutProgram->addShader(osgDB::readShaderFile(osg::Shader::GEOMETRY, SHADER_DIR "Common/Layered.geom.glsl"));
+    colorGradingLutProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/ColorGradingLut.frag.glsl"));
+    osg::ref_ptr<osg::Texture3D> colorGradingLutTexture = new osg::Texture3D;
+    colorGradingLutTexture->setTextureSize(32, 32, 32);
+    colorGradingLutTexture->setInternalFormat(GL_RGBA8);
+    colorGradingLutTexture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR);
+    colorGradingLutTexture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::LINEAR);
+    colorGradingLutTexture->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE);
+    colorGradingLutTexture->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE);
+    xxx::Pipeline::Pass* colorGradingLutGenPass = pipeline1->addWorkPass("ColorGradingLut", colorGradingLutProgram, GL_COLOR_BUFFER_BIT, true, osg::Vec2(32, 32));
+    colorGradingLutGenPass->attach(BufferType::COLOR_BUFFER0, colorGradingLutTexture, 0, osg::Camera::FACE_CONTROLLED_BY_GEOMETRY_SHADER);
+
     osg::Program* displayProgram = new osg::Program;
     displayProgram->addShader(screenQuadShader);
     displayProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CopyColor.frag.glsl"));
@@ -239,7 +273,10 @@ int main()
     viewer->realize();
 
     while (!viewer->done())
-        viewer->frame();
+        viewer->frame();*/
+
+    
+
     return 0;
 }
 

@@ -37,6 +37,25 @@ namespace xxx
             return nullptr;
         }
 
+        bool addEntity(Entity* entity, Entity* parent = nullptr)
+        {
+            if (!entity)
+                return false;
+
+            if (parent == nullptr)
+            {
+                mRootEntity->addChild(entity);
+                return true;
+            }
+            else if (parent->getRoot() == this)
+            {
+                parent->addChild(entity);
+                return true;
+            }
+            else
+                return false;
+        }
+
     protected:
         osg::ref_ptr<Entity> mRootEntity;
         std::unordered_map<osg::ref_ptr<Entity>, osg::ref_ptr<Prefab>> mEntityPrefabMap;

@@ -39,7 +39,11 @@ namespace xxx::editor
                 const float x = ea.getX(), y = ea.getY();
                 osg::Matrixd vpvMatrix; //Viewport * Projection * View
                 vpvMatrix.postMult(mCamera->getViewMatrix());
-                vpvMatrix.postMult(mCamera->getProjectionMatrix());
+                osg::Matrixd projMatrix = mCamera->getProjectionMatrix();
+                double fovy, aspect, zNear, zFar;
+                projMatrix.getPerspective(fovy, aspect, zNear, zFar);
+                projMatrix = osg::Matrixd::perspective(fovy, aspect, 0.1, 100000.0);
+                vpvMatrix.postMult(projMatrix);
                 vpvMatrix.postMult(mDisplayViewport->computeWindowMatrix());
 
                 osg::Matrixd inverse = osg::Matrixd::inverse(vpvMatrix);

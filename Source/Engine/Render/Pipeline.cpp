@@ -176,6 +176,7 @@ namespace xxx
         for (uint32_t i = 0; i < program->getNumShaders(); i++)
             program->getShader(i)->setName(name);
         geode->getOrCreateStateSet()->setAttribute(program, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+        geode->setCullingActive(false);
         camera->addChild(geode);
 
         mView->addSlave(camera, false);
@@ -196,12 +197,14 @@ namespace xxx
         camera->setReferenceFrame(osg::Transform::ABSOLUTE_RF);
         camera->setViewMatrix(osg::Matrixd::identity());
         camera->setProjectionMatrix(osg::Matrix::ortho2D(0.0, 1.0, 0.0, 1.0));
+        camera->setCullingMode(osg::CullSettings::NO_CULLING);
         camera->setAllowEventFocus(false);
         osg::Geode* geode = new osg::Geode;
         geode->addDrawable(getScreenGeometry());
         for (uint32_t i = 0; i < program->getNumShaders(); i++)
             program->getShader(i)->setName(name);
         geode->getOrCreateStateSet()->setAttribute(program, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+        geode->setCullingActive(false);
         camera->addChild(geode);
         mView->addSlave(camera, false);
         Pass* newPass = new Pass(camera, false, osg::Vec2(1.0, 1.0));
@@ -335,6 +338,7 @@ namespace xxx
         for (uint32_t i = 0; i < program->getNumShaders(); i++)
             program->getShader(i)->setName(name);
         geode->getOrCreateStateSet()->setAttribute(program, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+        geode->setCullingActive(false);
         camera->addChild(geode);
 
         if (static_cast<ViewExt*>(mView.get())->insertSlave(pos, camera, false))

@@ -291,8 +291,8 @@ int main()
         am.createAsset(mesh, "Engine/Mesh/Main" + std::to_string(i))->save();
     }*/
 
-    Mesh* mesh = new Mesh(TEMP_DIR "tree.fbx");
-    am.createAsset(mesh, "Engine/Mesh/Tree")->save();
+    Mesh* mesh = new Mesh(TEMP_DIR "cube.obj");
+    am.createAsset(mesh, "Engine/Mesh/Cube")->save();
 
     /*Shader* shader = new Shader;
     am.createAsset(shader, "Engine/Shader/TestShader3")->save();*/

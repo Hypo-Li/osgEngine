@@ -308,20 +308,6 @@ namespace xxx
             );
         }
 
-        void hide()
-        {
-            mOsgEntityNode->setNodeMask(0);
-            for (Component* component : mComponents)
-                component->hide();
-        }
-
-        void show()
-        {
-            mOsgEntityNode->setNodeMask(0xFFFFFFFF);
-            for (Component* component : mComponents)
-                component->show();
-        }
-
 	protected:
         std::string mName;
         uint32_t mFlags = 0;

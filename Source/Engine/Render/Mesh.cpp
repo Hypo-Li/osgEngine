@@ -30,17 +30,17 @@ namespace xxx
         }
     };
 
-    class MeshProcessVisitor : public osg::NodeVisitor
+    class TransformApplyVisitor : public osg::NodeVisitor
     {
     public:
-        MeshProcessVisitor() : NodeVisitor(TRAVERSE_ALL_CHILDREN), mGeode(new osg::Geode) {}
+        TransformApplyVisitor() : NodeVisitor(TRAVERSE_ALL_CHILDREN), mGeode(new osg::Geode) {}
 
         virtual void apply(osg::MatrixTransform& matrixTransform)
         {
             if (mMatrixStack.empty())
                 mMatrixStack.push(matrixTransform.getMatrix());
             else
-                mMatrixStack.push(mMatrixStack.top() * matrixTransform.getMatrix());
+                mMatrixStack.push(matrixTransform.getMatrix() * mMatrixStack.top());
             traverse(matrixTransform);
             mMatrixStack.pop();
         }
@@ -122,7 +122,7 @@ namespace xxx
         osg::ref_ptr<osg::Group> group = new osg::Group;
         for (osg::Node* node : nodes)
             group->addChild(node);
-        MeshProcessVisitor mpv;
+        TransformApplyVisitor mpv;
         group->accept(mpv);
         osgUtil::Optimizer optimizer;
         optimizer.optimize(mpv.getGeode(),

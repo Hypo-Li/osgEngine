@@ -169,10 +169,8 @@ namespace xxx
         virtual void serializeObject(Object* object) = 0;
         virtual void serializeBinary(void* data, size_t count) = 0;
 
-        virtual void serializeType(refl::Type* type, void* data, size_t count = 1) override;
         virtual void serializeFundamental(refl::Fundamental* fundamental, void* data, size_t count = 1) override;
         virtual void serializeStructure(refl::Structure* structure, void* data, size_t count = 1) override;
-        virtual void serializeSpecial(refl::Special* special, void* data, size_t count = 1) override;
 
     private:
         Asset* mAsset;

@@ -2,7 +2,9 @@
 #include <Engine/Core/Entity.h>
 #include <osg/ref_ptr>
 #include <osg/GraphicsContext>
+#include <osg/Camera>
 #include <filesystem>
+#include <mutex>
 namespace xxx
 {
     class Engine;
@@ -18,6 +20,33 @@ namespace xxx
     {
         Select,
         Terrain,
+    };
+
+    class RenderCommand : public osg::Referenced
+    {
+    public:
+        virtual void execute(osg::RenderInfo& renderInfo) = 0;
+    };
+
+    class RenderCommandsCallback : public osg::Camera::DrawCallback
+    {
+    public:
+        virtual void operator () (osg::RenderInfo& renderInfo) const override
+        {
+            std::unique_lock<std::mutex> lock(mRenderCommandListMutex);
+            for (RenderCommand* renderCommand : mRenderCommandList)
+                renderCommand->execute(renderInfo);
+        }
+
+        void addRenderCommand(RenderCommand* renderCommand)
+        {
+            std::lock_guard<std::mutex> lock(mRenderCommandListMutex);
+            mRenderCommandList.push_back(renderCommand);
+        }
+
+    private:
+        mutable std::list<osg::ref_ptr<RenderCommand>> mRenderCommandList;
+        mutable std::mutex mRenderCommandListMutex;
     };
 
     class Context
@@ -85,6 +114,16 @@ namespace xxx
 
         Material* getDefaultMaterial() const;
 
+        void setRenderCommandsCallback(RenderCommandsCallback* callback)
+        {
+            mRenderCommandsCallback = callback;
+        }
+
+        void addRenderCommand(RenderCommand* renderCommand)
+        {
+            mRenderCommandsCallback->addRenderCommand(renderCommand);
+        }
+
         /*void appendEntity(Entity* entity, Entity* parent = nullptr)
         {
             if (parent)
@@ -144,6 +183,6 @@ namespace xxx
         Entity* mActivedEntity;
         //std::set<osg::observer_ptr<Entity>> _selectedEntities;
 
-
+        osg::ref_ptr<RenderCommandsCallback> mRenderCommandsCallback;
     };
 }

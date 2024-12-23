@@ -1,0 +1,4 @@
+add_executable(InfiniteFar "Main.cpp")
+
+LINK_WITH_VARIABLES(InfiniteFar OPENTHREADS_LIBRARY OSG_LIBRARY OSGDB_LIBRARY OSGUTIL_LIBRARY OSGGA_LIBRARY OSGVIEWER_LIBRARY)
+target_link_libraries(InfiniteFar PRIVATE Core Render ThirdParty ${OPENGL_LIBRARIES})

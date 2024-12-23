@@ -3,6 +3,7 @@
 #include "Window/SceneView.h"
 #include "Window/Inspector.h"
 #include "Window/AssetBrowser.h"
+#include "Window/Hierarchy.h"
 #include "Window/WindowManager.h"
 #include "ImGuiHandler.h"
 #include "PickEventHandler.h"
@@ -90,6 +91,7 @@ namespace xxx::editor
             );
             Inspector* inspector = wm.createWindow<Inspector>();
             AssetBrowser* assetBrowser = wm.createWindow<AssetBrowser>();
+            Hierarchy* hierarchy = wm.createWindow<Hierarchy>();
 
             ImGuiHandler* imguiHandler = new ImGuiHandler(imguiCamera);
             engineView->addEventHandler(imguiHandler);
