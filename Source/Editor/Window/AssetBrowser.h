@@ -71,12 +71,12 @@ namespace xxx::editor
 
         void openAsset(const std::filesystem::path& path)
         {
-            std::string assetPath = Asset::convertFullPathToAssetPath(path);
+            std::string assetPath = Asset::convertPhysicalPathToAssetPath(path);
             Asset* asset = AssetManager::get().getAsset(assetPath);
 
             // find new asset, create it
             if (!asset)
-                asset = AssetManager::get().createAsset(nullptr, assetPath);
+                asset = AssetManager::get().createAsset(assetPath);
 
             if (asset)
             {

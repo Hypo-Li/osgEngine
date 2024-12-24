@@ -1,5 +1,6 @@
 #include "Engine/Core/OsgReflection.h"
 #include "Engine/Core/Entity.h"
+#include "Engine/Core/Scene.h"
 #include "Engine/Core/Component.h"
 #include "Engine/Render/Shader.h"
 #include "Engine/Render/Mesh.h"
@@ -29,45 +30,45 @@ using namespace xxx::refl;
 static const char testShaderSource[] = R"(
 void calcMaterial(in MaterialInputs mi, inout MaterialOutputs mo)
 {
-    vec4 texColor = texture(uBaseColorTexture, mi.texcoord0);
+    vec4 texColor = texture(uBaseColorTexture, mi.texcoord0.xy);
     mo.emissive = uEmissive;
     mo.baseColor = texColor.rgb * uBaseColorFactor;
-    mo.opaque = texColor.a;
+    mo.opacity = texColor.a;
     mo.metallic = uMetallic;
     mo.roughness = uRoughness;
 }
 )";
 
-//void createTestAssets()
-//{
-//    AssetManager& am = AssetManager::get();
-//
-//    osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "awesomeface.png");
-//    osg::ref_ptr<Texture2D> texture = new Texture2D(image, TextureImportOptions());
-//    am.createAsset(texture, "Engine/Texture/AwesomeFace")->save();
-//
-//    osg::ref_ptr<Shader> shader = new Shader;
-//    shader->addParameter("BaseColorTexture", texture.get());
-//    shader->addParameter("BaseColorFactor", osg::Vec3f(1, 1, 1));
-//    shader->addParameter("Emissive", osg::Vec3f(0, 0, 0));
-//    shader->addParameter("Metallic", 0.0f);
-//    shader->addParameter("Roughness", 0.5f);
-//    shader->setSource(testShaderSource);
-//    am.createAsset(shader, "Engine/Shader/TestShader")->save();
-//
-//    osg::ref_ptr<Material> material = new Material;
-//    material->setShader(shader);
-//    am.createAsset(material, "Engine/Material/TestMaterial")->save();
-//
-//    osg::ref_ptr<Mesh> mesh = new Mesh(TEMP_DIR "cube.obj");
-//    mesh->setDefaultMaterial(0, 0, material);
-//    am.createAsset(mesh, "Engine/Mesh/Cube")->save();
-//
-//    osg::ref_ptr<Entity> entity = new Entity("TestEntity");
-//    MeshRenderer* meshRenderer = entity->addComponent<MeshRenderer>();
-//    meshRenderer->setMesh(mesh);
-//    am.createAsset(entity, "Engine/Entity/TestEntity")->save();
-//}
+void createTestAssets()
+{
+    AssetManager& am = AssetManager::get();
+
+    osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "awesomeface.png");
+    osg::ref_ptr<Texture2D> texture = new Texture2D(image, TextureImportOptions());
+    am.createAsset("Engine/Texture/AwesomeFace", texture)->save();
+
+    osg::ref_ptr<Shader> shader = new Shader;
+    shader->addParameter("BaseColorTexture", texture.get());
+    shader->addParameter("BaseColorFactor", osg::Vec3f(1, 1, 1));
+    shader->addParameter("Emissive", osg::Vec3f(0, 0, 0));
+    shader->addParameter("Metallic", 0.0f);
+    shader->addParameter("Roughness", 0.5f);
+    shader->setSource(testShaderSource);
+    am.createAsset("Engine/Shader/TestShader", shader)->save();
+
+    osg::ref_ptr<Material> material = new Material;
+    material->setShader(shader);
+    am.createAsset("Engine/Material/TestMaterial", material)->save();
+
+    osg::ref_ptr<Mesh> mesh = new Mesh(TEMP_DIR "cube.obj");
+    mesh->setMaterial(0, material);
+    am.createAsset("Engine/Mesh/Cube", mesh)->save();
+
+    osg::ref_ptr<Entity> entity = new Entity("TestEntity");
+    MeshRenderer* meshRenderer = entity->addComponent<MeshRenderer>();
+    meshRenderer->setMesh(mesh);
+    am.createAsset("Engine/Entity/TestEntity", entity)->save();
+}
 
 TextureCubemap* generateSpecularCubemap(TextureCubemap* imageCubemap)
 {
@@ -178,7 +179,7 @@ Texture2D* generateBRDFLut()
     return new Texture2D(brdfLutTexture);
 }
 
-osg::Image* create1x1Image(osg::Vec4f color)
+void create1x1Texture(osg::Vec4f color, const std::string& name)
 {
     osg::Image* image = new osg::Image;
     image->allocateImage(1, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE);
@@ -187,7 +188,169 @@ osg::Image* create1x1Image(osg::Vec4f color)
     rgba[1] = color.g() * 255;
     rgba[2] = color.b() * 255;
     rgba[3] = color.a() * 255;
-    return image;
+
+    TextureImportOptions options;
+    osg::ref_ptr<Texture2D> tex2d = new Texture2D(image, options);
+    AssetManager::get().createAsset("Engine/Texture/" + name, tex2d)->save();
+}
+
+class SerializationTest : public xxx::Object
+{
+    REFLECT_CLASS(SerializationTest)
+
+public:
+    // Fundamental
+    bool mBool;
+    char mChar;
+    wchar_t mWChar;
+    int8_t mInt8;
+    int16_t mInt16;
+    int32_t mInt32;
+    int64_t mInt64;
+    uint8_t mUint8;
+    uint16_t mUint16;
+    uint32_t mUint32;
+    uint64_t mUint64;
+    float mFloat;
+    double mDouble;
+
+    // Enumeration
+    enum class Color
+    {
+        Red,
+        Green,
+        Blue,
+        Black,
+        White,
+    };
+    Color mColorEnum;
+
+    // Special
+    std::array<int, 4> mArray;
+    std::list<int> mList;
+    std::map<int, int> mMap;
+    std::pair<int, float> mPair;
+    std::set<int> mSet;
+    std::string mString;
+    std::unordered_map<int, int> mUnorderedMap;
+    std::unordered_set<int> mUnorderedSet;
+    std::variant<int, float> mVariant;
+    std::vector<int> mVector;
+};
+
+namespace xxx::refl
+{
+    template <>
+    Type* Reflection::createType<SerializationTest::Color>()
+    {
+        Enumeration* enumeration = new TEnumeration<SerializationTest::Color>("Color", {
+            {"Red", SerializationTest::Color::Red},
+            {"Green", SerializationTest::Color::Green},
+            {"Blue", SerializationTest::Color::Blue},
+            {"Black", SerializationTest::Color::Black},
+            {"White", SerializationTest::Color::White},
+        });
+        return enumeration;
+    }
+
+    template <>
+    Type* Reflection::createType<SerializationTest>()
+    {
+        Class* clazz = new TClass<SerializationTest>("SerializationTest");
+        clazz->addProperty("mBool", &SerializationTest::mBool);
+        clazz->addProperty("mChar", &SerializationTest::mChar);
+        clazz->addProperty("mWChar", &SerializationTest::mWChar);
+        clazz->addProperty("mInt8", &SerializationTest::mInt8);
+        clazz->addProperty("mInt16", &SerializationTest::mInt16);
+        clazz->addProperty("mInt32", &SerializationTest::mInt32);
+        clazz->addProperty("mInt64", &SerializationTest::mInt64);
+        clazz->addProperty("mUint8", &SerializationTest::mUint8);
+        clazz->addProperty("mUint16", &SerializationTest::mUint16);
+        clazz->addProperty("mUint32", &SerializationTest::mUint32);
+        clazz->addProperty("mUint64", &SerializationTest::mUint64);
+        clazz->addProperty("mFloat", &SerializationTest::mFloat);
+        clazz->addProperty("mDouble", &SerializationTest::mDouble);
+
+        clazz->addProperty("mColorEnum", &SerializationTest::mColorEnum);
+
+        clazz->addProperty("mArray", &SerializationTest::mArray);
+        clazz->addProperty("mList", &SerializationTest::mList);
+        clazz->addProperty("mMap", &SerializationTest::mMap);
+        clazz->addProperty("mPair", &SerializationTest::mPair);
+        clazz->addProperty("mSet", &SerializationTest::mSet);
+        clazz->addProperty("mString", &SerializationTest::mString);
+        clazz->addProperty("mUnorderedMap", &SerializationTest::mUnorderedMap);
+        clazz->addProperty("mUnorderedSet", &SerializationTest::mUnorderedSet);
+        clazz->addProperty("mVariant", &SerializationTest::mVariant);
+        clazz->addProperty("mVector", &SerializationTest::mVector);
+        return clazz;
+    }
+}
+
+void createSerializationTest()
+{
+    SerializationTest* st = new SerializationTest;
+    st->mBool = true;
+    st->mChar = 'F';
+    st->mWChar = 'S';
+    st->mInt8 = 61;
+    st->mInt16 = 85;
+    st->mInt32 = 92;
+    st->mInt64 = 177;
+    st->mUint8 = 12;
+    st->mUint16 = 55;
+    st->mUint32 = 49;
+    st->mUint64 = 248;
+    st->mFloat = 240.57;
+    st->mDouble = 131.775;
+    st->mColorEnum = SerializationTest::Color::Black;
+    st->mArray = { 2, 4, 6, 8 };
+    st->mList = { 1, 3, 5, 7, 9 };
+    st->mMap = { {0, 1}, {2, 4}, {3, 6} };
+    st->mPair = { 5, 5.0f };
+    st->mSet = { 1, 3, 5, 7, 11, 13 };
+    st->mString = "I am String";
+    st->mUnorderedMap = { {0, 2}, {2, 5}, {3, 7} };
+    st->mUnorderedSet = { 1, 3, 5, 7, 9, 11, 13, 15 };
+    st->mVariant = 2.0f;
+    st->mVector = { 9, 8, 7, 6, 5, 4 };
+
+    AssetManager& am = AssetManager::get();
+    am.createAsset("Engine/Test/SerializationTest", st)->save();
+}
+
+void createScene()
+{
+    AssetManager& am = AssetManager::get();
+    osg::ref_ptr <Scene> scene = new Scene;
+
+    osg::ref_ptr<Entity> entity = new Entity("TestEntity");
+    MeshRenderer* meshRenderer = entity->addComponent<MeshRenderer>();
+    Mesh* mesh = am.getAsset("Engine/Mesh/Cube")->getRootObjectSafety<Mesh>();
+    meshRenderer->setMesh(mesh);
+    scene->addEntity(entity);
+
+    osg::ref_ptr<Entity> dirLight = new Entity("DirectionalLight");
+    DirectionalLight* directionalLight = dirLight->addComponent<DirectionalLight>();
+    directionalLight->setDirection(osg::Vec3f(0.5, 0.5, -0.5));
+    scene->addEntity(dirLight);
+
+    osg::ref_ptr<Entity> envLight = new Entity("EnvironmentLight");
+    ImageBasedLight* imageBasedLight = envLight->addComponent<ImageBasedLight>();
+    envLight->setTranslation(osg::Vec3f(0, 0, 1));
+    scene->addEntity(envLight, dirLight);
+
+    am.createAsset("Engine/Scene/TestScene", scene)->save();
+}
+
+void createTestCubemap()
+{
+    AssetManager& am = AssetManager::get();
+    TextureImportOptions options;
+    options.format = Texture::Format::RGBA16F;
+    osg::Image* hdrImage = osgDB::readImageFile(TEMP_DIR "zwartkops_straight_sunset_1k.hdr");
+    TextureCubemap* textureCubemap = new xxx::TextureCubemap(hdrImage, options);
+    am.createAsset("Engine/Texture/TestCubemap", textureCubemap)->save();
 }
 
 int main()
@@ -208,121 +371,9 @@ int main()
 
     Context::get().getGraphicsContext()->makeCurrent();
 
-    //createTestAssets();
+    //createScene();
+    create1x1Texture(osg::Vec4(1, 1, 1, 1), "White");
 
-    /*osg::ref_ptr<osg::Image> hdrImage = osgDB::readImageFile(TEMP_DIR "zwartkops_straight_sunset_1k.hdr");
-    TextureImportOptions options;
-    options.format = Texture::Format::RGBA16F;
-    options.minFilter = Texture::FilterMode::Linear;
-    TextureCubemap* textureCubemap = new TextureCubemap(hdrImage, options);
-    am.createAsset(textureCubemap, "Engine/Texture/TestCubemap")->save();*/
-
-    /*osg::Image* image = osgDB::readImageFile(TEMP_DIR "white.png");
-    osg::ref_ptr<Texture2D> whiteTexture2D = new Texture2D(image, TextureImportOptions());
-    am.createAsset(whiteTexture2D, "Engine/Texture/White")->save();*/
-
-    /*Asset* materialAsset = am.getAsset("Engine/Material/TestMaterial");
-    materialAsset->load();
-    Material* material = materialAsset->getRootObject<Material>();
-
-    osg::ref_ptr<Mesh> mesh = new Mesh(TEMP_DIR "sphere.obj");
-    mesh->setDefaultMaterial(0, material);
-    am.createAsset(mesh, "Engine/Mesh/Sphere")->save();*/
-
-    /*osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "awesomeface.png");
-    osg::ref_ptr<Texture2D> texture = new Texture2D(image, TextureImportOptions());
-    texture->setDataCompression(true);
-    am.createAsset(texture, "Engine/Texture/AwesomeFace")->save();*/
-
-    /*osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "zwartkops_straight_sunset_1k.hdr");
-    TextureImportOptions options;
-    options.format = Texture::Format::RGBA16F;
-    options.minFilter = Texture::FilterMode::Linear_Mipmap_Linear;
-    options.mipmapGeneration = true;
-    osg::ref_ptr<TextureCubemap> texture = new TextureCubemap(image, options);
-    texture->setDataCompression(true);
-    am.createAsset(texture, "Engine/Texture/TestCubemap")->save();*/
-
-    // Asset* asset = am.getAsset("Engine/Texture/Test");
-    // asset->load();
-    // Texture2D* texture2D = asset->getRootObject<Texture2D>();
-
-    //Asset* cubemapAsset = am.getAsset("Engine/Texture/TestCubemap");
-    //cubemapAsset->load();
-    //TextureCubemap* cubemap = cubemapAsset->getRootObject<TextureCubemap>();
-    ////TextureCubemap* specularCubemap = generateSpecularCubemap(cubemap);
-    ////am.createAsset(specularCubemap, "Engine/Texture/SpecularCubemap")->save();
-    //generateDiffuseSHCoeff(cubemap);
-
-    /*Material* testMaterial = am.getAsset("Engine/Material/TestMaterial")->getRootObject<Material>();
-    Mesh* mesh = new Mesh(TEMP_DIR "Suzanne.obj");
-    mesh->setDefaultMaterial(0, testMaterial);
-    am.createAsset(mesh, "Engine/Mesh/Suzanne")->save();*/
-
-    /*osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "white.png");
-    TextureImportOptions options;
-    options.format = Texture::Format::RGBA16F;
-    options.minFilter = Texture::FilterMode::Linear_Mipmap_Linear;
-    options.mipmapGeneration = true;
-    osg::ref_ptr<TextureCubemap> texture = new TextureCubemap(image, options, 1);
-    am.createAsset(texture, "Engine/Texture/WhiteCubemap")->save();*/
-
-    /*osg::ref_ptr<Shader> shader = new Shader;
-    am.createAsset(shader, "Engine/Shader/TestShader2")->save();*/
-
-    /*osg::ref_ptr<osg::Image> image = osgDB::readImageFile(TEMP_DIR "T_Chair_N.PNG");
-    TextureImportOptions options;
-    options.format = Texture::Format::RGB8;
-    Texture2D* texture = new Texture2D(image, options);
-    texture->setDataCompression(true);
-    am.createAsset(texture, "Engine/Texture/T_Chair_N")->save();*/
-
-    /*std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<uint32_t> dis(0, 1023);
-    for (uint32_t i = 0; i < 17; ++i)
-    {
-        Mesh* mesh = new Mesh(TEMP_DIR "main" + std::to_string(i) + ".fbx");
-        size_t materialCount = mesh->getMaterialCount();
-        for (size_t i = 0; i < materialCount; ++i)
-        {
-            mesh->setMaterial(i, am.getAsset("Engine/Material/MyMaterial" + std::to_string(dis(gen)))->getRootObject<Material>());
-        }
-        am.createAsset(mesh, "Engine/Mesh/Main" + std::to_string(i))->save();
-    }*/
-
-    Mesh* mesh = new Mesh(TEMP_DIR "cube.obj");
-    am.createAsset(mesh, "Engine/Mesh/Cube")->save();
-
-    /*Shader* shader = new Shader;
-    am.createAsset(shader, "Engine/Shader/TestShader3")->save();*/
-
-    /*std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<float> dis(0.0f, 1.0f);
-    Shader* shader = am.getAsset("Engine/Shader/TestShader3")->getRootObject<Shader>();
-    for (uint32_t i = 0; i < 1024; ++i)
-    {
-        osg::ref_ptr<Material> material = new Material;
-        material->setShader(shader);
-        material->setParameter("MetallicFactor", dis(gen));
-        material->enableParameter("MetallicFactor", true);
-        material->setParameter("RoughnessFactor", dis(gen));
-        material->enableParameter("RoughnessFactor", true);
-        am.createAsset(material, "Engine/Material/MyMaterial" + std::to_string(i))->save();
-    }*/
-
-    //Mesh* mesh = new Mesh(TEMP_DIR "zy.fbx");
-    /*size_t materialCount = mesh->getMaterialCount();
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<uint32_t> dis(0, 1023);
-    for (size_t i = 0; i < materialCount; ++i)
-    {
-        mesh->setMaterial(i, am.getAsset("Engine/Material/MyMaterial" + std::to_string(dis(gen)))->getRootObject<Material>());
-    }*/
-    //am.createAsset(mesh, "Engine/Mesh/ZY2")->save();
-    
     Context::get().getGraphicsContext()->releaseContext();
 
     return 0;

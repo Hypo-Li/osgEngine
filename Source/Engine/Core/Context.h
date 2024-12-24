@@ -1,5 +1,6 @@
 #pragma once
 #include <Engine/Core/Entity.h>
+#include <Engine/Core/Scene.h>
 #include <osg/ref_ptr>
 #include <osg/GraphicsContext>
 #include <osg/Camera>
@@ -114,6 +115,16 @@ namespace xxx
 
         Material* getDefaultMaterial() const;
 
+        void setScene(Scene* scene)
+        {
+            mScene = scene;
+        }
+
+        Scene* getScene()
+        {
+            return mScene;
+        }
+
         void setRenderCommandsCallback(RenderCommandsCallback* callback)
         {
             mRenderCommandsCallback = callback;
@@ -182,6 +193,7 @@ namespace xxx
 
         Entity* mActivedEntity;
         //std::set<osg::observer_ptr<Entity>> _selectedEntities;
+        Scene* mScene;
 
         osg::ref_ptr<RenderCommandsCallback> mRenderCommandsCallback;
     };

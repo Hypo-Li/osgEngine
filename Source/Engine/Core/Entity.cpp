@@ -1,4 +1,5 @@
 #include "Entity.h"
+#include "OsgReflection.h"
 
 namespace xxx
 {
@@ -69,12 +70,13 @@ namespace xxx
 	{
 		if (child->mParent == this)
 			return;
-		if (child->mParent != nullptr)
+		if (child->mParent)
 			child->mParent->removeChild(child);
 
         child->setOwner(this);
 		child->mParent = this;
         mChildren.emplace_back(child);
+
         mOsgChildrenGroup->addChild(child->mOsgEntityNode);
 	}
 
@@ -109,9 +111,9 @@ namespace xxx
         Entity* child = mChildren[index];
         child->setOwner(nullptr);
         child->mParent = nullptr;
-        mOsgChildrenGroup->removeChild(child->mOsgEntityNode);
-
         mChildren.erase(mChildren.begin() + index);
+
+        mOsgChildrenGroup->removeChild(child->mOsgEntityNode);
     }
 
     void Entity::removeChildren(uint32_t beginIndex, uint32_t count)
@@ -203,6 +205,9 @@ namespace xxx::refl
         clazz->addProperty("Parent", &Entity::mParent);
         clazz->addProperty("Children", &Entity::mChildren);
         clazz->addProperty("Components", &Entity::mComponents);
+        clazz->addProperty("Translation", &Entity::mTranslation);
+        clazz->addProperty("Rotation", &Entity::mRotation);
+        clazz->addProperty("Scale", &Entity::mScale);
         return clazz;
     }
 }

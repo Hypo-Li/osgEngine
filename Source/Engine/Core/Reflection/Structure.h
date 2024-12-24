@@ -1,8 +1,6 @@
 #pragma once
 #include "Property.h"
 
-#include <vector>
-
 namespace xxx
 {
     class Object;
@@ -29,23 +27,22 @@ namespace xxx::refl
         }
 
     protected:
-        template <std::size_t Index = 0, typename Owner, typename Declared>
+        Structure(std::string_view name, size_t size) :
+            Type(name, size, Kind::Structure) {}
+
+        template <typename Declared, typename Owner>
         Property* addProperty(std::string_view name, Declared Owner::* member)
         {
-            Property* newProperty = new TProperty<Owner, Declared, Index>(name, member);
+            Property* newProperty = new TProperty<Declared, Owner>(name, member);
             mProperties.emplace_back(newProperty);
             return newProperty;
         }
 
-    protected:
-        Structure(std::string_view name, size_t size) :
-            Type(name, size, Kind::Structure)
-        {}
-
+    private:
         std::vector<Property*> mProperties;
     };
 
-    template <typename T, typename = std::enable_if_t<!std::is_base_of_v<Object, T>>>
+    template <typename T> requires (!std::is_base_of_v<xxx::Object, T>)
     class TStructure : public Structure
     {
         friend class Reflection;
@@ -72,11 +69,11 @@ namespace xxx::refl
 
         virtual bool compare(const void* instance1, const void* instance2) const override
         {
-            if constexpr (is_comparable_v<T>)
+            if constexpr (Comparable<T>)
                 return *static_cast<const T*>(instance1) == *static_cast<const T*>(instance2);
             else
             {
-                for (Property* prop : mProperties)
+                for (Property* prop : getProperties())
                 {
                     if (!prop->compare(instance1, instance2))
                         return false;
@@ -87,7 +84,6 @@ namespace xxx::refl
 
     protected:
         TStructure(std::string_view name) :
-            Structure(name, sizeof(T))
-        {}
+            Structure(name, sizeof(T)) {}
     };
 }

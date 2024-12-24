@@ -1,30 +1,22 @@
 #pragma once
 #include "../Special.h"
 
-#include <variant>
-
 namespace xxx::refl
 {
     class StdVariant : public Special
     {
     public:
-        virtual SpecialType getSpecialType() const
-        {
-            return SpecialType::Std_Variant;
-        }
-
         virtual std::vector<Type*> getTypes() const = 0;
         virtual uint32_t getTypeIndex(const void* instance) const = 0;
         virtual void* getValuePtr(void* instance) const = 0;
         virtual const void* getValuePtr(const void* instance) const = 0;
-        virtual void setValueByTypeIndex(void* instance, uint32_t typeIndex, void* value) const = 0;
+        virtual void setValue(void* instance, uint32_t typeIndex, const void* value) const = 0;
 
     protected:
-        StdVariant(std::string_view name, size_t size) : Special(name, size) {}
+        StdVariant(std::string_view name, size_t size) : Special(name, size, Case::StdVariant) {}
     };
 
-    class Reflection;
-    template <typename T, typename = std::enable_if_t<is_instance_of_v<T, std::variant>>>
+    template <typename T> requires is_instance_of_v<T, std::variant>
     class TStdVariant : public StdVariant
     {
         friend class Reflection;
@@ -35,18 +27,7 @@ namespace xxx::refl
         }
 
         template <std::size_t I>
-        static void* getValuePtrImpl(T* variant)
-        {
-            if (variant->index() == I)
-                return std::get_if<I>(variant);
-
-            if constexpr (I + 1 < std::variant_size_v<T>)
-                return getValuePtrImpl<I + 1>(variant);
-            return nullptr;
-        }
-
-        template <std::size_t I>
-        static void setValueByTypeIndexImpl(T* variant, uint32_t typeIndex, void* value)
+        static void setValueImpl(T* variant, uint32_t typeIndex, const void* value)
         {
             if (I == typeIndex)
             {
@@ -55,8 +36,9 @@ namespace xxx::refl
             }
 
             if constexpr (I + 1 < std::variant_size_v<T>)
-                setValueByTypeIndexImpl<I + 1>(variant, typeIndex, value);
+                setValueImpl<I + 1>(variant, typeIndex, value);
         }
+
     public:
         virtual void* newInstance() const override
         {
@@ -80,9 +62,9 @@ namespace xxx::refl
 
         virtual bool compare(const void* instance1, const void* instance2) const override
         {
-            uint32_t instance1TypeIndex = getTypeIndex(instance1);
-            if (instance1TypeIndex == getTypeIndex(instance2) && getTypes().at(instance1TypeIndex)->compare(getValuePtr(instance1), getValuePtr(instance2)))
-                return true;
+            //uint32_t instance1TypeIndex = getTypeIndex(instance1);
+            //if (instance1TypeIndex == getTypeIndex(instance2) && getTypes().at(instance1TypeIndex)->compare(getValuePtr(instance1), getValuePtr(instance2)))
+            //    return true;
             return false;
         }
 
@@ -93,34 +75,35 @@ namespace xxx::refl
 
         virtual uint32_t getTypeIndex(const void* instance) const override
         {
-            const T* variant = static_cast<const T*>(instance);
-            return variant->index();
+            return static_cast<const T*>(instance)->index();
         }
 
         virtual void* getValuePtr(void* instance) const override
         {
-            T* variant = static_cast<T*>(instance);
-            return getValuePtrImpl<0>(variant);
+            return std::visit([](auto&& value) -> void* {
+                return static_cast<void*>(&value);
+                }, *static_cast<T*>(instance));
         }
 
         virtual const void* getValuePtr(const void* instance) const override
         {
-            T* variant = static_cast<T*>(const_cast<void*>(instance));
-            return getValuePtrImpl<0>(variant);
+            return std::visit([](auto&& value) -> const void* {
+                return static_cast<const void*>(&value);
+                }, *static_cast<const T*>(instance));
         }
 
-        virtual void setValueByTypeIndex(void* instance, uint32_t typeIndex, void* value) const override
+        virtual void setValue(void* instance, uint32_t typeIndex, const void* value) const  override
         {
-            T* variant = static_cast<T*>(instance);
-            setValueByTypeIndexImpl<0>(variant, typeIndex, value);
+            setValueImpl<0>(static_cast<T*>(instance), typeIndex, value);
         }
 
-    protected:
+    private:
         template <std::size_t... Is>
-        static std::string createVariantArgsString(std::index_sequence<Is...>)
+        static std::string getVariantTypeNames(std::index_sequence<Is...>)
         {
             std::string result;
             std::vector<std::string_view> typeNames = { Reflection::getType<std::variant_alternative_t<Is, T>>()->getName()... };
+
             for (uint32_t i = 0; i < typeNames.size(); ++i)
             {
                 result += typeNames[i];
@@ -130,12 +113,12 @@ namespace xxx::refl
             return result;
         }
 
-        std::string_view genName() const
+        static std::string_view getName()
         {
-            static std::string name = "std::variant<" + createVariantArgsString(std::make_index_sequence<std::variant_size_v<T>>{}) + ">";
+            static std::string name = "std::variant<" + getVariantTypeNames(std::make_index_sequence<std::variant_size_v<T>>{}) + ">";
             return name;
         }
 
-        TStdVariant() : StdVariant(genName(), sizeof(T)) {}
+        TStdVariant() : StdVariant(getName(), sizeof(T)) {}
     };
 }

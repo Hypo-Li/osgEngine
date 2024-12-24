@@ -7,7 +7,7 @@ namespace xxx
     {
         Asset* defaultMaterialAsset = AssetManager::get().getAsset("Engine/Material/TestMaterial");
         if (defaultMaterialAsset)
-            return defaultMaterialAsset->getRootObject<Material>();
+            return defaultMaterialAsset->getRootObjectSafety<Material>();
         return nullptr;
     }
 }

@@ -1,5 +1,6 @@
 #pragma once
 #include "Type.h"
+#include <unordered_map>
 
 namespace xxx::refl
 {
@@ -11,14 +12,14 @@ namespace xxx::refl
     class Structure;
     class Class;
     class Special;
+
     class Reflection
     {
     public:
         template <typename T>
         static Type* getType()
         {
-            using _T = remove_cvrefp_t<T>;
-            static Type* type = createType<_T>();
+            static Type* type = createType<remove_cvrefp_t<T>>();
             return type;
         }
 

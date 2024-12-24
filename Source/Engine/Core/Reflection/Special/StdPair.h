@@ -1,8 +1,6 @@
 #pragma once
 #include "../Special.h"
 
-#include <utility>
-
 namespace xxx::refl
 {
     template <typename T1, typename T2>
@@ -14,26 +12,20 @@ namespace xxx::refl
     class StdPair : public Special
     {
     public:
-        virtual SpecialType getSpecialType() const
-        {
-            return SpecialType::Std_Pair;
-        }
-
-        virtual void setFirstValue(void* instance, void* value) const = 0;
-        virtual void setSecondValue(void* instance, void* value) const = 0;
         virtual Type* getFirstType() const = 0;
         virtual Type* getSecondType() const = 0;
+        virtual void setFirstValue(void* instance, const void* value) const = 0;
+        virtual void setSecondValue(void* instance, const void* value) const = 0;
         virtual void* getFirstPtr(void* instance) const = 0;
         virtual const void* getFirstPtr(const void* instance) const = 0;
         virtual void* getSecondPtr(void* instance) const = 0;
         virtual const void* getSecondPtr(const void* instance) const = 0;
 
     protected:
-        StdPair(std::string_view name, size_t size) : Special(name, size) {}
+        StdPair(std::string_view name, size_t size) : Special(name, size, Case::StdPair) {}
     };
 
-    class Reflection;
-    template <typename T, typename = std::enable_if_t<is_instance_of_v<T, std::pair>>>
+    template <typename T> requires is_instance_of_v<T, std::pair>
     class TStdPair : public StdPair
     {
         friend class Reflection;
@@ -62,21 +54,24 @@ namespace xxx::refl
 
         virtual bool compare(const void* instance1, const void* instance2) const override
         {
-            const void* first1 = &(static_cast<const std::pair<First, Second>*>(instance1)->first);
-            const void* first2 = &(static_cast<const std::pair<First, Second>*>(instance2)->first);
-            const void* second1 = &(static_cast<const std::pair<First, Second>*>(instance1)->second);
-            const void* second2 = &(static_cast<const std::pair<First, Second>*>(instance2)->second);
-            return Reflection::getType<First>()->compare(first1, first2) && Reflection::getType<Second>()->compare(second1, second2);
-        }
+            const First* first1 = &(static_cast<const std::pair<First, Second>*>(instance1)->first);
+            const First* first2 = &(static_cast<const std::pair<First, Second>*>(instance2)->first);
+            const Second* second1 = &(static_cast<const std::pair<First, Second>*>(instance1)->second);
+            const Second* second2 = &(static_cast<const std::pair<First, Second>*>(instance2)->second);
 
-        virtual void setFirstValue(void* instance, void* value) const
-        {
-            static_cast<std::pair<First, Second>*>(instance)->first = *(First*)(value);
-        }
+            bool firstEqual, secondEqual;
 
-        virtual void setSecondValue(void* instance, void* value) const
-        {
-            static_cast<std::pair<First, Second>*>(instance)->second = *(Second*)(value);
+            if constexpr (SpecialType<First> || !Comparable<First>)
+                firstEqual = Reflection::getType<First>()->compare(first1, first2);
+            else
+                firstEqual = *first1 == *first2;
+
+            if constexpr (SpecialType<Second> || !Comparable<Second>)
+                secondEqual = Reflection::getType<Second>()->compare(second1, second2);
+            else
+                secondEqual = *second1 == *second2;
+
+            return firstEqual && secondEqual;
         }
 
         virtual Type* getFirstType() const override
@@ -87,6 +82,16 @@ namespace xxx::refl
         virtual Type* getSecondType() const override
         {
             return Reflection::getType<Second>();
+        }
+
+        virtual void setFirstValue(void* instance, const void* value) const override
+        {
+            static_cast<std::pair<First, Second>*>(instance)->first = *(const First*)(value);
+        }
+
+        virtual void setSecondValue(void* instance, const void* value) const override
+        {
+            static_cast<std::pair<First, Second>*>(instance)->second = *(const Second*)(value);
         }
 
         virtual void* getFirstPtr(void* instance) const override
@@ -109,13 +114,13 @@ namespace xxx::refl
             return &(static_cast<const std::pair<First, Second>*>(instance)->second);
         }
 
-    protected:
-        std::string_view genName() const
+    private:
+        static std::string_view getName()
         {
             static std::string name = "std::pair<" + std::string(Reflection::getType<First>()->getName()) + ", " + std::string(Reflection::getType<Second>()->getName()) + ">";
             return name;
         }
 
-        TStdPair() : StdPair(genName(), sizeof(std::pair<First, Second>)) {}
+        TStdPair() : StdPair(getName(), sizeof(std::pair<First, Second>)) {}
     };
 }

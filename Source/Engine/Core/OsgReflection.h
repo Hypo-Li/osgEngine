@@ -5,36 +5,26 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 #include <osg/Matrixf>
+#include <osg/Vec2d>
+#include <osg/Vec3d>
+#include <osg/Vec4d>
+#include <osg/Matrixd>
 
 namespace xxx::refl
 {
-    template <>
-    inline Type* Reflection::createType<osg::Vec2f>()
-    {
-        Structure* structure = new TStructure<osg::Vec2f>("osg::Vec2f");
-        structure->addProperty<0>("x", &osg::Vec2f::_v);
-        structure->addProperty<1>("y", &osg::Vec2f::_v);
-        return structure;
-    }
+    template <> Type* Reflection::createType<osg::Vec2f>();
 
-    template <>
-    inline Type* Reflection::createType<osg::Vec3f>()
-    {
-        Structure* structure = new TStructure<osg::Vec3f>("osg::Vec3f");
-        structure->addProperty<0>("x", &osg::Vec2f::_v);
-        structure->addProperty<1>("y", &osg::Vec2f::_v);
-        structure->addProperty<2>("z", &osg::Vec2f::_v);
-        return structure;
-    }
+    template <> Type* Reflection::createType<osg::Vec2d>();
 
-    template <>
-    inline Type* Reflection::createType<osg::Vec4f>()
-    {
-        Structure* structure = new TStructure<osg::Vec4f>("osg::Vec4f");
-        structure->addProperty<0>("x", &osg::Vec2f::_v);
-        structure->addProperty<1>("y", &osg::Vec2f::_v);
-        structure->addProperty<2>("z", &osg::Vec2f::_v);
-        structure->addProperty<3>("w", &osg::Vec2f::_v);
-        return structure;
-    }
+    template <> Type* Reflection::createType<osg::Vec3f>();
+
+    template <> Type* Reflection::createType<osg::Vec3d>();
+
+    template <> Type* Reflection::createType<osg::Vec4f>();
+
+    template <> Type* Reflection::createType<osg::Vec4d>();
+
+    template <> Type* Reflection::createType<osg::Matrixf>();
+
+    template <> Type* Reflection::createType<osg::Matrixd>();
 }

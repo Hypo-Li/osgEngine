@@ -80,13 +80,12 @@ namespace xxx::refl
 
     protected:
         Enumeration(std::string_view name, size_t size) :
-            Type(name, size, Kind::Enumeration)
-        {}
+            Type(name, size, Kind::Enumeration) {}
 
         std::vector<std::pair<std::string_view, int64_t>> mValues;
     };
 
-    template <typename T, typename = std::enable_if_t<std::is_enum_v<T>>>
+    template <typename T> requires std::is_enum_v<T>
     class TEnumeration : public Enumeration
     {
         friend class Reflection;

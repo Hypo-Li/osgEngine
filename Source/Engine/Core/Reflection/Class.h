@@ -1,6 +1,5 @@
 #pragma once
 #include "Property.h"
-#include "Method.h"
 
 namespace xxx
 {
@@ -9,7 +8,6 @@ namespace xxx
 
 namespace xxx::refl
 {
-    class Reflection;
 	class Class : public Type
 	{
         friend class Reflection;
@@ -27,22 +25,9 @@ namespace xxx::refl
             return nullptr;
         }
 
-        Method* getMethod(std::string_view name) const
-        {
-            for (auto meth : mMethods)
-                if (meth->getName() == name)
-                    return meth;
-            return nullptr;
-        }
-
         const std::vector<Property*>& getProperties() const
         {
             return mProperties;
-        }
-
-        const std::vector<Method*>& getMethods() const
-        {
-            return mMethods;
         }
 
         const xxx::Object* getDefaultObject() const
@@ -74,42 +59,37 @@ namespace xxx::refl
             return false;
         }
 
-        void addDerivedClass(Class* derivedClass)
-        {
-            mDerivedClasses.emplace_back(derivedClass);
-        }
-
         const std::vector<Class*>& getDerivedClasses() const
         {
             return mDerivedClasses;
         }
 
+        static void addDerivedToBase(Class* baseClass, Class* derivedClass)
+        {
+            baseClass->mDerivedClasses.push_back(derivedClass);
+        }
+
     protected:
-        template <std::size_t Index = 0, typename Owner, typename Declared>
+        template <typename Declared, typename Owner>
         Property* addProperty(std::string_view name, Declared Owner::* member)
         {
-            Property* newProperty = new TProperty<Owner, Declared, Index>(name, member);
+            Property* newProperty = new TProperty<Declared, Owner>(name, member);
             mProperties.emplace_back(newProperty);
             return newProperty;
         }
 
-        template <typename T>
-        Method* addMethod(std::string_view name, T member, std::initializer_list<std::string_view> paramNames = {})
-        {
-            Method* newMethod = new TMethod(name, member, paramNames);
-            mMethods.emplace_back(newMethod);
-            return newMethod;
-        }
-
     protected:
-        Class(std::string_view name, size_t size) :
-            Type(name, size, Kind::Class)
-        {}
+        Class(std::string_view name, size_t size, Class* baseClass, Object* defaultObject) :
+            Type(name, size, Kind::Class),
+            mBaseClass(baseClass),
+            mDefaultObject(defaultObject)
+        {
+            Reflection::registerClass(name, this);
+        }
 
         Class* mBaseClass;
         std::vector<Class*> mDerivedClasses;
         std::vector<Property*> mProperties;
-        std::vector<Method*> mMethods;
         xxx::Object* mDefaultObject;
 	};
 
@@ -148,7 +128,7 @@ namespace xxx::refl
 
         virtual bool compare(const void* instance1, const void* instance2) const override
         {
-            if constexpr (is_comparable_v<T>)
+            if constexpr (Comparable<T>)
                 return *static_cast<const T*>(instance1) == *static_cast<const T*>(instance2);
             else
             {
@@ -168,23 +148,27 @@ namespace xxx::refl
         }
 
     protected:
-        TClass(std::string_view name) :
-            Class(name, sizeof(T))
+        static Class* getSelfBaseClass()
         {
             if constexpr (std::is_same_v<T, Object>)
-                mBaseClass = nullptr;
+                return nullptr;
             else
-            {
-                mBaseClass = dynamic_cast<Class*>(Reflection::getType<Base>());
-                mBaseClass->addDerivedClass(this);
-            }
+                return dynamic_cast<Class*>(Reflection::getType<Base>());
+        }
 
+        static Object* getSelfDefaultObject()
+        {
             if constexpr (std::is_abstract_v<T>)
-                mDefaultObject = nullptr;
+                return nullptr;
             else
-                mDefaultObject = new T;
+                return new T;
+        }
 
-            Reflection::registerClass(name, this);
+        TClass(std::string_view name) :
+            Class(name, sizeof(T), getSelfBaseClass(), getSelfDefaultObject())
+        {
+            if constexpr (!std::is_same_v<T, Object>)
+                addDerivedToBase(getBaseClass(), this);
         }
     };
 }

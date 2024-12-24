@@ -8,11 +8,10 @@ namespace xxx::refl
     {
     protected:
         Fundamental(std::string_view name, size_t size) :
-            Type(name, size, Kind::Fundamental)
-        {}
+            Type(name, size, Kind::Fundamental) {}
     };
 
-    template <typename T, typename = std::enable_if_t<std::is_fundamental_v<T>>>
+    template <typename T> requires std::is_fundamental_v<T>
     class TFundamental : public Fundamental
     {
         friend class Reflection;
@@ -64,7 +63,6 @@ namespace xxx::refl
         }
 
         TFundamental(std::string_view name) :
-            Fundamental(name, sizeOf<T>())
-        {}
+            Fundamental(name, sizeOf<T>()) {}
     };
 }

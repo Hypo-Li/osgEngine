@@ -27,6 +27,7 @@ namespace xxx
         template <> Type* Reflection::createType<Object>()
         {
             Class* clazz = new TClass<Object>("Object");
+            clazz->addProperty("Guid", &Object::mGuid);
             clazz->addProperty("Owner", &Object::mOwner);
             return clazz;
         }

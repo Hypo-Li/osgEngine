@@ -10,6 +10,7 @@
 #include "ControllerManipulator.h"
 #include "GLDebugCallback.h"
 #include <Engine/Core/Engine.h>
+#include <Engine/Core/Scene.h>
 
 #include <osgViewer/CompositeViewer>
 #include <osgViewer/ViewerEventHandlers>
@@ -105,8 +106,10 @@ namespace xxx::editor
 
             Context::get().getGraphicsContext()->makeCurrent();
 
-            Entity* entity = AssetManager::get().getAsset("Engine/Entity/TestEntity")->getRootObject<Entity>();
-            engineView->setSceneData(entity->getOsgNode());
+            Scene* scene = AssetManager::get().getAsset("Engine/Scene/TestScene")->getRootObjectSafety<Scene>();
+            Context::get().setScene(scene);
+
+            engineView->setSceneData(scene->getRootEntity()->getOsgNode());
             Context::get().getGraphicsContext()->releaseContext();
 
             

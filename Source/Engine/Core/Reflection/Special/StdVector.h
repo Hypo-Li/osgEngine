@@ -1,8 +1,6 @@
 #pragma once
 #include "../Special.h"
 
-#include <vector>
-
 namespace xxx::refl
 {
     template <typename T>
@@ -13,26 +11,19 @@ namespace xxx::refl
     class StdVector : public Special
     {
     public:
-        virtual SpecialType getSpecialType() const
-        {
-            return SpecialType::Std_Vector;
-        }
-
         virtual Type* getElementType() const = 0;
         virtual size_t getElementCount(const void* instance) const = 0;
-        virtual void setElementValue(void* instance, size_t index, void* data) const = 0;
-        virtual void* getElementPtrByIndex(void* instance, size_t index) const = 0;
-        virtual const void* getElementPtrByIndex(const void* instance, size_t index) const = 0;
-        virtual void appendElement(void* instance, void* newElement) const = 0;
-        virtual void removeElementByIndex(void* instance, size_t index) const = 0;
+        virtual void setElement(void* instance, size_t index, const void* data) const = 0;
+        virtual void getElement(const void* instance, size_t index, void* data) const = 0;
+        virtual void* getElementPtr(void* instance, size_t index) const = 0;
+        virtual const void* getElementPtr(const void* instance, size_t index) const = 0;
         virtual void resize(void* instance, size_t size) const = 0;
 
     protected:
-        StdVector(std::string_view name, size_t size) : Special(name, size) {}
+        StdVector(std::string_view name, size_t size) : Special(name, size, Case::StdVector) {}
     };
 
-    class Reflection;
-    template <typename T, typename = std::enable_if_t<is_instance_of_v<T, std::vector>>>
+    template <typename T> requires is_instance_of_v<T, std::vector>
     class TStdVector : public StdVector
     {
         friend class Reflection;
@@ -60,7 +51,8 @@ namespace xxx::refl
 
         virtual bool compare(const void* instance1, const void* instance2) const override
         {
-            if (getElementCount(instance1) == 0 && getElementCount(instance2) == 0)
+            if (static_cast<const std::vector<Element>*>(instance1)->size() == 0 &&
+                static_cast<const std::vector<Element>*>(instance2)->size() == 0)
                 return true;
             return false;
         }
@@ -75,30 +67,24 @@ namespace xxx::refl
             return static_cast<const std::vector<Element>*>(instance)->size();
         }
 
-        virtual void setElementValue(void* instance, size_t index, void* data) const
+        virtual void setElement(void* instance, size_t index, const void* data) const override
         {
-            static_cast<std::vector<Element>*>(instance)->at(index) = *(Element*)(data);
+            static_cast<std::vector<Element>*>(instance)->at(index) = *(const Element*)(data);
         }
 
-        virtual void* getElementPtrByIndex(void* instance, size_t index) const override
+        virtual void getElement(const void* instance, size_t index, void* data) const override
         {
-            return &(static_cast<std::vector<Element>*>(instance)->at(index));
+            *(Element*)(data) = static_cast<const std::vector<Element>*>(instance)->at(index);
         }
 
-        virtual const void* getElementPtrByIndex(const void* instance, size_t index) const override
+        virtual void* getElementPtr(void* instance, size_t index) const override
         {
-            return &(static_cast<const std::vector<Element>*>(instance)->at(index));
+            return &static_cast<std::vector<Element>*>(instance)->at(index);
         }
 
-        virtual void appendElement(void* instance, void* element) const override
+        virtual const void* getElementPtr(const void* instance, size_t index) const override
         {
-            static_cast<std::vector<Element>*>(instance)->emplace_back(*(Element*)(element));
-        }
-
-        virtual void removeElementByIndex(void* instance, size_t index) const override
-        {
-            std::vector<Element>* vec = static_cast<std::vector<Element>*>(instance);
-            vec->erase(vec->begin() + index);
+            return &static_cast<const std::vector<Element>*>(instance)->at(index);
         }
 
         virtual void resize(void* instance, size_t size) const override
@@ -106,13 +92,13 @@ namespace xxx::refl
             static_cast<std::vector<Element>*>(instance)->resize(size);
         }
 
-    protected:
-        std::string_view genName() const
+    private:
+        static std::string_view getName()
         {
             static std::string name = "std::vector<" + std::string(Reflection::getType<Element>()->getName()) + ">";
             return name;
         }
 
-        TStdVector() : StdVector(genName(), sizeof(std::vector<Element>)) {}
+        TStdVector() : StdVector(getName(), sizeof(std::vector<Element>)) {}
     };
 }

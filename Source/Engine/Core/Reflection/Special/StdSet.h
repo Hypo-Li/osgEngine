@@ -1,8 +1,6 @@
 #pragma once
 #include "../Special.h"
 
-#include <set>
-
 namespace xxx::refl
 {
     template <typename T>
@@ -13,24 +11,17 @@ namespace xxx::refl
     class StdSet : public Special
     {
     public:
-        virtual SpecialType getSpecialType() const
-        {
-            return SpecialType::Std_Set;
-        }
-
         virtual Type* getElementType() const = 0;
         virtual size_t getElementCount(const void* instance) const = 0;
         virtual std::vector<const void*> getElementPtrs(const void* instance) const = 0;
-
-        virtual void insertElement(void* instance, void* element) const = 0;
-        virtual void removeElement(void* instance, void* element) const = 0;
+        virtual void insertElement(void* instance, const void* element) const = 0;
+        virtual void removeElement(void* instance, const void* element) const = 0;
 
     protected:
-        StdSet(std::string_view name, size_t size) : Special(name, size) {}
+        StdSet(std::string_view name, size_t size) : Special(name, size, Case::StdSet) {}
     };
 
-    class Reflection;
-    template <typename T, typename = std::enable_if_t<is_instance_of_v<T, std::set>>>
+    template <typename T> requires is_instance_of_v<T, std::set>
     class TStdSet : public StdSet
     {
         friend class Reflection;
@@ -58,7 +49,8 @@ namespace xxx::refl
 
         virtual bool compare(const void* instance1, const void* instance2) const override
         {
-            if (static_cast<const std::set<Element>*>(instance1)->size() == 0 && static_cast<const std::set<Element>*>(instance2)->size() == 0)
+            if (static_cast<const std::set<Element>*>(instance1)->size() == 0 &&
+                static_cast<const std::set<Element>*>(instance2)->size() == 0)
                 return true;
             return false;
         }
@@ -75,36 +67,34 @@ namespace xxx::refl
 
         virtual std::vector<const void*> getElementPtrs(const void* instance) const override
         {
-            std::vector<const void*> result;
             const std::set<Element>* set = static_cast<const std::set<Element>*>(instance);
-            for (auto it = set->begin(); it != set->end(); ++it)
-            {
-                result.emplace_back(&(*it));
-            }
+            std::vector<const void*> result(set->size());
+            size_t i = 0;
+            for (const Element& element : *set)
+                result[i++] = &element;
             return result;
         }
 
-        virtual void insertElement(void* instance, void* element) const override
+        virtual void insertElement(void* instance, const void* element) const override
         {
-            std::set<Element>* set = static_cast<std::set<Element>*>(instance);
-            set->insert(*(Element*)(element));
+            static_cast<std::set<Element>*>(instance)->insert(*static_cast<const Element*>(element));
         }
 
-        virtual void removeElement(void* instance, void* element) const override
+        virtual void removeElement(void* instance, const void* element) const override
         {
             std::set<Element>* set = static_cast<std::set<Element>*>(instance);
-            auto findResult = set->find(*(Element*)(element));
+            auto findResult = set->find(*static_cast<const Element*>(element));
             if (findResult != set->end())
                 set->erase(findResult);
         }
 
-    protected:
-        std::string_view genName() const
+    private:
+        static std::string_view getName()
         {
             static std::string name = "std::set<" + std::string(Reflection::getType<Element>()->getName()) + ">";
             return name;
         }
 
-        TStdSet() : StdSet(genName(), sizeof(std::set<Element>)) {}
+        TStdSet() : StdSet(getName(), sizeof(std::set<Element>)) {}
     };
 }

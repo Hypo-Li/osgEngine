@@ -1,14 +1,16 @@
 #include "Special.h"
+
 #include "Fundamental.h"
 #include "Enumeration.h"
 #include "Structure.h"
 #include "Class.h"
+
 #include "Special/StdArray.h"
+#include "Special/StdList.h"
 #include "Special/StdMap.h"
 #include "Special/StdPair.h"
 #include "Special/StdSet.h"
 #include "Special/StdString.h"
-#include "Special/StdTuple.h"
 #include "Special/StdUnorderedMap.h"
 #include "Special/StdUnorderedSet.h"
 #include "Special/StdVariant.h"
@@ -69,22 +71,22 @@ namespace xxx::refl
     }
 
     CREATE_FUNDAMENTAL_TYPE(void)
-        CREATE_FUNDAMENTAL_TYPE(nullptr_t)
-        CREATE_FUNDAMENTAL_TYPE(bool)
-        CREATE_FUNDAMENTAL_TYPE(char)
-        CREATE_FUNDAMENTAL_TYPE(wchar_t)
-        CREATE_FUNDAMENTAL_TYPE(int8_t)
-        CREATE_FUNDAMENTAL_TYPE(int16_t)
-        CREATE_FUNDAMENTAL_TYPE(int32_t)
-        CREATE_FUNDAMENTAL_TYPE(int64_t)
-        CREATE_FUNDAMENTAL_TYPE(uint8_t)
-        CREATE_FUNDAMENTAL_TYPE(uint16_t)
-        CREATE_FUNDAMENTAL_TYPE(uint32_t)
-        CREATE_FUNDAMENTAL_TYPE(uint64_t)
-        CREATE_FUNDAMENTAL_TYPE(float)
-        CREATE_FUNDAMENTAL_TYPE(double)
+    CREATE_FUNDAMENTAL_TYPE(nullptr_t)
+    CREATE_FUNDAMENTAL_TYPE(bool)
+    CREATE_FUNDAMENTAL_TYPE(char)
+    CREATE_FUNDAMENTAL_TYPE(wchar_t)
+    CREATE_FUNDAMENTAL_TYPE(int8_t)
+    CREATE_FUNDAMENTAL_TYPE(int16_t)
+    CREATE_FUNDAMENTAL_TYPE(int32_t)
+    CREATE_FUNDAMENTAL_TYPE(int64_t)
+    CREATE_FUNDAMENTAL_TYPE(uint8_t)
+    CREATE_FUNDAMENTAL_TYPE(uint16_t)
+    CREATE_FUNDAMENTAL_TYPE(uint32_t)
+    CREATE_FUNDAMENTAL_TYPE(uint64_t)
+    CREATE_FUNDAMENTAL_TYPE(float)
+    CREATE_FUNDAMENTAL_TYPE(double)
 
-        template <typename T>
+    template <typename T>
     static Type* Reflection::createType()
     {
         if constexpr (is_instance_of_v<T, osg::ref_ptr>)
@@ -93,14 +95,14 @@ namespace xxx::refl
             return new StdString;
         else if constexpr (is_std_array_v<T>)
             return new TStdArray<T>;
+        else if constexpr (is_instance_of_v<T, std::list>)
+            return new TStdList<T>;
         else if constexpr (is_instance_of_v<T, std::map>)
             return new TStdMap<T>;
         else if constexpr (is_instance_of_v<T, std::pair>)
             return new TStdPair<T>;
         else if constexpr (is_instance_of_v<T, std::set>)
             return new TStdSet<T>;
-        else if constexpr (is_instance_of_v<T, std::tuple>)
-            return new TStdTuple<T>;
         else if constexpr (is_instance_of_v<T, std::unordered_map>)
             return new TStdUnorderedMap<T>;
         else if constexpr (is_instance_of_v<T, std::unordered_set>)

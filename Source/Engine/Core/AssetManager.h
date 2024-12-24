@@ -3,6 +3,7 @@
 #include "Context.h"
 
 #include <iostream>
+#include <functional>
 
 namespace xxx
 {
@@ -14,9 +15,9 @@ namespace xxx
             const std::filesystem::path& engineAssetPath = Context::get().getEngineAssetPath();
             for (const auto& file : std::filesystem::recursive_directory_iterator(engineAssetPath))
             {
-                if (file.is_regular_file() && file.path().extension() == ".xast")
+                if (file.is_regular_file() && file.path().extension() == Asset::sAssetExtension)
                 {
-                    createAsset(nullptr, Asset::convertFullPathToAssetPath(file.path()));
+                    createAsset(Asset::convertPhysicalPathToAssetPath(file.path()));
                 }
             }
 
@@ -31,8 +32,6 @@ namespace xxx
                     createAsset(nullptr, "/" + relativePath.string());
                 }
             }*/
-
-            return;
         }
 
         static AssetManager& get()
@@ -41,7 +40,7 @@ namespace xxx
             return assetManager;
         }
 
-        Asset* createAsset(Object* rootObject, const std::string& path);
+        Asset* createAsset(const std::string& path, Object* rootObject = nullptr);
 
         Asset* getAsset(const std::string& path);
 
@@ -51,8 +50,9 @@ namespace xxx
         void foreachAsset(const std::function<void(Asset*)>& func)
         {
             refl::Class* clazz = refl::Reflection::getClass<Filter>();
-            for (Asset* asset : mAssets)
+            for (auto& pair : mPathAssetMap)
             {
+                Asset* asset = pair.second;
                 if constexpr (!std::is_same_v<Filter, void>)
                 {
                     if (clazz == asset->getClass())
@@ -67,16 +67,18 @@ namespace xxx
 
         void setAssetRootObject(Asset* asset, Object* rootObject)
         {
-            if (asset->mRootObject == rootObject)
+            if (asset->getRootObject() == rootObject)
                 return;
 
-            if (rootObject && rootObject->getGuid() != asset->getGuid())
-            {
+            if (asset->getGuid().isValid())
                 mGuidAssetMap.erase(asset->getGuid());
+
+            if (rootObject)
                 mGuidAssetMap.emplace(rootObject->getGuid(), asset);
-            }
 
             asset->setRootObject(rootObject);
+
+            // TODO: update Referenced Assets
         }
 
         void setAssetPath(Asset* asset, const std::string& path)
@@ -84,14 +86,17 @@ namespace xxx
             if (asset->mPath == path)
                 return;
 
-            mPathAssetMap.erase(asset->mPath);
+            mPathAssetMap.erase(asset->getPath());
             mPathAssetMap.emplace(path, asset);
+
             asset->setPath(path);
+
+            // TODO: update Referenced Assets
         }
 
     private:
         std::set<osg::ref_ptr<Asset>> mAssets;
-        std::unordered_map<std::string, Asset*> mPathAssetMap;
+        std::map<std::string, Asset*> mPathAssetMap;
         std::unordered_map<Guid, Asset*> mGuidAssetMap;
     };
 }

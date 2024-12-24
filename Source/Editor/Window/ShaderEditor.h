@@ -8,7 +8,7 @@ namespace xxx::editor
     public:
         ShaderEditor(Asset* shaderAsset) : Window(shaderAsset->getName() + "##" + shaderAsset->getPath()), mShaderAsset(shaderAsset)
         {
-            mShader = mShaderAsset->getRootObject<Shader>();
+            mShader = mShaderAsset->getRootObjectSafety<Shader>();
         }
 
         virtual bool draw() override
@@ -84,7 +84,7 @@ namespace xxx::editor
                             Asset* textureAsset = std::get<Shader::Texture2DUnitPair>(parameterValue).first->getAsset();
                             if (AssetCombo<Texture2D>(parameterName.c_str(), &textureAsset))
                             {
-                                mShader->setParameter(parameterName, textureAsset->getRootObject<Texture2D>());
+                                mShader->setParameter(parameterName, textureAsset->getRootObjectSafety<Texture2D>());
                             }
                             break;
                         }
@@ -93,7 +93,7 @@ namespace xxx::editor
                             Asset* textureAsset = std::get<Shader::Texture2DArrayUnitPair>(parameterValue).first->getAsset();
                             if (AssetCombo<Texture2DArray>(parameterName.c_str(), &textureAsset))
                             {
-                                mShader->setParameter(parameterName, textureAsset->getRootObject<Texture2DArray>());
+                                mShader->setParameter(parameterName, textureAsset->getRootObjectSafety<Texture2DArray>());
                             }
                             break;
                         }
@@ -102,7 +102,7 @@ namespace xxx::editor
                             Asset* textureAsset = std::get<Shader::Texture3DUnitPair>(parameterValue).first->getAsset();
                             if (AssetCombo<Texture3D>(parameterName.c_str(), &textureAsset))
                             {
-                                mShader->setParameter(parameterName, textureAsset->getRootObject<Texture3D>());
+                                mShader->setParameter(parameterName, textureAsset->getRootObjectSafety<Texture3D>());
                             }
                             break;
                         }
@@ -111,7 +111,7 @@ namespace xxx::editor
                             Asset* textureAsset = std::get<Shader::TextureCubemapUnitPair>(parameterValue).first->getAsset();
                             if (AssetCombo<TextureCubemap>(parameterName.c_str(), &textureAsset))
                             {
-                                mShader->setParameter(parameterName, textureAsset->getRootObject<TextureCubemap>());
+                                mShader->setParameter(parameterName, textureAsset->getRootObjectSafety<TextureCubemap>());
                             }
                             break;
                         }
@@ -201,13 +201,13 @@ namespace xxx::editor
             case xxx::Shader::ParameterType::Texture2D:
             {
                 Asset* defaultTextureAsset = AssetManager::get().getAsset("Engine/Texture/AwesomeFace");
-                mShader->addParameter(name, defaultTextureAsset->getRootObject<Texture2D>());
+                mShader->addParameter(name, defaultTextureAsset->getRootObjectSafety<Texture2D>());
                 break;
             }
             case xxx::Shader::ParameterType::TextureCubemap:
             {
                 Asset* defaultTextureAsset = AssetManager::get().getAsset("Engine/Texture/TestCubemap");
-                mShader->addParameter(name, defaultTextureAsset->getRootObject<TextureCubemap>());
+                mShader->addParameter(name, defaultTextureAsset->getRootObjectSafety<TextureCubemap>());
                 break;
             }
             default:

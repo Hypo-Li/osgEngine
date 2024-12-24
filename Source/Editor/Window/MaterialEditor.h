@@ -10,7 +10,7 @@ namespace xxx::editor
     public:
         MaterialEditor(Asset* materialAsset) : Window(materialAsset->getName() + "##" + materialAsset->getPath()), mMaterialAsset(materialAsset)
         {
-            mMaterial = mMaterialAsset->getRootObject<Material>();
+            mMaterial = mMaterialAsset->getRootObjectSafety<Material>();
 
             /*mSimpleView = new osgViewer::View;
             mSimpleView->setSceneData(mEngine->getView()->getSceneData());
@@ -136,7 +136,7 @@ namespace xxx::editor
                         Asset* textureAsset = std::get<Shader::Texture2DUnitPair>(parameterValue).first->getAsset();
                         if (AssetCombo<Texture2D>(parameterName.c_str(), &textureAsset))
                         {
-                            mMaterial->setParameter(parameterName, textureAsset->getRootObject<Texture2D>());
+                            mMaterial->setParameter(parameterName, textureAsset->getRootObjectSafety<Texture2D>());
                         }
                         break;
                     }
@@ -145,7 +145,7 @@ namespace xxx::editor
                         Asset* textureAsset = std::get<Shader::Texture2DArrayUnitPair>(parameterValue).first->getAsset();
                         if (AssetCombo<Texture2DArray>(parameterName.c_str(), &textureAsset))
                         {
-                            mMaterial->setParameter(parameterName, textureAsset->getRootObject<Texture2DArray>());
+                            mMaterial->setParameter(parameterName, textureAsset->getRootObjectSafety<Texture2DArray>());
                         }
                         break;
                     }
@@ -154,7 +154,7 @@ namespace xxx::editor
                         Asset* textureAsset = std::get<Shader::Texture3DUnitPair>(parameterValue).first->getAsset();
                         if (AssetCombo<Texture3D>(parameterName.c_str(), &textureAsset))
                         {
-                            mMaterial->setParameter(parameterName, textureAsset->getRootObject<Texture3D>());
+                            mMaterial->setParameter(parameterName, textureAsset->getRootObjectSafety<Texture3D>());
                         }
                         break;
                     }
@@ -163,7 +163,7 @@ namespace xxx::editor
                         Asset* textureAsset = std::get<Shader::TextureCubemapUnitPair>(parameterValue).first->getAsset();
                         if (AssetCombo<TextureCubemap>(parameterName.c_str(), &textureAsset))
                         {
-                            mMaterial->setParameter(parameterName, textureAsset->getRootObject<TextureCubemap>());
+                            mMaterial->setParameter(parameterName, textureAsset->getRootObjectSafety<TextureCubemap>());
                         }
                         break;
                     }
@@ -179,7 +179,7 @@ namespace xxx::editor
 
                 if (wantChangeShader)
                 {
-                    mMaterial->setShader(shaderAsset->getRootObject<Shader>());
+                    mMaterial->setShader(shaderAsset->getRootObjectSafety<Shader>());
                 }
 
                 if (ImGui::Button("Save"))

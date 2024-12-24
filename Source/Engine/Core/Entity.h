@@ -108,7 +108,7 @@ namespace xxx
 
         void setParent(Entity* entity);
 
-		Entity* getParent() const
+		inline Entity* getParent() const
         {
             return mParent;
         }

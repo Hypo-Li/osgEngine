@@ -410,7 +410,7 @@ namespace xxx
         std::vector<osg::ref_ptr<Pass>> mPasses;
         std::unordered_map<uint32_t, std::pair<Pass*, osg::Camera::DrawCallback*>> mBlitFramebufferCommandMap;
 
-        static osg::Geometry* Pipeline::getScreenGeometry()
+        static osg::Geometry* getScreenGeometry()
         {
             static osg::ref_ptr<osg::Geometry> geometry = nullptr;
             if (geometry) return geometry;

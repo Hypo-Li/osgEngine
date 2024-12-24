@@ -307,8 +307,8 @@ namespace xxx
         virtual void onEnable() override
         {
             if (!mImageCubemap)
-                setImageCubemap(AssetManager::get().getAsset("Engine/Texture/TestCubemap")->getRootObject<TextureCubemap>());
-            Texture2D* brdfLutTexture = AssetManager::get().getAsset("Engine/Texture/BRDFLut")->getRootObject<Texture2D>();
+                setImageCubemap(AssetManager::get().getAsset("Engine/Texture/TestCubemap")->getRootObjectSafety<TextureCubemap>());
+            Texture2D* brdfLutTexture = AssetManager::get().getAsset("Engine/Texture/BRDFLut")->getRootObjectSafety<Texture2D>();
             Pipeline* pipeline = Context::get().getEngine()->getPipeline();
             Pipeline::Pass* lightingPass = pipeline->getPass("Lighting");
             osg::StateSet* stateSet = lightingPass->getCamera()->getStateSet();

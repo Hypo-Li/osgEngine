@@ -11,9 +11,9 @@ namespace xxx
     void Shader::apply() const
     {
         AssetManager::get().foreachAsset<Material>([this](Asset* asset) {
-            if (asset->isLoaded())
+            if (asset->getState() == Asset::State::Loaded)
             {
-                Material* material = asset->getRootObject<Material>();
+                Material* material = asset->getRootObjectSafety<Material>();
                 if (material->getShader() == this)
                     material->syncWithShader();
             }

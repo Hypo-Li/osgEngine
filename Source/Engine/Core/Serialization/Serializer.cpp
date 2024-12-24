@@ -4,124 +4,94 @@ namespace xxx
 {
     using namespace refl;
 
-    void Serializer::serializeType(refl::Type* type, void* data, size_t count)
+    void Serializer::serializeType(Type* type, void* data, size_t count)
     {
         switch (type->getKind())
         {
-        case refl::Type::Kind::Fundamental:
-        {
+        case Type::Kind::Fundamental:
             serializeFundamental(dynamic_cast<Fundamental*>(type), data, count);
             break;
-        }
-        case refl::Type::Kind::Enumeration:
-        {
+        case Type::Kind::Enumeration:
             serializeEnumeration(dynamic_cast<Enumeration*>(type), data, count);
             break;
-        }
-        case refl::Type::Kind::Structure:
-        {
+        case Type::Kind::Structure:
             serializeStructure(dynamic_cast<Structure*>(type), data, count);
             break;
-        }
-        case refl::Type::Kind::Class:
-        {
-            serializeClass(static_cast<Object**>(data), count);
+        case Type::Kind::Class:
+            serializeClass(dynamic_cast<Class*>(type), data, count);
             break;
-        }
-        case refl::Type::Kind::Special:
-        {
+        case Type::Kind::Special:
             serializeSpecial(dynamic_cast<Special*>(type), data, count);
             break;
-        }
         default:
             break;
         }
     }
 
-    void Serializer::serializeFundamental(refl::Fundamental* fundamental, void* data, size_t count) {}
+    void Serializer::serializeFundamental(Fundamental* fundamental, void* data, size_t count) {}
 
-    void Serializer::serializeEnumeration(refl::Enumeration* enumeration, void* data, size_t count) {}
+    void Serializer::serializeEnumeration(Enumeration* enumeration, void* data, size_t count) {}
 
-    void Serializer::serializeStructure(refl::Structure* structure, void* data, size_t count) {}
+    void Serializer::serializeStructure(Structure* structure, void* data, size_t count) {}
 
-    void Serializer::serializeClass(Object** data, size_t count) {}
+    void Serializer::serializeClass(Class* clazz, void* data, size_t count) {}
 
-    void Serializer::serializeSpecial(refl::Special* special, void* data, size_t count)
+    void Serializer::serializeSpecial(Special* special, void* data, size_t count)
     {
-        switch (special->getSpecialType())
+        switch (special->getCase())
         {
-        case SpecialType::Std_String:
-        {
-            serializeStdString(static_cast<std::string*>(data), count);
-            break;
-        }
-        case SpecialType::Std_Array:
-        {
+        case Special::Case::StdArray:
             serializeStdArray(dynamic_cast<StdArray*>(special), data, count);
             break;
-        }
-        case SpecialType::Std_Map:
-        {
+        case Special::Case::StdList:
+            serializeStdList(dynamic_cast<StdList*>(special), data, count);
+            break;
+        case Special::Case::StdMap:
             serializeStdMap(dynamic_cast<StdMap*>(special), data, count);
             break;
-        }
-        case SpecialType::Std_Pair:
-        {
+        case Special::Case::StdPair:
             serializeStdPair(dynamic_cast<StdPair*>(special), data, count);
             break;
-        }
-        case SpecialType::Std_Set:
-        {
+        case Special::Case::StdSet:
             serializeStdSet(dynamic_cast<StdSet*>(special), data, count);
             break;
-        }
-        case SpecialType::Std_Tuple:
-        {
-            serializeStdTuple(dynamic_cast<StdTuple*>(special), data, count);
+        case Special::Case::StdString:
+            serializeStdString(dynamic_cast<StdString*>(special), data, count);
             break;
-        }
-        case SpecialType::Std_Unordered_Map:
-        {
+        case Special::Case::StdUnorderedMap:
             serializeStdUnorderedMap(dynamic_cast<StdUnorderedMap*>(special), data, count);
             break;
-        }
-        case SpecialType::Std_Unordered_Set:
-        {
+        case Special::Case::StdUnorderedSet:
             serializeStdUnorderedSet(dynamic_cast<StdUnorderedSet*>(special), data, count);
             break;
-        }
-        case SpecialType::Std_Variant:
-        {
+        case Special::Case::StdVariant:
             serializeStdVariant(dynamic_cast<StdVariant*>(special), data, count);
             break;
-        }
-        case SpecialType::Std_Vector:
-        {
+        case Special::Case::StdVector:
             serializeStdVector(dynamic_cast<StdVector*>(special), data, count);
             break;
-        }
         default:
             break;
         }
     }
 
-    void Serializer::serializeStdString(std::string* data, size_t count) {}
+    void Serializer::serializeStdArray(StdArray* stdArray, void* data, size_t count) {}
 
-    void Serializer::serializeStdArray(refl::StdArray* stdArray, void* data, size_t count) {}
+    void Serializer::serializeStdList(StdList* stdList, void* data, size_t count) {}
 
-    void Serializer::serializeStdMap(refl::StdMap* stdMap, void* data, size_t count) {}
+    void Serializer::serializeStdMap(StdMap* stdMap, void* data, size_t count) {}
 
-    void Serializer::serializeStdPair(refl::StdPair* stdPair, void* data, size_t count) {}
+    void Serializer::serializeStdPair(StdPair* stdPair, void* data, size_t count) {}
 
-    void Serializer::serializeStdSet(refl::StdSet* stdSet, void* data, size_t count) {}
+    void Serializer::serializeStdSet(StdSet* stdSet, void* data, size_t count) {}
 
-    void Serializer::serializeStdTuple(refl::StdTuple* stdTuple, void* data, size_t count) {}
+    void Serializer::serializeStdString(StdString* stdString, void* data, size_t count) {}
 
     void Serializer::serializeStdUnorderedMap(refl::StdUnorderedMap* stdUnorderedMap, void* data, size_t count) {}
 
     void Serializer::serializeStdUnorderedSet(refl::StdUnorderedSet* stdUnorderedSet, void* data, size_t count) {}
 
-    void Serializer::serializeStdVariant(refl::StdVariant* stdVariant, void* data, size_t count) {}
+    void Serializer::serializeStdVariant(StdVariant* stdVariant, void* data, size_t count) {}
 
-    void Serializer::serializeStdVector(refl::StdVector* stdVector, void* data, size_t count) {}
+    void Serializer::serializeStdVector(StdVector* stdVector, void* data, size_t count) {}
 }

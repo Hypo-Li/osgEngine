@@ -4,22 +4,24 @@ namespace xxx
 {
     using namespace refl;
 
-    Asset* AssetManager::createAsset(Object* rootObject, const std::string& path)
+    Asset* AssetManager::createAsset(const std::string& path, Object* rootObject)
     {
         auto findResult = mPathAssetMap.find(path);
         Asset* asset = nullptr;
         if (findResult == mPathAssetMap.end())
         {
-            asset = new Asset(path);
-            mAssets.emplace(asset);
+            asset = new Asset(path, rootObject);
+            mAssets.insert(asset);
             mPathAssetMap.emplace(path, asset);
-            mGuidAssetMap.emplace(asset->getGuid(), asset);
+            if (asset->getGuid().isValid())
+                mGuidAssetMap.emplace(asset->getGuid(), asset);
         }
         else
         {
             asset = findResult->second;
+            if (asset->getState() == Asset::State::Unloaded)
+                setAssetRootObject(asset, rootObject);
         }
-        setAssetRootObject(asset, rootObject);
         return asset;
     }
 

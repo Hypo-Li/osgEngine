@@ -200,7 +200,7 @@ namespace xxx::editor
                 std::string materialLabel = "Material" + std::to_string(i);
                 if (AssetCombo<Material>(materialLabel.c_str(), &materialAsset))
                 {
-                    meshRenderer->setOverlayMaterial(i, materialAsset->getRootObject<Material>());
+                    meshRenderer->setOverlayMaterial(i, materialAsset->getRootObjectSafety<Material>());
                 }
             }
             ImGui::TreePop();
@@ -231,7 +231,7 @@ namespace xxx::editor
 
         if (meshChanged)
         {
-            meshRenderer->setMesh(meshAsset->getRootObject<Mesh>());
+            meshRenderer->setMesh(meshAsset->getRootObjectSafety<Mesh>());
         }
     }
 
@@ -574,7 +574,7 @@ namespace ImGui
         return (g.FontSize + g.Style.ItemSpacing.y) * items_count - g.Style.ItemSpacing.y + (g.Style.WindowPadding.y * 2);
     }
 
-    static const char* ICON_FA_SEARCH = u8"\ue935";
+    //static const char* ICON_FA_SEARCH = u8"\ue935";
 
     inline bool ComboWithFilter(const char* label, int* current_item, const std::vector<std::string>& items, int popup_max_height_in_items /*= -1 */)
     {

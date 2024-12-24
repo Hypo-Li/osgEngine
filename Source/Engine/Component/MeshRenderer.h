@@ -154,7 +154,7 @@ namespace xxx
         {
             if (index >= mOverlayMaterials.size())
                 return nullptr;
-            return mOverlayMaterials[index] ? mOverlayMaterials[index] : mMesh->getMaterial(index);
+            return mOverlayMaterials[index] ? mOverlayMaterials[index].get() : mMesh->getMaterial(index);
         }
 
         uint32_t getMaterialCount() const

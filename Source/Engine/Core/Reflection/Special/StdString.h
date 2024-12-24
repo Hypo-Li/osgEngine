@@ -1,11 +1,8 @@
 #pragma once
 #include "../Special.h"
 
-#include <string>
-
 namespace xxx::refl
 {
-    class Reflection;
     class StdString : public Special
     {
         friend class Reflection;
@@ -32,25 +29,10 @@ namespace xxx::refl
 
         virtual bool compare(const void* instance1, const void* instance2) const override
         {
-            return false;
+            return *static_cast<const std::string*>(instance1) == *static_cast<const std::string*>(instance2);
         }
 
-        virtual SpecialType getSpecialType() const
-        {
-            return SpecialType::Std_String;
-        }
-
-        size_t getLength(void* string) const
-        {
-            return static_cast<std::string*>(string)->size();
-        }
-
-        const char* getCStr(void* string) const
-        {
-            return static_cast<std::string*>(string)->c_str();
-        }
-
-    protected:
-        StdString() : Special("std::string", sizeof(std::string)) {}
+    private:
+        StdString() : Special("std::string", sizeof(std::string), Case::StdString) {}
     };
 }
