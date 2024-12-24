@@ -89,6 +89,7 @@ namespace xxx::refl
     template <typename T>
     static Type* Reflection::createType()
     {
+        constexpr bool test = true;
         if constexpr (is_instance_of_v<T, osg::ref_ptr>)
             return createType<remove_osg_ref_ptr_t<T>>();
         else if constexpr (std::is_same_v<T, std::string>)
@@ -112,6 +113,6 @@ namespace xxx::refl
         else if constexpr (is_instance_of_v<T, std::vector>)
             return new TStdVector<T>;
         else
-            static_assert(false, "T is a unreflectable type.");
+            static_assert(!sizeof(T), "T is an unreflectable type."); // compile failed when static_assert(false)
     }
 }

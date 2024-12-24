@@ -1,6 +1,5 @@
 #include "OsgReflection.h"
 
-
 struct ReflVec2f
 {
     float x, y;
