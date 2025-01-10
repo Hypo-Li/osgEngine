@@ -180,7 +180,7 @@ namespace xxx
             while (unavailableTextureUnit.count(availableTextureUnit))
                 availableTextureUnit++;
 
-            const int MaxTextureCount = 16;
+            constexpr int MaxTextureCount = 16;
             if (availableTextureUnit >= MaxTextureCount)
             {
                 // LogError

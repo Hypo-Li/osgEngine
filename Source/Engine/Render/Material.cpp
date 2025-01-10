@@ -213,11 +213,16 @@ namespace xxx
     uint32_t Material::getOsgNodeMask()
     {
         if (mAlphaMode == AlphaMode::Blend)
-            return TRANSPARENT_MASK;
+        {
+            if (mShadingModel == ShadingModel::Unlit)
+                return POST_FORWARD_MASK;
+            else
+                return TRANSPARENT_MASK;
+        }
         else
         {
             if (mShadingModel == ShadingModel::Unlit)
-                return GBUFFER_MASK;
+                return POST_FORWARD_MASK;
             else
                 return GBUFFER_MASK | SHADOW_CAST_MASK;
         }

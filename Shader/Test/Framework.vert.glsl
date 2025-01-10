@@ -42,9 +42,6 @@ out V2F
     vec4 color;
     vec4 texcoord0;
     vec4 texcoord1;
-#if (ALPHA_MODE == ALPHA_MODE_BLEND)
-    float gbufferNdcZ;
-#endif
 } v2f;
 
 uniform mat4 osg_ModelViewMatrix;
@@ -58,7 +55,9 @@ layout(std140, binding = 0) uniform ViewData
     mat4 uInverseViewMatrix;
     mat4 uProjectionMatrix;
     mat4 uInverseProjectionMatrix;
-    vec4 uNearFar;
+    mat4 uReprojectionMatrix;
+    vec2 uJitterPixels;
+    vec2 uPrevJitterPixels;
 };
 
 // TODO: fix instanced normal
@@ -75,15 +74,11 @@ void main()
     vec4 viewSpace = osg_ModelViewMatrix * iPosition;
 #endif
     
-    gl_Position = osg_ProjectionMatrix * viewSpace;
+    gl_Position = uProjectionMatrix * viewSpace;
     v2f.fragPosVS = viewSpace.xyz;
     v2f.normalVS = osg_NormalMatrix * iNormal;
     v2f.tangentVS = vec4(osg_NormalMatrix * iTangent.xyz, iTangent.w);
     v2f.color = iColor;
     v2f.texcoord0 = iTexcoord0;
     v2f.texcoord1 = iTexcoord1;
-
-#if (ALPHA_MODE == ALPHA_MODE_BLEND)
-    v2f.gbufferNdcZ = -uNearFar.z - uNearFar.w / viewSpace.z;
-#endif
 }

@@ -8,14 +8,6 @@ namespace xxx
         REFLECT_CLASS(Texture2D)
     public:
         Texture2D() = default;
-        Texture2D(osg::Texture2D* texture2D) : Texture(texture2D)
-        {
-            if (!texture2D)
-                return;
-            mWidth = texture2D->getTextureWidth();
-            mHeight = texture2D->getTextureHeight();
-            mMipmapCount = texture2D->getNumMipmapLevels() - 1;
-        }
         Texture2D(osg::Image* image, const TextureImportOptions& options) : Texture(options)
         {
             mWidth = image->s();
@@ -35,14 +27,17 @@ namespace xxx
 
         virtual void preSave() override
         {
-            osg::State* state = Context::get().getGraphicsContext()->getState();
-            bindOsgTexture(mOsgTexture);
-
             bool saveMipmap = false;
             if (mMinFilter != FilterMode::Linear && mMinFilter != FilterMode::Nearest && !mMipmapGeneration)
                 saveMipmap = true;
             osg::ref_ptr<osg::Image> image = new osg::Image;
+
+            osg::State* state = Context::get().getGraphicsContext()->getState();
+            osg::Texture::TextureObject* texObj = mOsgTexture->getTextureObject(state->getContextID());
+            if (texObj)
+                texObj->bind();
             image->readImageFromCurrentTexture(state->getContextID(), saveMipmap, mPixelType);
+
             if (saveMipmap)
             {
                 mMipmapDataOffsets = image->getMipmapLevels();
@@ -59,6 +54,11 @@ namespace xxx
             compressData();
         }
 
+        virtual void postSave() override
+        {
+            // clear data
+        }
+
         virtual void postLoad() override
         {
             decompressData();
@@ -70,12 +70,11 @@ namespace xxx
             if (isCompressedFormat(mFormat))
                 image->setPixelFormat(mFormat);
 
-            osg::Texture2D* texture2d = new osg::Texture2D;
-            texture2d->setImage(image);
+            osg::Texture2D* texture2d = new osg::Texture2D(image);
             mOsgTexture = texture2d;
             apply();
-            texture2d->setImage(nullptr);
 
+            texture2d->setImage(nullptr);
             mData.clear();
             mData.shrink_to_fit();
         }

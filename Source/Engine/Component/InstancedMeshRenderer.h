@@ -241,10 +241,10 @@ namespace xxx
 
             osg::StateSet* stateSet = mOsgLOD->getOrCreateStateSet();
             stateSet->setDefine("INSTANCED", "1");
-            stateSet->addUniform(new osg::Uniform("uInstancedRemapBuffer", 14));
-            stateSet->addUniform(new osg::Uniform("uInstancedDataBuffer", 15));
-            stateSet->setTextureAttribute(14, mInstancedRemapTBO, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
-            stateSet->setTextureAttribute(15, mInstancedDatasTBO, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+            stateSet->addUniform(new osg::Uniform("uInstancedRemapBuffer", 12));
+            stateSet->addUniform(new osg::Uniform("uInstancedDataBuffer", 13));
+            stateSet->setTextureAttribute(12, mInstancedRemapTBO, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+            stateSet->setTextureAttribute(13, mInstancedDatasTBO, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
 
             osg::ref_ptr<osg::UIntArray> remapCountBuffer = new osg::UIntArray(1);
             mRemapCountSSBO = new osg::ShaderStorageBufferObject;

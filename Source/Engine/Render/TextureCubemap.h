@@ -108,12 +108,11 @@ namespace xxx
 
                 textureCubemap->setImage(i, image);
             }
+
             mOsgTexture = textureCubemap;
             apply();
-
             for (int i = 0; i < 6; ++i)
                 textureCubemap->setImage(i, nullptr);
-
             mData.clear();
             mData.shrink_to_fit();
         }

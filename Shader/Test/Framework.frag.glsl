@@ -30,8 +30,6 @@
     #define RENDERING_PATH RENDERING_PATH_FORWARD
 #endif
 
-uniform mat4 osg_ViewMatrixInverse;
-
 in V2F
 {
     vec3 fragPosVS;
@@ -40,16 +38,35 @@ in V2F
     vec4 color;
     vec4 texcoord0;
     vec4 texcoord1;
-#if (ALPHA_MODE == ALPHA_MODE_BLEND)
-    float gbufferNdcZ;
-#endif
 } v2f;
 
 #if (RENDERING_PATH == RENDERING_PATH_DEFERRED)
-out vec4 fragData[5];
-#else
+    #if (SHADING_MODEL == SHADING_MODEL_UNLIT)
 out vec4 fragData[2];
+    #else
+out vec4 fragData[5];
+    #endif
+#else
+    #if (SHADING_MODEL == SHADING_MODEL_UNLIT)
+out vec4 fragData[2];
+    #else
+out vec4 fragData;
+    #endif
 #endif
+
+#extension GL_GOOGLE_include_directive : enable
+#include "../Lighting/Common.glsl"
+
+layout(std140, binding = 0) uniform ViewData
+{
+    mat4 uViewMatrix;
+    mat4 uInverseViewMatrix;
+    mat4 uProjectionMatrix;
+    mat4 uInverseProjectionMatrix;
+    mat4 uReprojectionMatrix;
+    vec2 uJitterPixels;
+    vec2 uPrevJitterPixels;
+};
 
 struct MaterialInputs
 {
@@ -77,65 +94,39 @@ struct MaterialOutputs
     float occlusion;
 };
 
-struct PixelCommonData
+void calcPixelParameters(in MaterialOutputs mo, out PixelParameters pp)
 {
-    vec3 viewDirWS;
-    vec3 reflDirWS;
-    float NdV;
-    vec3 F0;
-
-};
-
-struct DirectionalLight
-{
-    vec3 direction;
-    vec3 intensity;
-};
-
-void calcPixelCommonData(in MaterialOutputs mo, out PixelCommonData pcd)
-{
-    //vec3 viewDirVS = normalize(-v2f.fragPosVS);
-    //pcd.viewDirWS = mat3(uInverseViewMatrix) * viewDirVS;
-    pcd.F0 = mix(vec3(0.04), mo.baseColor, mo.metallic);
+    pp.shadingModel = uint(SHADING_MODEL * 255.0);
+    pp.baseColor = pow(mo.baseColor, vec3(2.2)) * mo.opacity;
+    pp.metallic = mo.metallic;
+    pp.roughness = max(mo.roughness, 0.05);
+    float a = pp.roughness * pp.roughness;
+    float a2 = a * a;
+    pp.specular = mo.specular;
+    pp.normalWS = normalize(mo.normal);
+    pp.occlusion = mo.occlusion;
+    pp.fragPosVS = v2f.fragPosVS;
+    pp.viewDirWS = mat3(uInverseViewMatrix) * normalize(-pp.fragPosVS);
+    pp.NoV = max(dot(pp.normalWS, pp.viewDirWS), 0.0);
+    pp.reflDirWS = reflect(-pp.viewDirWS, pp.normalWS);
+    pp.reflDirWS = mix(pp.reflDirWS, pp.normalWS, a2);
+    pp.F0 = mix(vec3(pp.specular * 0.08), pp.baseColor, pp.metallic);
 }
 
 void calcMaterial(in MaterialInputs mi, inout MaterialOutputs mo);
 
-void evaluateDirectionalLight(in MaterialOutputs mo, in PixelCommonData pcd, inout vec3 color)
-{
-
-}
-
-void evaluateIBL(in MaterialOutputs mo, in PixelCommonData pcd, inout vec3 color)
-{
-
-}
-
-vec3 evaluateLighting(in const MaterialOutputs mo)
-{
-#if ((RENDERING_PATH == RENDERING_PATH_FORWARD) && (SHADING_MODEL == SHADING_MODEL_UNLIT))
-    return mo.emissive;
-#else
-    PixelCommonData pcd;
-    calcPixelCommonData(mo, pcd);
-    vec3 color = vec3(0.0);
-    evaluateDirectionalLight(mo, pcd, color);
-    evaluateIBL(mo, pcd, color);
-    return color;
-#endif
-}
-
 void initMaterialInputs(inout MaterialInputs mi)
 {
+    mat3 inverseViewMatrix3 = mat3(uInverseViewMatrix);
     mi.fragPosVS = v2f.fragPosVS;
     mi.normalVS = normalize(v2f.normalVS);
-    mi.normalWS = mat3(osg_ViewMatrixInverse) * mi.normalVS;
+    mi.normalWS = inverseViewMatrix3 * mi.normalVS;
     mi.tangentVS = normalize(v2f.tangentVS.xyz);
-    mi.tangentWS = mat3(osg_ViewMatrixInverse) * mi.tangentVS;
+    mi.tangentWS = inverseViewMatrix3 * mi.tangentVS;
     mi.color = v2f.color;
     mi.texcoord0 = v2f.texcoord0;
     mi.texcoord1 = v2f.texcoord1;
-    mi.viewDirWS = mat3(osg_ViewMatrixInverse) * normalize(-v2f.fragPosVS);
+    mi.viewDirWS = inverseViewMatrix3 * normalize(-v2f.fragPosVS);
     mi.reflDirWS = reflect(-mi.viewDirWS, mi.normalWS);
 }
 
@@ -151,10 +142,11 @@ void initMaterialOutputs(inout MaterialOutputs mo)
     mo.occlusion = 1;
 }
 
-void calcNormal(in MaterialInputs mi, inout MaterialOutputs mo)
+// 计算世界空间法线
+void calcNormalWS(in MaterialInputs mi, inout MaterialOutputs mo)
 {
     vec3 bitangentVS = normalize(cross(mi.normalVS, mi.tangentVS)) * v2f.tangentVS.w;
-    mo.normal = mat3(osg_ViewMatrixInverse) * mat3(mi.tangentVS, bitangentVS, mi.normalVS) * mo.normal;
+    mo.normal = mat3(uInverseViewMatrix) * mat3(mi.tangentVS, bitangentVS, mi.normalVS) * mo.normal;
 }
 
 void main()
@@ -170,20 +162,27 @@ void main()
         discard;
 #endif
 
-    calcNormal(mi, mo);
-
-#if (ALPHA_MODE == ALPHA_MODE_BLEND)
-    gl_FragDepth = clamp(v2f.gbufferNdcZ * 0.5 + 0.5, 0.0000001, 0.9999999);
-#endif
+    calcNormalWS(mi, mo);
 
 #if (RENDERING_PATH == RENDERING_PATH_DEFERRED)
+    #if (SHADING_MODEL == SHADING_MODEL_UNLIT)
+    fragData[0] = vec4(mo.baseColor, 1.0);
+    fragData[1] = vec4(1);
+    #else
     fragData[0] = vec4(mo.emissive, 1.0);
     fragData[1] = vec4(mo.normal * 0.5 + 0.5, 1.0);
     fragData[2] = vec4(mo.metallic, mo.roughness, mo.specular, SHADING_MODEL / 255.0);
     fragData[3] = vec4(mo.baseColor, mo.occlusion);
     fragData[4] = vec4(0);
+    #endif
 #else
-    fragData[0] = vec4(/*evaluateLighting(mo)*/mo.baseColor, mo.opacity);
-    fragData[1] = vec4(1.0, 1.0, 1.0, mo.opacity);
+    #if (SHADING_MODEL == SHADING_MODEL_UNLIT)
+    fragData[0] = vec4(mo.baseColor, mo.opacity);
+    fragData[1] = vec4(1);
+    #else
+    PixelParameters pp;
+    calcPixelParameters(mo, pp);
+    fragData = vec4(evaluateLighs(pp), mo.opacity);
+    #endif
 #endif
 }

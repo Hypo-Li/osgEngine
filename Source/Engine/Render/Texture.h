@@ -14,6 +14,9 @@
 #include <osgDB/ReadFile>
 #include <osgDB/WriteFile>
 
+#include <functional>
+#include <future>
+
 namespace xxx
 {
     struct TextureImportOptions;
@@ -338,8 +341,23 @@ namespace xxx
             mOsgTexture->setWrap(osg::Texture::WRAP_T, osg::Texture::WrapMode(mWrapT));
             mOsgTexture->setBorderColor(mBorderColor);
             mOsgTexture->setUseHardwareMipMapGeneration(mMipmapGeneration);
-            osg::State* state = Context::get().getGraphicsContext()->getState();
-            mOsgTexture->apply(*state);
+
+            if (std::this_thread::get_id() == Context::get().getRenderingThreadId())
+            {
+                osg::State* state = Context::get().getGraphicsContext()->getState();
+                mOsgTexture->apply(*state);
+            }
+            else
+            {
+                std::promise<void> promise;
+                std::future<void> future = promise.get_future();
+                Context::get().getRenderingCommandQueue().push([this, &promise] {
+                    osg::State* state = Context::get().getGraphicsContext()->getState();
+                    mOsgTexture->apply(*state);
+                    promise.set_value();
+                });
+                future.get();
+            }
         }
 
         static void bindOsgTexture(osg::Texture* texture)

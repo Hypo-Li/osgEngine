@@ -1,6 +1,6 @@
 #version 430 core
 in vec2 uv;
-out vec4 fragData;
+out vec4 fragData[2];
 uniform sampler2D uColorTexture;
 
 // Narkowicz 2015, "ACES Filmic Tone Mapping Curve"
@@ -17,5 +17,6 @@ vec3 aces(vec3 x)
 void main()
 {
     vec3 color = textureLod(uColorTexture, uv, 0.0).rgb;
-    fragData = vec4(pow(aces(color), vec3(0.454545)), 1.0);
+    fragData[0] = vec4(pow(aces(color), vec3(0.454545)), 1.0);
+    fragData[1] = vec4(0);
 }

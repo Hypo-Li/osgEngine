@@ -113,6 +113,6 @@ namespace xxx::refl
         else if constexpr (is_instance_of_v<T, std::vector>)
             return new TStdVector<T>;
         else
-            static_assert(!sizeof(T), "T is an unreflectable type."); // compile failed when static_assert(false)
+            static_assert(!sizeof(T*), "T is an unreflectable type."); // compile failed when static_assert(false)
     }
 }

@@ -9,19 +9,19 @@ namespace xxx
         switch (type->getKind())
         {
         case Type::Kind::Fundamental:
-            serializeFundamental(dynamic_cast<Fundamental*>(type), data, count);
+            serializeFundamental(static_cast<Fundamental*>(type), data, count);
             break;
         case Type::Kind::Enumeration:
-            serializeEnumeration(dynamic_cast<Enumeration*>(type), data, count);
+            serializeEnumeration(static_cast<Enumeration*>(type), data, count);
             break;
         case Type::Kind::Structure:
-            serializeStructure(dynamic_cast<Structure*>(type), data, count);
+            serializeStructure(static_cast<Structure*>(type), data, count);
             break;
         case Type::Kind::Class:
-            serializeClass(dynamic_cast<Class*>(type), data, count);
+            serializeClass(static_cast<Class*>(type), data, count);
             break;
         case Type::Kind::Special:
-            serializeSpecial(dynamic_cast<Special*>(type), data, count);
+            serializeSpecial(static_cast<Special*>(type), data, count);
             break;
         default:
             break;
@@ -41,34 +41,34 @@ namespace xxx
         switch (special->getCase())
         {
         case Special::Case::StdArray:
-            serializeStdArray(dynamic_cast<StdArray*>(special), data, count);
+            serializeStdArray(static_cast<StdArray*>(special), data, count);
             break;
         case Special::Case::StdList:
-            serializeStdList(dynamic_cast<StdList*>(special), data, count);
+            serializeStdList(static_cast<StdList*>(special), data, count);
             break;
         case Special::Case::StdMap:
-            serializeStdMap(dynamic_cast<StdMap*>(special), data, count);
+            serializeStdMap(static_cast<StdMap*>(special), data, count);
             break;
         case Special::Case::StdPair:
-            serializeStdPair(dynamic_cast<StdPair*>(special), data, count);
+            serializeStdPair(static_cast<StdPair*>(special), data, count);
             break;
         case Special::Case::StdSet:
-            serializeStdSet(dynamic_cast<StdSet*>(special), data, count);
+            serializeStdSet(static_cast<StdSet*>(special), data, count);
             break;
         case Special::Case::StdString:
-            serializeStdString(dynamic_cast<StdString*>(special), data, count);
+            serializeStdString(static_cast<StdString*>(special), data, count);
             break;
         case Special::Case::StdUnorderedMap:
-            serializeStdUnorderedMap(dynamic_cast<StdUnorderedMap*>(special), data, count);
+            serializeStdUnorderedMap(static_cast<StdUnorderedMap*>(special), data, count);
             break;
         case Special::Case::StdUnorderedSet:
-            serializeStdUnorderedSet(dynamic_cast<StdUnorderedSet*>(special), data, count);
+            serializeStdUnorderedSet(static_cast<StdUnorderedSet*>(special), data, count);
             break;
         case Special::Case::StdVariant:
-            serializeStdVariant(dynamic_cast<StdVariant*>(special), data, count);
+            serializeStdVariant(static_cast<StdVariant*>(special), data, count);
             break;
         case Special::Case::StdVector:
-            serializeStdVector(dynamic_cast<StdVector*>(special), data, count);
+            serializeStdVector(static_cast<StdVector*>(special), data, count);
             break;
         default:
             break;

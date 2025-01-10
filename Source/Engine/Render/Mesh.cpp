@@ -171,71 +171,12 @@ namespace xxx
     Mesh::Mesh(const std::string& meshPath)
     {
         osg::ref_ptr<osg::Node> meshNode = osgDB::readNodeFile(meshPath);
-        osg::Group* group = dynamic_cast<osg::Group*>(meshNode.get());
-        assert(group);
-        uint32_t childrenCount = group->getNumChildren();
+        loadMesh(meshNode);
+    }
 
-        MaterialCollectVisitor mcv;
-        group->accept(mcv);
-
-        std::unordered_map<uint32_t, std::vector<osg::ref_ptr<osg::Node>>> lodNodesMap;
-        for (uint32_t i = 0; i < childrenCount; ++i)
-        {
-            osg::Node* subNode = group->getChild(i);
-            std::string postfix = getPostfix(subNode->getName());
-            if (postfix.empty())
-                lodNodesMap[0].emplace_back(subNode);
-            else
-            {
-                if (postfix.size() > 3 && std::string(postfix.data(), 3) == "LOD")
-                    lodNodesMap[std::stoi(postfix.substr(3))].emplace_back(subNode);
-            }
-        }
-        uint32_t lodCount = lodNodesMap.size();
-        mOsgLODGeometries.resize(lodCount);
-        for (const auto& lodNodes : lodNodesMap)
-            mOsgLODGeometries[lodNodes.first] = processNodesToGeometries(lodNodes.second);
-
-        mLODInfos.resize(lodCount);
-        float rangeMax = 1.0f, rangeMin = 0.3f;
-        for (uint32_t lod = 0; lod < lodCount; ++lod)
-        {
-            mLODInfos[lod].range = { rangeMin, rangeMax };
-            rangeMax = rangeMin;
-            rangeMin *= 0.5;
-        }
-        mLODInfos[lodCount - 1].range.first = 0.001;
-
-        std::vector<osg::StateSet*> stateSets;
-        for (uint32_t lod = 0; lod < lodCount; ++lod)
-        {
-            uint32_t submeshCount = mOsgLODGeometries[lod].size();
-            mLODInfos[lod].materialIndices.resize(submeshCount);
-            for (uint32_t submesh = 0; submesh < submeshCount; ++submesh)
-            {
-                osg::Geometry* geometry = mOsgLODGeometries[lod][submesh];
-
-                auto findResult = std::find(stateSets.begin(), stateSets.end(), geometry->getStateSet());
-                uint32_t materialIndex = 0;
-                if (findResult == stateSets.end())
-                {
-                    materialIndex = stateSets.size();
-                    stateSets.push_back(geometry->getStateSet());
-                }
-                else
-                {
-                    materialIndex = findResult - stateSets.begin();
-                }
-                mLODInfos[lod].materialIndices[submesh] = materialIndex;
-
-                geometry->setStateSet(nullptr);
-            }
-        }
-        mMaterials.resize(stateSets.size());
-        uint32_t materialCount = mMaterials.size();
-        Material* defaultMaterial = Context::get().getDefaultMaterial();
-        for (uint32_t i = 0; i < materialCount; ++i)
-            mMaterials[i] = defaultMaterial;
+    Mesh::Mesh(osg::Node* meshNode)
+    {
+        loadMesh(meshNode);
     }
 
     void Mesh::preSave()
@@ -366,6 +307,75 @@ namespace xxx
         }
         mData.clear();
         mData.shrink_to_fit();
+    }
+
+    void Mesh::loadMesh(osg::Node* meshNode)
+    {
+        osg::Group* group = dynamic_cast<osg::Group*>(meshNode);
+        assert(group);
+        uint32_t childrenCount = group->getNumChildren();
+
+        MaterialCollectVisitor mcv;
+        group->accept(mcv);
+
+        std::unordered_map<uint32_t, std::vector<osg::ref_ptr<osg::Node>>> lodNodesMap;
+        for (uint32_t i = 0; i < childrenCount; ++i)
+        {
+            osg::Node* subNode = group->getChild(i);
+            std::string postfix = getPostfix(subNode->getName());
+            if (postfix.empty())
+                lodNodesMap[0].emplace_back(subNode);
+            else
+            {
+                if (postfix.size() > 3 && std::string(postfix.data(), 3) == "LOD")
+                    lodNodesMap[std::stoi(postfix.substr(3))].emplace_back(subNode);
+            }
+        }
+        uint32_t lodCount = lodNodesMap.size();
+        mOsgLODGeometries.resize(lodCount);
+        for (const auto& lodNodes : lodNodesMap)
+            mOsgLODGeometries[lodNodes.first] = processNodesToGeometries(lodNodes.second);
+
+        mLODInfos.resize(lodCount);
+        float rangeMax = 1.0f, rangeMin = 0.3f;
+        for (uint32_t lod = 0; lod < lodCount; ++lod)
+        {
+            mLODInfos[lod].range = { rangeMin, rangeMax };
+            rangeMax = rangeMin;
+            rangeMin *= 0.5;
+        }
+        mLODInfos[lodCount - 1].range.first = 0.001;
+
+        std::vector<osg::StateSet*> stateSets;
+        for (uint32_t lod = 0; lod < lodCount; ++lod)
+        {
+            uint32_t submeshCount = mOsgLODGeometries[lod].size();
+            mLODInfos[lod].materialIndices.resize(submeshCount);
+            for (uint32_t submesh = 0; submesh < submeshCount; ++submesh)
+            {
+                osg::Geometry* geometry = mOsgLODGeometries[lod][submesh];
+
+                auto findResult = std::find(stateSets.begin(), stateSets.end(), geometry->getStateSet());
+                uint32_t materialIndex = 0;
+                if (findResult == stateSets.end())
+                {
+                    materialIndex = stateSets.size();
+                    stateSets.push_back(geometry->getStateSet());
+                }
+                else
+                {
+                    materialIndex = findResult - stateSets.begin();
+                }
+                mLODInfos[lod].materialIndices[submesh] = materialIndex;
+
+                geometry->setStateSet(nullptr);
+            }
+        }
+        mMaterials.resize(stateSets.size());
+        uint32_t materialCount = mMaterials.size();
+        Material* defaultMaterial = Context::get().getDefaultMaterial();
+        for (uint32_t i = 0; i < materialCount; ++i)
+            mMaterials[i] = defaultMaterial;
     }
 
     osg::Array* Mesh::createOsgArrayByVertexAttributeView(const VertexAttributeView& vav)

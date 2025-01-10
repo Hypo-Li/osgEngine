@@ -45,19 +45,6 @@ namespace xxx::editor
         std::array<osg::ref_ptr<osg::Operation>, 2> mOperations;
     };
 
-    class SetGeometryStateSetVisitor : public osg::NodeVisitor
-    {
-        osg::ref_ptr<osg::StateSet> mStateSet;
-    public:
-        SetGeometryStateSetVisitor(osg::StateSet* stateSet) : NodeVisitor(TRAVERSE_ALL_CHILDREN), mStateSet(stateSet) {}
-
-        virtual void apply(osg::Geometry& geometry) override
-        {
-            geometry.setNodeMask(1);
-            geometry.setStateSet(mStateSet);
-            traverse(geometry);
-        }
-    };
 
     class Editor
     {
@@ -80,7 +67,7 @@ namespace xxx::editor
 
             Pipeline* enginePipeline = mEngine->getPipeline();
             osg::Camera* imguiCamera = enginePipeline->getPass("Display")->getCamera();
-            osg::Texture2D* sceneColorTexture = dynamic_cast<osg::Texture2D*>(enginePipeline->getPass("ColorGrading")->getBufferTexture(Pipeline::Pass::BufferType::COLOR_BUFFER0));
+            osg::Texture2D* sceneColorTexture = dynamic_cast<osg::Texture2D*>(enginePipeline->getPass("Filter")->getBufferTexture(Pipeline::Pass::BufferType::COLOR_BUFFER0));
 
             WindowManager& wm = WindowManager::get();
             DockSpace* dockSpace = wm.createWindow<DockSpace>();
@@ -106,12 +93,16 @@ namespace xxx::editor
 
             Context::get().getGraphicsContext()->makeCurrent();
 
+            const char* version = (const char*)glGetString(GL_VERSION);
+
             Scene* scene = AssetManager::get().getAsset("Engine/Scene/TestScene")->getRootObjectSafety<Scene>();
             Context::get().setScene(scene);
 
             engineView->setSceneData(scene->getRootEntity()->getOsgNode());
+
             Context::get().getGraphicsContext()->releaseContext();
 
+            
             
             /*mSimpleView = new osgViewer::View;
             mSimpleView->setSceneData(mEngine->getView()->getSceneData());
@@ -141,10 +132,12 @@ namespace xxx::editor
 
         void run()
         {
-            while (!mViewer->done())
-            {
-                mViewer->frame();
-            }
+            mEngine->run();
+        }
+
+        void terminate()
+        {
+            mEngine->terminate();
         }
 
     protected:

@@ -176,7 +176,8 @@ Texture2D* generateBRDFLut()
     extensions->glDispatchCompute(4, 4, 1);
     extensions->glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-    return new Texture2D(brdfLutTexture);
+    //return new Texture2D(brdfLutTexture);
+    return nullptr;
 }
 
 void create1x1Texture(osg::Vec4f color, const std::string& name)
@@ -372,7 +373,50 @@ int main()
     Context::get().getGraphicsContext()->makeCurrent();
 
     //createScene();
-    create1x1Texture(osg::Vec4(1, 1, 1, 1), "White");
+    //create1x1Texture(osg::Vec4(0.5, 0.5, 1, 1), "Normal");
+
+    Texture2D* whiteTex = dynamic_cast<Texture2D*>(am.getAsset("Engine/Texture/White")->getRootObjectSafety());
+    Texture2D* normalTex = dynamic_cast<Texture2D*>(am.getAsset("Engine/Texture/Normal")->getRootObjectSafety());
+
+    osg::ref_ptr<Shader> shader = new Shader;
+    shader->addParameter("BaseColorTexture", whiteTex);
+    shader->addParameter("BaseColorFactor", osg::Vec4f(0.8, 0.8, 0.8, 1.0));
+    shader->addParameter("MetallicRoughnessTexture", whiteTex);
+    shader->addParameter("MetallicFactor", 0.0f);
+    shader->addParameter("RoughnessFactor", 0.5f);
+    shader->addParameter("EmissiveTexture", whiteTex);
+    shader->addParameter("EmissiveFactor", osg::Vec3f(0, 0, 0));
+    shader->addParameter("OcclusionTexture", whiteTex);
+    shader->addParameter("NormalTexture", normalTex);
+    static const char* gltfShaderSource =
+R"(void calcMaterial(in MaterialInputs mi, inout MaterialOutputs mo)
+{
+    vec4 baseColor = texture(uBaseColorTexture, mi.texcoord0.xy);
+    baseColor *= uBaseColorFactor;
+    mo.baseColor = baseColor.rgb;
+    mo.opacity = baseColor.a;
+
+    vec2 metallicRoughness = texture(uMetallicRoughnessTexture, mi.texcoord0.xy).rg;
+    metallicRoughness *= vec2(uMetallicFactor, uRoughnessFactor);
+    mo.metallic = metallicRoughness.x;
+    mo.roughness = metallicRoughness.y;
+
+    vec3 emissive = texture(uEmissiveTexture, mi.texcoord0.xy).rgb;
+    emissive *= uEmissiveFactor;
+    mo.emissive = emissive;
+
+    mo.occlusion = texture(uOcclusionTexture, mi.texcoord0.xy).r;
+
+    mo.normal = texture(uNormalTexture, mi.texcoord0.xy).rgb * 2.0 - 1.0;
+}
+)";
+    shader->setSource(gltfShaderSource);
+    am.createAsset("Engine/Shader/GLTF", shader)->save();
+
+    /*osg::ref_ptr<Material> material = new Material;
+    material->setShader(shader);
+    am.createAsset("Engine/Material/TestMaterial2", material)->save();*/
+
 
     Context::get().getGraphicsContext()->releaseContext();
 

@@ -5,6 +5,8 @@
 #include <osg/GraphicsContext>
 #include <osg/Camera>
 #include <filesystem>
+#include <queue>
+#include <functional>
 #include <mutex>
 namespace xxx
 {
@@ -23,32 +25,66 @@ namespace xxx
         Terrain,
     };
 
-    class RenderCommand : public osg::Referenced
+    template <typename T>
+    class ThreadSafeQueue
     {
     public:
-        virtual void execute(osg::RenderInfo& renderInfo) = 0;
-    };
+        ThreadSafeQueue() {}
+        ~ThreadSafeQueue() {}
 
-    class RenderCommandsCallback : public osg::Camera::DrawCallback
-    {
-    public:
-        virtual void operator () (osg::RenderInfo& renderInfo) const override
+        void push(T&& item)
         {
-            std::unique_lock<std::mutex> lock(mRenderCommandListMutex);
-            for (RenderCommand* renderCommand : mRenderCommandList)
-                renderCommand->execute(renderInfo);
+            std::unique_lock<std::mutex> lock(mMutex);
+            mQueue.push(item);
+            lock.unlock();
+            mCV.notify_one();
         }
 
-        void addRenderCommand(RenderCommand* renderCommand)
+        std::optional<T> pop()
         {
-            std::lock_guard<std::mutex> lock(mRenderCommandListMutex);
-            mRenderCommandList.push_back(renderCommand);
+            std::unique_lock<std::mutex> lock(mMutex);
+            mCV.wait(lock, [this]() {return !mQueue.empty() || mShutdown; });
+            if (mQueue.empty())
+            {
+                return {};
+            }
+            else
+            {
+                T res(std::move(mQueue.front()));
+                mQueue.pop();
+                return res;
+            }
+        }
+
+        void shutdown()
+        {
+            std::unique_lock<std::mutex> lock(mMutex);
+            while (!mQueue.empty())
+                mQueue.pop();
+            mShutdown = true;
+            lock.unlock();
+            mCV.notify_one();
+        }
+
+        bool isShutdown()
+        {
+            return mShutdown;
+        }
+
+        size_t size()
+        {
+            return mQueue.size();
         }
 
     private:
-        mutable std::list<osg::ref_ptr<RenderCommand>> mRenderCommandList;
-        mutable std::mutex mRenderCommandListMutex;
+        std::queue<T> mQueue;
+        std::mutex mMutex;
+        std::condition_variable mCV;
+        bool mShutdown = false;
     };
+
+    using ThreadSafeCommandQueue = ThreadSafeQueue<std::function<void()>>;
+    using ThreadId = std::thread::id;
 
     class Context
     {
@@ -125,61 +161,35 @@ namespace xxx
             return mScene;
         }
 
-        void setRenderCommandsCallback(RenderCommandsCallback* callback)
+        void setLogicThreadId(ThreadId id)
         {
-            mRenderCommandsCallback = callback;
+            mLogicThreadId = id;
         }
 
-        void addRenderCommand(RenderCommand* renderCommand)
+        ThreadId getLogicThreadId()
         {
-            mRenderCommandsCallback->addRenderCommand(renderCommand);
+            return mLogicThreadId;
         }
 
-        /*void appendEntity(Entity* entity, Entity* parent = nullptr)
+        void setRenderingThreadId(ThreadId id)
         {
-            if (parent)
-                parent->appendChildEntity(entity);
-            else
-                _sceneRoot->addChild(entity->asMatrixTransform());
+            mRenderingThreadId = id;
         }
 
-        void removeEntity(Entity* entity, Entity* parent = nullptr)
+        ThreadId getRenderingThreadId()
         {
-            if (parent)
-                parent->removeChildEntity(entity);
-            else
-                _sceneRoot->removeChild(entity->asMatrixTransform());
-        }*/
-
-        /*osg::ref_ptr<Entity> getActivedEntity() const
-        {
-            osg::ref_ptr<Entity> result;
-            _activedEntity.lock(result);
-            return result;
+            return mRenderingThreadId;
         }
 
-        void setActivedEntity(Entity* entity)
+        ThreadSafeCommandQueue& getLogicCommandQueue()
         {
-            _activedEntity = entity;
+            return mLogicCommandQueue;
         }
 
-        std::set<osg::ref_ptr<Entity>> getSelectedEntities()
+        ThreadSafeCommandQueue& getRenderingCommandQueue()
         {
-            std::set<osg::ref_ptr<Entity>> result;
-            for (auto itr = _selectedEntities.begin(); itr != _selectedEntities.end(); itr++)
-            {
-                osg::ref_ptr<Entity> entity;
-                itr->lock(entity);
-                if (entity)
-                    result.insert(entity);
-            }
-            return result;
+            return mRenderingCommandQueue;
         }
-
-        void appendSelectedEntity(Entity* entity)
-        {
-            _selectedEntities.insert(entity);
-        }*/
 
     private:
         osg::ref_ptr<osg::GraphicsContext> mGraphicsContext;
@@ -192,9 +202,12 @@ namespace xxx
         std::filesystem::path mProjectAssetPath;
 
         Entity* mActivedEntity;
-        //std::set<osg::observer_ptr<Entity>> _selectedEntities;
         Scene* mScene;
 
-        osg::ref_ptr<RenderCommandsCallback> mRenderCommandsCallback;
+        ThreadId mLogicThreadId;
+        ThreadId mRenderingThreadId;
+
+        ThreadSafeQueue<std::function<void()>> mLogicCommandQueue;
+        ThreadSafeQueue<std::function<void()>> mRenderingCommandQueue;
     };
 }

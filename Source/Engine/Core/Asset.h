@@ -35,17 +35,17 @@ namespace xxx
     {
         friend class AssetManager;
     public:
-        const std::string& getPath() const
+        inline const std::string& getPath() const
         {
             return mPath;
         }
 
-        const std::string& getName() const
+        inline const std::string& getName() const
         {
             return mName;
         }
 
-        Guid getGuid() const
+        inline Guid getGuid() const
         {
             return mGuid;
         }
@@ -57,7 +57,12 @@ namespace xxx
             Changed,
         };
 
-        State getState() const
+        inline void setState(State state)
+        {
+            mState = state;
+        }
+
+        inline State getState() const
         {
             return mState;
         }
@@ -82,6 +87,8 @@ namespace xxx
         }
 
         void load();
+
+        void loadAsync();
 
         void unload();
 

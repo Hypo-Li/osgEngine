@@ -1,9 +1,10 @@
 #pragma once
 #include "Shader.h"
 
-#define GBUFFER_MASK            1 << 0
-#define TRANSPARENT_MASK        1 << 1
-#define SHADOW_CAST_MASK        1 << 2
+#define GBUFFER_MASK            (1u << 0)
+#define TRANSPARENT_MASK        (1u << 1)
+#define SHADOW_CAST_MASK        (1u << 2)
+#define POST_FORWARD_MASK       (1u << 3)
 
 namespace xxx
 {
@@ -104,7 +105,18 @@ namespace xxx
                     mParameters[name].first = value;
                 }
             }
+
             applyParameter(materialParamIt);
+            /*if (std::this_thread::get_id() == Context::get().getRenderingThreadId())
+            {
+                applyParameter(materialParamIt);
+            }
+            else
+            {
+                Context::get().getRenderingCommandQueue().push([this, materialParamIt]() {
+                    applyParameter(materialParamIt);
+                });
+            }*/
         }
 
         void setParameter(const std::string& name, const Shader::ParameterValue& value)

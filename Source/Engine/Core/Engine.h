@@ -9,6 +9,8 @@
 #include <osgDB/ReadFile>
 #include <osgGA/TrackballManipulator>
 
+#include <thread>
+
 namespace xxx
 {
     enum class RunMode
@@ -69,6 +71,26 @@ namespace xxx
             return mPipeline;
         }
 
+        void run()
+        {
+            Context& ctx = Context::get();
+            osgViewer::ViewerBase* viewer = mView->getViewerBase();
+            while (!viewer->done())
+            {
+                // processs logic command
+
+                viewer->frame();
+
+                /*if (viewer->isRealized())
+                    processRenderingCommand();*/
+            }
+        }
+
+        void terminate()
+        {
+
+        }
+
     private:
         osg::ref_ptr<osgViewer::View> mView;
         osg::ref_ptr<Pipeline> mPipeline;
@@ -91,24 +113,60 @@ namespace xxx
 
         void initContext(const EngineSetupConfig& setupConfig)
         {
-            Context& context = Context::get();
-            context.setGraphicsContext(createGraphicsContext(setupConfig.width, setupConfig.height, setupConfig.glContextVersion));
-            context.setEngine(this);
+            Context& ctx = Context::get();
+            ctx.setGraphicsContext(createGraphicsContext(setupConfig.width, setupConfig.height, setupConfig.glContextVersion));
+            ctx.setEngine(this);
+            ctx.setLogicThreadId(std::this_thread::get_id());
+            ctx.setRenderingThreadId(std::this_thread::get_id());
         }
 
         void initPipeline(const EngineSetupConfig& setupConfig)
         {
             osg::ref_ptr<osg::Camera> camera = mView->getCamera();
             camera->setViewport(0, 0, setupConfig.width, setupConfig.height);
-            camera->setProjectionMatrixAsPerspective(75.0, double(setupConfig.width) / double(setupConfig.height), 0.1, 400.0);
+            //camera->setProjectionMatrixAsPerspective(75.0, double(setupConfig.width) / double(setupConfig.height), 0.1, 400.0);
+            double zNear = 0.01;
+            double invTanHalfFovy = 1.0 / std::tan(osg::DegreesToRadians(90.0) * 0.5);
+            
+            camera->setProjectionMatrix(osg::Matrixd(
+                invTanHalfFovy / (setupConfig.width / double(setupConfig.height)), 0.0, 0.0, 0.0,
+                0.0, invTanHalfFovy, 0.0, 0.0,
+                0.0, 0.0, 0.0, -1.0,
+                0.0, 0.0, zNear, 0.0
+            ));
 
             mPipeline = createSceneRenderingPipeline(mView, true);
-            RenderCommandsCallback* renderCommandCallback = new RenderCommandsCallback;
-            Context::get().setRenderCommandsCallback(renderCommandCallback);
-            mPipeline->getPass(0)->getCamera()->addPreDrawCallback(renderCommandCallback);
             Context::get().getGraphicsContext()->setResizedCallback(new ResizedCallback(mPipeline, true));
+        }
 
-            
+        static void processLogicCommand()
+        {
+            std::cout << "Logic thread setup." << std::endl;
+            Context& ctx = Context::get();
+            ThreadSafeCommandQueue& logicCommandQueue = ctx.getLogicCommandQueue();
+
+            while (!logicCommandQueue.isShutdown())
+            {
+                auto command = logicCommandQueue.pop();
+                if (command.has_value())
+                    (command.value())();
+            }
+        }
+
+        static void processRenderingCommand()
+        {
+            Context& ctx = Context::get();
+            ThreadSafeCommandQueue& renderingCommandQueue = ctx.getRenderingCommandQueue();
+            size_t commandCount = renderingCommandQueue.size();
+
+            ctx.getGraphicsContext()->makeCurrent();
+            while (commandCount--)
+            {
+                auto command = renderingCommandQueue.pop();
+                if (command.has_value())
+                    (command.value())();
+            }
+            ctx.getGraphicsContext()->releaseContext();
         }
     };
 }

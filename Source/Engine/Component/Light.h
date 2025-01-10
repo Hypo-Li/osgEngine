@@ -33,6 +33,11 @@ namespace xxx
             Pipeline::Pass* lightingPass = pipeline->getPass("Lighting");
             lightingPass->applyUniform(mColorUniform);
             lightingPass->applyUniform(mDirectionUniform);
+
+            Pipeline::Pass* transparentPass = pipeline->getPass("Transparent");
+            transparentPass->applyUniform(mColorUniform);
+            transparentPass->applyUniform(mDirectionUniform);
+
             osg::Uniform* directionalLightCountUniform = lightingPass->getCamera()->getOrCreateStateSet()->getUniform("uDirectionalLightCount");
             if (directionalLightCountUniform)
             {
@@ -53,9 +58,15 @@ namespace xxx
         {
             Pipeline* pipeline = Context::get().getEngine()->getPipeline();
             Pipeline::Pass* lightingPass = pipeline->getPass("Lighting");
-            osg::StateSet* stateSet = lightingPass->getCamera()->getOrCreateStateSet();
-            stateSet->removeUniform(mColorUniform);
-            stateSet->removeUniform(mDirectionUniform);
+            osg::StateSet* lightingStateSet = lightingPass->getCamera()->getOrCreateStateSet();
+            lightingStateSet->removeUniform(mColorUniform);
+            lightingStateSet->removeUniform(mDirectionUniform);
+
+            Pipeline::Pass* transparentPass = pipeline->getPass("Transparent");
+            osg::StateSet* transparentStateSet = transparentPass->getCamera()->getOrCreateStateSet();
+            transparentStateSet->removeUniform(mColorUniform);
+            transparentStateSet->removeUniform(mDirectionUniform);
+
             osg::Uniform* directionalLightCountUniform = lightingPass->getCamera()->getOrCreateStateSet()->getUniform("uDirectionalLightCount");
             uint32_t directionalLightCount = 0;
             directionalLightCountUniform->get(directionalLightCount);
@@ -311,21 +322,27 @@ namespace xxx
             Texture2D* brdfLutTexture = AssetManager::get().getAsset("Engine/Texture/BRDFLut")->getRootObjectSafety<Texture2D>();
             Pipeline* pipeline = Context::get().getEngine()->getPipeline();
             Pipeline::Pass* lightingPass = pipeline->getPass("Lighting");
-            osg::StateSet* stateSet = lightingPass->getCamera()->getStateSet();
-            stateSet->getUniform("uEnableIBL")->set(true);
-            stateSet->setTextureAttribute(5, brdfLutTexture->getOsgTexture(), osg::StateAttribute::ON);
-            stateSet->setTextureAttribute(6, mSpecularCubemap->getOsgTexture(), osg::StateAttribute::ON);
-            osg::Uniform* shCoeffUniform = stateSet->getUniform("uSHCoeff");
+            osg::StateSet* lightingStateSet = lightingPass->getCamera()->getStateSet();
+            lightingStateSet->getUniform("uEnableIBL")->set(true);
+            lightingStateSet->setTextureAttribute(5, brdfLutTexture->getOsgTexture(), osg::StateAttribute::ON);
+            lightingStateSet->setTextureAttribute(6, mSpecularCubemap->getOsgTexture(), osg::StateAttribute::ON);
+            osg::Uniform* shCoeffUniform = lightingStateSet->getUniform("uSHCoeff");
             for (int i = 0; i < 9; ++i)
                 shCoeffUniform->setElement(i, mDiffuseSHCoeff[i]);
+
+            Pipeline::Pass* transparentPass = pipeline->getPass("Transparent");
+            osg::StateSet* transparentStateSet = transparentPass->getCamera()->getStateSet();
+            transparentStateSet->setTextureAttribute(14, brdfLutTexture->getOsgTexture(), osg::StateAttribute::ON);
+            transparentStateSet->setTextureAttribute(15, mSpecularCubemap->getOsgTexture(), osg::StateAttribute::ON);
         }
 
         virtual void onDisable() override
         {
             Pipeline* pipeline = Context::get().getEngine()->getPipeline();
             Pipeline::Pass* lightingPass = pipeline->getPass("Lighting");
-            osg::StateSet* stateSet = lightingPass->getCamera()->getStateSet();
-            stateSet->getUniform("uEnableIBL")->set(false);
+            osg::StateSet* lightingStateSet = lightingPass->getCamera()->getStateSet();
+            lightingStateSet->getUniform("uEnableIBL")->set(false);
+
         }
 
         virtual void setEnableCastShadows(bool enable) override

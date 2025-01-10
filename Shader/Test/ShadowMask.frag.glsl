@@ -12,6 +12,7 @@ layout(std140, binding = 0) uniform ViewData
     mat4 uInverseViewMatrix;
     mat4 uProjectionMatrix;
     mat4 uInverseProjectionMatrix;
+    mat4 uReprojectionMatrix;
 };
 
 void main()

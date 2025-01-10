@@ -43,6 +43,7 @@ namespace xxx
     public:
         Mesh() = default;
         Mesh(const std::string& meshPath);
+        Mesh(osg::Node* meshNode);
 
         virtual void preSave() override;
 
@@ -173,6 +174,8 @@ namespace xxx
         }
 
         void parseOsgNodes(uint32_t lod, const std::vector<osg::ref_ptr<osg::Node>>& nodes);
+
+        void loadMesh(osg::Node* node);
     };
 
     namespace refl

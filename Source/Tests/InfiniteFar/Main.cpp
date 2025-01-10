@@ -52,6 +52,25 @@ void main()
 }
 )";
 
+static const char* fs_distance = R"(
+#version 430 core
+in vec2 uv;
+out vec4 fragData;
+uniform sampler2D uDepthTexture;
+void main()
+{
+    float depth = texelFetch(uDepthTexture, ivec2(gl_FragCoord.xy), 0).r;
+    if (depth == 0.0)
+    {
+        fragData = vec4(0);
+        return;
+    }
+    float near = 0.01;
+    float distance = near / depth;
+    fragData = vec4(distance);
+}
+)";
+
 #define ENABLE_REVERSE_Z 1
 
 osg::Node* getScene()
@@ -110,7 +129,7 @@ int main()
     camera->setGraphicsContext(gc);
     camera->setViewport(0, 0, width, height);
 
-    double zNear = 1;
+    double zNear = 0.01;
     double zFar = 1000.0;
 #if ENABLE_REVERSE_Z
     double f = 1.0f / std::tan(osg::DegreesToRadians(90.0) * 0.5);
@@ -140,6 +159,14 @@ int main()
 #endif
 
     osg::Shader* screenQuadShader = osgDB::readShaderFile(osg::Shader::VERTEX, SHADER_DIR "Common/ScreenQuad.vert.glsl");
+
+    osg::Program* distanceProgram = new osg::Program;
+    distanceProgram->addShader(screenQuadShader);
+    distanceProgram->addShader(new osg::Shader(osg::Shader::FRAGMENT, fs_distance));
+    osg::ref_ptr<xxx::Pipeline::Pass> distancePass = pipeline->addWorkPass("Distance", distanceProgram, GL_COLOR_BUFFER_BIT);
+    distancePass->attach(BufferType::COLOR_BUFFER0, GL_RGB16F);
+    distancePass->applyTexture(gbufferPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uDepthTexture", 0);
+
     osg::Program* displayProgram = new osg::Program;
     displayProgram->addShader(screenQuadShader);
     displayProgram->addShader(osgDB::readShaderFile(osg::Shader::FRAGMENT, SHADER_DIR "Common/CopyColor.frag.glsl"));
