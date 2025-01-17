@@ -38,13 +38,15 @@ in V2F
     vec4 color;
     vec4 texcoord0;
     vec4 texcoord1;
+    vec4 fragPosCS;
+    vec4 prevFragPosCS;
 } v2f;
 
 #if (RENDERING_PATH == RENDERING_PATH_DEFERRED)
     #if (SHADING_MODEL == SHADING_MODEL_UNLIT)
 out vec4 fragData[2];
     #else
-out vec4 fragData[5];
+out vec4 fragData[6];
     #endif
 #else
     #if (SHADING_MODEL == SHADING_MODEL_UNLIT)
@@ -56,6 +58,8 @@ out vec4 fragData;
 
 #extension GL_GOOGLE_include_directive : enable
 #include "../Lighting/Common.glsl"
+
+uniform vec4 uResolution;
 
 layout(std140, binding = 0) uniform ViewData
 {
@@ -149,6 +153,16 @@ void calcNormalWS(in MaterialInputs mi, inout MaterialOutputs mo)
     mo.normal = mat3(uInverseViewMatrix) * mat3(mi.tangentVS, bitangentVS, mi.normalVS) * mo.normal;
 }
 
+vec3 calcMotionVector()
+{
+    vec2 screenPos = v2f.fragPosCS.xy / v2f.fragPosCS.w + uJitterPixels; 
+    vec2 prevScreenPos = v2f.prevFragPosCS.xy / v2f.prevFragPosCS.w + uPrevJitterPixels;
+    float deviceZ = v2f.fragPosCS.z / v2f.fragPosCS.w; 
+    float prevDeviceZ = v2f.prevFragPosCS.z / v2f.prevFragPosCS.w; 
+    vec3 motionVector = vec3(screenPos - prevScreenPos, deviceZ - prevDeviceZ); 
+    return motionVector * 0.5; 
+}
+
 void main()
 {
     MaterialInputs mi;
@@ -173,7 +187,8 @@ void main()
     fragData[1] = vec4(mo.normal * 0.5 + 0.5, 1.0);
     fragData[2] = vec4(mo.metallic, mo.roughness, mo.specular, SHADING_MODEL / 255.0);
     fragData[3] = vec4(mo.baseColor, mo.occlusion);
-    fragData[4] = vec4(0);
+    fragData[4] = vec4(0.0, 0.0, 0.0, 0.0);
+    fragData[5] = vec4(calcMotionVector(), 0.0);
     #endif
 #else
     #if (SHADING_MODEL == SHADING_MODEL_UNLIT)

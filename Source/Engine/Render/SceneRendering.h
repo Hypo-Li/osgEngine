@@ -37,6 +37,13 @@ namespace xxx
             osg::Matrixd projectionMatrix = renderInfo.getCurrentCamera()->getProjectionMatrix();
             osg::Matrixd inverseProjectionMatrix = osg::Matrixd::inverse(projectionMatrix);
 
+            // Reprojection Matrix
+            osg::Matrixd reprojectionMatrix;
+            {
+                reprojectionMatrix = inverseProjectionMatrix * inverseViewMatrix * mPrevFrameViewProjectionMatrix;
+                mPrevFrameViewProjectionMatrix = viewMatrix * projectionMatrix;
+            }
+
             // TAA jitter
             {
                 uint32_t frameNumberMod8 = renderInfo.getView()->getFrameStamp()->getFrameNumber() % 8;
@@ -45,14 +52,7 @@ namespace xxx
                 projectionMatrix(2, 1) = 2 * sampleY / mViewport->height();
                 inverseProjectionMatrix = osg::Matrixd::inverse(projectionMatrix);
                 viewData.prevJitterPixels = viewData.jitterPixels;
-                viewData.jitterPixels = osg::Vec2(sampleX, sampleY);
-            }
-
-            // Reprojection Matrix
-            osg::Matrixd reprojectionMatrix;
-            {
-                reprojectionMatrix = inverseProjectionMatrix * inverseViewMatrix * mPrevFrameViewProjectionMatrix;
-                mPrevFrameViewProjectionMatrix = viewMatrix * projectionMatrix;
+                viewData.jitterPixels = osg::Vec2(projectionMatrix(2, 0), projectionMatrix(2, 1));
             }
 
             viewData.viewMatrix = viewMatrix;
@@ -196,7 +196,41 @@ namespace xxx
         taaPass->attach(BufferType::COLOR_BUFFER0, GL_RGBA16F);
         taaPass->applyTexture(combineOpaqueAndTransparentPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uCurrentColorTexture", 0);
         taaPass->applyTexture(gbufferPass->getBufferTexture(BufferType::DEPTH_BUFFER), "uCurrentDepthTexture", 1);
+        // taaPass->applyTexture(updateHistoryPass->getBufferTexture(BufferType::COLOR_BUFFER0), "uHistoryColorTexture", 2);
+        taaPass->applyTexture(gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER5), "uMotionVectorTexture", 3);
         taaPass->setAttribute(new osg::Depth(osg::Depth::ALWAYS));
+
+        /*{
+            struct TestDispatchDrawCallback : public osg::Drawable::DrawCallback
+            {
+                osg::ref_ptr<osg::Texture2D> _texture;
+                TestDispatchDrawCallback(osg::Texture2D* texture) : _texture(texture) {}
+
+                virtual void drawImplementation(osg::RenderInfo& renderInfo, const osg::Drawable* drawable) const
+                {
+                    osg::DispatchCompute* dispatch = dynamic_cast<osg::DispatchCompute*>(const_cast<osg::Drawable*>(drawable));
+                    int numGroupX = std::ceil(_texture->getTextureWidth() / 30.0);
+                    int numGroupY = std::ceil(_texture->getTextureHeight() / 30.0);
+                    dispatch->setComputeGroups(numGroupX, numGroupY, 1);
+                    drawable->drawImplementation(renderInfo);
+                    renderInfo.getState()->get<osg::GLExtensions>()->glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+                }
+            };
+
+            osg::Program* testComputeProgram = new osg::Program;
+            testComputeProgram->addShader(osgDB::readShaderFile(osg::Shader::COMPUTE, SHADER_DIR "Test/Tile.comp.glsl"));
+
+            osg::ref_ptr<osg::BindImageTexture> inputImage = new osg::BindImageTexture(0, gbufferPass->getBufferTexture(BufferType::COLOR_BUFFER0), osg::BindImageTexture::READ_ONLY, GL_RGBA16F);
+            osg::ref_ptr<osg::BindImageTexture> outputImage = new osg::BindImageTexture(1, taaPass->getBufferTexture(BufferType::COLOR_BUFFER0), osg::BindImageTexture::WRITE_ONLY, GL_RGBA16F);
+
+            osg::DispatchCompute* testDispatch = new osg::DispatchCompute;
+            testDispatch->setCullingActive(false);
+            testDispatch->getOrCreateStateSet()->setAttribute(testComputeProgram, osg::StateAttribute::ON | osg::StateAttribute::PROTECTED);
+            testDispatch->getOrCreateStateSet()->setAttributeAndModes(inputImage);
+            testDispatch->getOrCreateStateSet()->setAttributeAndModes(outputImage);
+            testDispatch->setDrawCallback(new TestDispatchDrawCallback(static_cast<osg::Texture2D*>(taaPass->getBufferTexture(BufferType::COLOR_BUFFER0))));
+            taaPass->getCamera()->addChild(testDispatch);
+        }*/
 
         osg::Program* copyColorProgram = new osg::Program;
         copyColorProgram->addShader(screenQuadShader);

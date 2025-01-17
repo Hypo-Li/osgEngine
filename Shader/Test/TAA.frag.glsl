@@ -4,6 +4,7 @@ out vec4 fragData;
 uniform sampler2D uCurrentColorTexture;
 uniform sampler2D uCurrentDepthTexture;
 uniform sampler2D uHistoryColorTexture;
+uniform sampler2D uMotionVectorTexture;
 uniform vec4 uResolution;
 uniform uint osg_FrameNumber;
 
@@ -55,11 +56,6 @@ vec3 YCoCg_RGB(const vec3 c)
     float g = Y + Cg;
     float b = Y - Co - Cg;
     return vec3(r, g, b);
-}
-
-bool isValidUV(vec2 uv)
-{
-    return clamp(uv, vec2(0), vec2(1)) == uv;
 }
 
 uvec3 Rand3DPCG16(ivec3 p)
@@ -244,12 +240,10 @@ vec4 filterCurrentFrameInputSamples()
 
     for (uint i = 0; i < 5; ++i)
     {
-        ivec2 sampleOffset;
-        sampleOffset = kOffsets3x3[kPlusIndexes3x3[i]];
-        vec2 fSampleOffset = vec2(sampleOffset);
+        vec2 fSampleOffset = vec2(kOffsets3x3[kPlusIndexes3x3[i]]);
         float sampleSpatialWeight = plusWeights[i >> 2u][i & 3u];
         vec3 sampleColor = RGB_YCoCg(textureLod(uCurrentColorTexture, uv + fSampleOffset * texelSize, 0).rgb);
-        float sampleHdrWeight = rcp(lumaYCoCg(sampleColor) * 2.3 + 4);
+        float sampleHdrWeight = rcp(lumaYCoCg(sampleColor) + 4);
         float bilateralWeight = 1;
         float sampleFinalWeight = sampleSpatialWeight * sampleHdrWeight * bilateralWeight;
         neighborsColor += sampleFinalWeight * sampleColor;
@@ -267,12 +261,19 @@ void main()
 {
     float alpha = texelFetch(uCurrentColorTexture, ivec2(gl_FragCoord.xy), 0).a;
     float depth = texelFetch(uCurrentDepthTexture, ivec2(gl_FragCoord.xy), 0).r;
+    vec2 motionVector = texelFetch(uMotionVectorTexture, ivec2(gl_FragCoord.xy), 0).rg;
     
     vec4 q = uReprojectionMatrix * vec4(uv * 2.0 - 1.0, depth, 1.0);
-    vec2 reprojectedUV = (q.xy / q.w) * 0.5 + 0.5 - (uJitterPixels * uResolution.zw) + (uPrevJitterPixels * uResolution.zw);
-    
-    // vec4 q = uReprojectionMatrix * vec4(uv * 2.0 - 1.0, depth, 1.0);
-    // vec2 reprojectedUV = (q.xy / q.w) * 0.5 + 0.5;
+    vec2 reprojectedUV = (q.xy / q.w) * 0.5 + 0.5;
+    reprojectedUV -= motionVector;
+    vec2 backN = uv - reprojectedUV;
+    if (motionVector.x > 0)
+    {
+        backN = motionVector.xy;
+    }
+    vec2 backTemp = backN * uResolution.xy;
+    float velocity = length(backTemp);
+    bool offScreen = max(abs(reprojectedUV.x), abs(reprojectedUV.y)) >= 1.0;
 
     // filter current frame
     vec4 filtered = filterCurrentFrameInputSamples();
@@ -289,13 +290,16 @@ void main()
 
     float lumaFiltered = lumaYCoCg(filtered.rgb);
     float blendFactor = 0.04;
-    blendFactor = max(blendFactor, saturate(0.01 * lumaHistory / abs(lumaFiltered - lumaHistory)));
-    if (alpha != 1.0)
-        blendFactor = mix(0.04, 0.25, 1.0 - alpha);
-    blendFactor = isValidUV(reprojectedUV) ? blendFactor : 1.0;
+    {
+        blendFactor = mix(blendFactor, 0.2, saturate(velocity / 40));
+        blendFactor = max(blendFactor, saturate(0.01 * lumaHistory / abs(lumaFiltered - lumaHistory)));
+        blendFactor = alpha != 1.0 ? mix(0.04, 0.25, 1.0 - alpha) : blendFactor;
+        if (offScreen)
+            blendFactor = 1.0;
+    }
 
-    float filterWeight = rcp(lumaFiltered * 2.3 + 4);
-    float historyWeight = rcp(lumaYCoCg(history.rgb) * 2.3 + 4);
+    float filterWeight = rcp(lumaFiltered + 4);
+    float historyWeight = rcp(lumaYCoCg(history.rgb) + 4);
 
     vec2 weights;
     {

@@ -72,10 +72,52 @@ namespace xxx
         }
     };
 
+    class CullCallback : public osg::NodeCallback
+    {
+    public:
+        CullCallback(osg::Uniform* uniform) : mPrevFrameMVPMatrixUniform(uniform) {}
+
+        virtual void operator()(osg::Node* node, osg::NodeVisitor* nv)
+        {
+            osgUtil::CullVisitor* cullVisitor = nv->asCullVisitor();
+            mPrevFrameMVPMatrixUniform->set(mPrevFrameMVPMatrix);
+            uint32_t frameNumberMod8 = cullVisitor->getFrameStamp()->getFrameNumber() % 8;
+            double sampleX = halton(frameNumberMod8, 2) - 0.5, sampleY = halton(frameNumberMod8, 3) - 0.5;
+            osg::Matrixf projectionMatrix = cullVisitor->getCurrentCamera()->getProjectionMatrix();
+            const osg::Viewport* viewport = cullVisitor->getCurrentCamera()->getViewport();
+            projectionMatrix(2, 0) = 2 * sampleX / viewport->width();
+            projectionMatrix(2, 1) = 2 * sampleY / viewport->height();
+            mPrevFrameMVPMatrix = (*cullVisitor->getModelViewMatrix()) * projectionMatrix;
+            traverse(node, nv);
+        }
+
+    private:
+        osg::ref_ptr<osg::Uniform> mPrevFrameMVPMatrixUniform;
+        osg::Matrixf mPrevFrameMVPMatrix;
+
+        static double halton(int index, int base)
+        {
+            double result = 0.0;
+            double f = 1.0 / base;
+            int i = index;
+            while (i > 0)
+            {
+                result = result + f * (i % base);
+                i = i / base;
+                f = f / base;
+            }
+            return result;
+        }
+    };
+
     MeshRenderer::MeshRenderer() :
         mOsgLOD(new LODExt)
     {
         mOsgComponentGroup->addChild(mOsgLOD);
         mOsgLOD->setRangeMode(osg::LOD::PIXEL_SIZE_ON_SCREEN);
+
+        osg::ref_ptr<osg::Uniform> prevFrameMVPMatrixUniform = new osg::Uniform(osg::Uniform::FLOAT_MAT4, "uPrevFrameMVPMatrix");
+        mOsgLOD->getOrCreateStateSet()->addUniform(prevFrameMVPMatrixUniform);
+        mOsgLOD->addCullCallback(new CullCallback(prevFrameMVPMatrixUniform));
     }
 }

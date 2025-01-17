@@ -12,6 +12,7 @@
 #include "Engine/Component/Light.h"
 #include "Engine/Core/Engine.h"
 #include "Engine/Render/Texture2D.h"
+#include "Engine/Utility/GLTFLoader.h"
 #include <Editor/Editor.h>
 
 #include <osg/Vec2f>
@@ -375,7 +376,7 @@ int main()
     //createScene();
     //create1x1Texture(osg::Vec4(0.5, 0.5, 1, 1), "Normal");
 
-    Texture2D* whiteTex = dynamic_cast<Texture2D*>(am.getAsset("Engine/Texture/White")->getRootObjectSafety());
+    /*Texture2D* whiteTex = dynamic_cast<Texture2D*>(am.getAsset("Engine/Texture/White")->getRootObjectSafety());
     Texture2D* normalTex = dynamic_cast<Texture2D*>(am.getAsset("Engine/Texture/Normal")->getRootObjectSafety());
 
     osg::ref_ptr<Shader> shader = new Shader;
@@ -411,12 +412,15 @@ R"(void calcMaterial(in MaterialInputs mi, inout MaterialOutputs mo)
 }
 )";
     shader->setSource(gltfShaderSource);
-    am.createAsset("Engine/Shader/GLTF", shader)->save();
+    am.createAsset("Engine/Shader/GLTF", shader)->save();*/
 
     /*osg::ref_ptr<Material> material = new Material;
     material->setShader(shader);
     am.createAsset("Engine/Material/TestMaterial2", material)->save();*/
 
+    GLTFLoader gltfLoader;
+    osg::ref_ptr<Mesh> mesh = gltfLoader.load2(R"(C:\Users\admin\Downloads\aatest.glb)");
+    am.createAsset("Engine/Mesh/AATest", mesh)->save();
 
     Context::get().getGraphicsContext()->releaseContext();
 

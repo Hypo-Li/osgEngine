@@ -239,7 +239,7 @@ namespace xxx
         uint32_t stringCount = serializer.getStringTableSize();
         for (uint32_t i = 0; i < stringCount; ++i)
             header.stringTableSize += sizeof(uint32_t) + serializer.getString(i).size();
-        // 保证string table大小可整除4
+        // make sure string table size % 4 == 0
         header.stringTableSize = (header.stringTableSize + 3) & ~3;
         header.importTableSize = sizeof(uint32_t) + serializer.getImportTableSize() * sizeof(uint32_t);
         header.objectBufferCount = serializer.getObjectBufferCount();

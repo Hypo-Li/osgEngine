@@ -168,6 +168,8 @@ namespace xxx
 
         osg::ref_ptr<osg::LOD> mOsgLOD;
         std::vector<std::vector<osg::ref_ptr<osg::Geode>>> mOsgGeodes;
+
+        osg::Matrixf mPrevFrameMVMatrix;
     };
 
     namespace refl

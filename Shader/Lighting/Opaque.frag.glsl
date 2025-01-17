@@ -49,7 +49,11 @@ void main()
     float fragDepth = texelFetch(uDepthTexture, iTexcoord, 0).r;
     // Reversed Z
     if (fragDepth == 0.0)
-        discard;
+    {
+        //discard;
+        fragData = vec4(1, 1, 1, 1.0);
+        return;
+    }
     vec4 gbufferA = texelFetch(uGBufferATexture, iTexcoord, 0);
     vec4 gbufferB = texelFetch(uGBufferBTexture, iTexcoord, 0);
     vec4 gbufferC = texelFetch(uGBufferCTexture, iTexcoord, 0);

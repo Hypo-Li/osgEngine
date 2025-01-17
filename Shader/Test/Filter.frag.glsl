@@ -270,10 +270,7 @@ vec3 taa()
     float depth = texelFetch(uCurrentDepthTexture, ivec2(gl_FragCoord.xy), 0).r;
     
     vec4 q = uReprojectionMatrix * vec4(uv * 2.0 - 1.0, depth, 1.0);
-    vec2 reprojectedUV = (q.xy / q.w) * 0.5 + 0.5 - (uJitterPixels * uResolution.zw) + (uPrevJitterPixels * uResolution.zw);
-    
-    // vec4 q = uReprojectionMatrix * vec4(uv * 2.0 - 1.0, depth, 1.0);
-    // vec2 reprojectedUV = (q.xy / q.w) * 0.5 + 0.5;
+    vec2 reprojectedUV = (q.xy / q.w) * 0.5 + 0.5;
 
     // filter current frame
     vec4 filtered = filterCurrentFrameInputSamples();
@@ -293,8 +290,8 @@ vec3 taa()
     blendFactor = max(blendFactor, saturate(0.01 * lumaHistory / abs(lumaFiltered - lumaHistory)));
     blendFactor = isValidUV(reprojectedUV) ? blendFactor : 1.0;
 
-    float filterWeight = rcp(lumaFiltered * 2.3 + 4);
-    float historyWeight = rcp(lumaYCoCg(history.rgb) * 2.3 + 4);
+    float filterWeight = rcp(lumaFiltered + 4);
+    float historyWeight = rcp(lumaYCoCg(history.rgb) + 4);
 
     vec2 weights;
     {

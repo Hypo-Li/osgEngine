@@ -23,6 +23,27 @@ namespace xxx
         return createModel(model);
     }
 
+    Mesh* GLTFLoader::load2(const std::string& filePath)
+    {
+        std::filesystem::path path(filePath);
+        tinygltf::Model model;
+        tinygltf::TinyGLTF loader;
+        std::string err;
+        std::string warn;
+        bool ret = false;
+        if (path.extension().string() == ".glb")
+            ret = loader.LoadBinaryFromFile(&model, &err, &warn, filePath.c_str());
+        else
+            ret = loader.LoadASCIIFromFile(&model, &err, &warn, filePath.c_str());
+
+        if (!warn.empty())
+            printf("Warn: %s\n", warn.c_str());
+        if (!err.empty())
+            printf("Err: %s\n", err.c_str());
+        assert(ret);
+        return createXXXMesh(model);
+    }
+
     const std::map<std::string, GLTFLoader::GLTFExtension> GLTFLoader::sSupportedExtensionMap = {
         {"KHR_materials_emissive_strength", GLTFExtension::KHR_materials_emissive_strength},
     };
@@ -52,6 +73,32 @@ namespace xxx
                 root->addChild(node);
         }
         return root.release();
+    }
+
+    Mesh* GLTFLoader::createXXXMesh(tinygltf::Model& model)
+    {
+        if (model.scenes.size() == 0)
+            return nullptr;
+        osg::ref_ptr<osg::Group> root = new osg::Group;
+        MapCache cache;
+        for (int nodeIndex : model.scenes[model.defaultScene].nodes)
+        {
+            osg::Node* node = createNode(nodeIndex, model, cache);
+            if (node)
+                root->addChild(node);
+        }
+
+        Mesh* mesh = new Mesh(root);
+
+        AssetManager& am = AssetManager::get();
+
+        for (auto& texPair : cache.textureOsgMap)
+            am.createAsset("Engine/Texture/" + texPair.first->getName(), texPair.second)->save();
+
+        for (auto& matPair : cache.materialOsgMap)
+            am.createAsset("Engine/Material/" + matPair.first->getName(), matPair.second)->save();
+
+        return mesh;
     }
 
     osg::Node* GLTFLoader::createNode(int index, tinygltf::Model& model, MapCache& cache)
@@ -113,7 +160,9 @@ namespace xxx
             if (geometry)
             {
                 if (primitive.material >= 0)
+                {
                     geometry->setStateSet(createMaterial(primitive.material, model, cache));
+                }
                 geode->addDrawable(geometry);
             }
         }
@@ -130,6 +179,7 @@ namespace xxx
 
         tinygltf::Material& material = model.materials[index];
         osg::ref_ptr<osg::StateSet> stateSet = new osg::StateSet;
+        stateSet->setName(material.name);
 
         if (material.alphaMode == "BLEND")
         {
@@ -230,8 +280,95 @@ namespace xxx
             }
         }
 
+        createXXXMaterial(index, model, cache, stateSet);
         cache.materialMap.insert(std::make_pair(index, stateSet));
         return stateSet.release();
+    }
+
+    Material* GLTFLoader::createXXXMaterial(int index, tinygltf::Model& model, MapCache& cache, osg::StateSet* stateSet)
+    {
+        auto found = cache.materialMap.find(index);
+        if (found != cache.materialMap.end())
+            return cache.materialOsgMap.at(found->second.get());
+
+        tinygltf::Material& gltfMat = model.materials[index];
+
+        osg::ref_ptr<Material> xxxMat = new Material;
+        Shader* gltfShader = dynamic_cast<Shader*>(AssetManager::get().getAsset("Engine/Shader/GLTF")->getRootObjectSafety());
+        xxxMat->setShader(gltfShader);
+        xxxMat->setDoubleSided(gltfMat.doubleSided);
+
+        if (gltfMat.alphaMode == "BLEND")
+            xxxMat->setAlphaMode(AlphaMode::Blend);
+        else if (gltfMat.alphaMode == "MASK")
+            xxxMat->setAlphaMode(AlphaMode::Mask);
+        else
+            xxxMat->setAlphaMode(AlphaMode::Opaque);
+        
+        if (gltfMat.pbrMetallicRoughness.baseColorTexture.index >= 0)
+        {
+            Texture2D* baseColorTexture = createXXXTexture2D(gltfMat.pbrMetallicRoughness.baseColorTexture.index, model, cache);
+            xxxMat->setParameter("BaseColorTexture", baseColorTexture);
+            xxxMat->setParameter("BaseColorFactor", osg::Vec4f(1, 1, 1, 1));
+            xxxMat->enableParameter("BaseColorTexture", true);
+            xxxMat->enableParameter("BaseColorFactor", true);
+        }
+        else
+        {
+            const auto& baseColorFactor = gltfMat.pbrMetallicRoughness.baseColorFactor;
+            xxxMat->setParameter("BaseColorFactor", osg::Vec4f(baseColorFactor[0], baseColorFactor[1], baseColorFactor[2], baseColorFactor[3]));
+            xxxMat->enableParameter("BaseColorFactor", true);
+        }
+
+        if (gltfMat.pbrMetallicRoughness.metallicRoughnessTexture.index >= 0)
+        {
+            Texture2D* metallicRoughnessTexture = createXXXTexture2D(gltfMat.pbrMetallicRoughness.metallicRoughnessTexture.index, model, cache);
+            xxxMat->setParameter("MetallicRoughnessTexture", metallicRoughnessTexture);
+            xxxMat->setParameter("MetallicFactor", 1.0f);
+            xxxMat->setParameter("RoughnessFactor", 1.0f);
+            xxxMat->enableParameter("MetallicRoughnessTexture", true);
+            xxxMat->enableParameter("MetallicFactor", true);
+            xxxMat->enableParameter("RoughnessFactor", true);
+        }
+        else
+        {
+            xxxMat->setParameter("MetallicFactor", float(gltfMat.pbrMetallicRoughness.metallicFactor));
+            xxxMat->setParameter("RoughnessFactor", float(gltfMat.pbrMetallicRoughness.roughnessFactor));
+            xxxMat->enableParameter("MetallicFactor", true);
+            xxxMat->enableParameter("RoughnessFactor", true);
+        }
+
+        if (gltfMat.normalTexture.index >= 0)
+        {
+            Texture2D* normalTexture = createXXXTexture2D(gltfMat.normalTexture.index, model, cache);
+            xxxMat->setParameter("NormalTexture", normalTexture);
+            xxxMat->enableParameter("NormalTexture", true);
+        }
+
+        if (gltfMat.emissiveTexture.index >= 0)
+        {
+            Texture2D* emissiveTexture = createXXXTexture2D(gltfMat.emissiveTexture.index, model, cache);
+            xxxMat->setParameter("EmissiveTexture", emissiveTexture);
+            xxxMat->setParameter("EmissiveFactor", osg::Vec3f(1, 1, 1));
+            xxxMat->enableParameter("EmissiveTexture", true);
+            xxxMat->enableParameter("EmissiveFactor", true);
+        }
+        else
+        {
+            const auto& emissiveFactor = gltfMat.emissiveFactor;
+            xxxMat->setParameter("EmissiveFactor", osg::Vec3f(emissiveFactor[0], emissiveFactor[1], emissiveFactor[2]));
+            xxxMat->enableParameter("EmissiveFactor", true);
+        }
+        
+        if (gltfMat.occlusionTexture.index >= 0)
+        {
+            Texture2D* occlusionTexture = createXXXTexture2D(gltfMat.occlusionTexture.index, model, cache);
+            xxxMat->setParameter("OcclusionTexture", occlusionTexture);
+            xxxMat->enableParameter("OcclusionTexture", true);
+        }
+
+        cache.materialOsgMap.emplace(stateSet, xxxMat);
+        return xxxMat;
     }
 
     osg::Texture2D* GLTFLoader::createTexture(int index, tinygltf::Model& model, MapCache& cache)
@@ -242,6 +379,7 @@ namespace xxx
 
         tinygltf::Texture& texture = model.textures[index];
         osg::ref_ptr<osg::Texture2D> osgTexture2D = new osg::Texture2D;
+        osgTexture2D->setName(texture.name);
         tinygltf::Sampler& sampler = model.samplers[texture.sampler];
         osg::ref_ptr<osg::Image> osgImage = createImage(texture.source, model, cache);
         osgTexture2D->setResizeNonPowerOfTwoHint(false);
@@ -251,8 +389,25 @@ namespace xxx
         osgTexture2D->setFilter(osg::Texture::MAG_FILTER, static_cast<osg::Texture::FilterMode>(sampler.magFilter));
         osgTexture2D->setImage(osgImage);
 
+        createXXXTexture2D(index, model, cache, osgTexture2D);
         cache.textureMap.insert(std::make_pair(index, osgTexture2D));
         return osgTexture2D.release();
+    }
+
+    Texture2D* GLTFLoader::createXXXTexture2D(int index, tinygltf::Model& model, MapCache& cache, osg::Texture2D* osgTex)
+    {
+        auto found = cache.textureMap.find(index);
+        if (found != cache.textureMap.end())
+            return cache.textureOsgMap.at(found->second.get());
+
+        tinygltf::Texture& gltfTex = model.textures[index];
+        osg::ref_ptr<osg::Image> osgImage = createImage(gltfTex.source, model, cache);
+        TextureImportOptions options;
+        Texture2D* xxxTex = new Texture2D(osgImage, options);
+        xxxTex->setDataCompression(true);
+
+        cache.textureOsgMap.emplace(osgTex, xxxTex);
+        return xxxTex;
     }
 
     osg::Texture2D* GLTFLoader::createDefaultTexture(osg::Vec4 color)

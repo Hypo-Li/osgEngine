@@ -45,6 +45,24 @@ namespace xxx::editor
         std::array<osg::ref_ptr<osg::Operation>, 2> mOperations;
     };
 
+    struct MoveUpdateCallback : public osg::NodeCallback
+    {
+        virtual void operator()(osg::Node* node, osg::NodeVisitor* nv)
+        {
+            constexpr double speed = 100.0;
+            constexpr double range = 500.0;
+            osg::MatrixTransform* mt = node->asTransform()->asMatrixTransform();
+            osg::Vec3d trans = mt->getMatrix().getTrans();
+            static double sign = 1;
+            if (trans.x() > range)
+                sign = -1;
+            else if (trans.x() < -range)
+                sign = 1;
+            trans.x() += sign * speed;
+            mt->setMatrix(osg::Matrixd::translate(trans));
+            traverse(node, nv);
+        }
+    };
 
     class Editor
     {
@@ -99,6 +117,11 @@ namespace xxx::editor
             Context::get().setScene(scene);
 
             engineView->setSceneData(scene->getRootEntity()->getOsgNode());
+            osg::MatrixTransform* mt = scene->getRootEntity()->getOsgNode()->asTransform()->asMatrixTransform();
+            if (mt)
+            {
+                mt->addUpdateCallback(new MoveUpdateCallback);
+            }
 
             Context::get().getGraphicsContext()->releaseContext();
 

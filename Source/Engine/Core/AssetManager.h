@@ -94,6 +94,21 @@ namespace xxx
             // TODO: update Referenced Assets
         }
 
+        void deleteAsset(Asset* asset)
+        {
+            // TODO: check reference, remove from mPathAssetMap, mGuidAssetMap, mAssets;
+        }
+
+        Asset* copyAsset(Asset* srcAsset, const std::string& dstPath)
+        {
+            // TODO: create a new asset, and reset all object's guid
+        }
+
+        void moveAsset(Asset* srcAsset, const std::string& dstPath)
+        {
+            // TODO: fix reference
+        }
+
     private:
         std::set<osg::ref_ptr<Asset>> mAssets;
         std::map<std::string, Asset*> mPathAssetMap;

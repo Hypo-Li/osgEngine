@@ -42,12 +42,15 @@ out V2F
     vec4 color;
     vec4 texcoord0;
     vec4 texcoord1;
+    vec4 fragPosCS;
+    vec4 prevFragPosCS;
 } v2f;
 
 uniform mat4 osg_ModelViewMatrix;
 uniform mat4 osg_ProjectionMatrix;
 uniform mat4 osg_ViewMatrixInverse;
 uniform mat3 osg_NormalMatrix;
+uniform mat4 uPrevFrameMVPMatrix;
 
 layout(std140, binding = 0) uniform ViewData
 {
@@ -81,4 +84,7 @@ void main()
     v2f.color = iColor;
     v2f.texcoord0 = iTexcoord0;
     v2f.texcoord1 = iTexcoord1;
+
+    v2f.fragPosCS = uProjectionMatrix * viewSpace;
+    v2f.prevFragPosCS = uPrevFrameMVPMatrix * iPosition;
 }
